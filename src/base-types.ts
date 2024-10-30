@@ -1,0 +1,1 @@
+export type CollectionArray<T> = [T, number][]; 
