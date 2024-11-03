@@ -4,12 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "vitest"
+    "test": "vitest",
+    "format": "prettier --write ./src ./tests"
   },
   "keywords": [],
   "author": "Sam Willis",
   "license": "ISC",
   "dependencies": {
+    "prettier": "^3.3.3",
     "typescript": "^5.6.3",
     "vitest": "^2.1.4"
   }
