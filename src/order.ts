@@ -18,6 +18,10 @@ export class Version {
     }
   }
 
+  repr(): string {
+    return `Version(${JSON.stringify(this.#inner)})`
+  }
+
   #validateNumber(n: number): void {
     if (n < 0 || !Number.isInteger(n)) {
       throw new Error('Version numbers must be non-negative integers')
@@ -90,6 +94,10 @@ export class Version {
     elements[elements.length - 1] += step
     return new Version(elements)
   }
+
+  getInner(): number[] {
+    return [...this.#inner]
+  }
 }
 
 /**
@@ -105,6 +113,10 @@ export class Antichain {
     for (const element of elements) {
       this.#insert(element)
     }
+  }
+
+  repr(): string {
+    return `Antichain(${JSON.stringify(this.#inner.map((v) => v.getInner()))})`
   }
 
   #insert(element: Version): void {

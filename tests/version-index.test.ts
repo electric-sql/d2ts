@@ -16,7 +16,10 @@ describe('Index', () => {
       index.addValue('key1', version, [20, 2])
 
       const result = index.reconstructAt('key1', version)
-      expect(result).toEqual([[10, 1], [20, 2]])
+      expect(result).toEqual([
+        [10, 1],
+        [20, 2],
+      ])
     })
 
     test('should return empty array for non-existent key', () => {
@@ -28,7 +31,7 @@ describe('Index', () => {
     test('should return versions for a key', () => {
       const version1 = new Version([1])
       const version2 = new Version([2])
-      
+
       index.addValue('key1', version1, [10, 1])
       index.addValue('key1', version2, [20, 1])
 
@@ -50,7 +53,10 @@ describe('Index', () => {
 
       index.append(other)
 
-      expect(index.reconstructAt('key1', version)).toEqual([[10, 1], [20, 1]])
+      expect(index.reconstructAt('key1', version)).toEqual([
+        [10, 1],
+        [20, 1],
+      ])
       expect(index.reconstructAt('key2', version)).toEqual([[30, 1]])
     })
   })
@@ -65,10 +71,10 @@ describe('Index', () => {
 
       const result = index.join(other)
       expect(result).toHaveLength(1)
-      
+
       const [resultVersion, multiset] = result[0]
       expect(resultVersion).toEqual(version)
-      
+
       // The join should produce [key1, [10, 20]] with multiplicity 6 (2 * 3)
       const entries = multiset.getInner()
       expect(entries).toHaveLength(1)
@@ -100,7 +106,10 @@ describe('Index', () => {
       index.compact(frontier)
 
       const result = index.reconstructAt('key1', version2)
-      expect(result).toEqual([[10, -1], [10, 3]])
+      expect(result).toEqual([
+        [10, -1],
+        [10, 3],
+      ])
     })
 
     test('should throw error for invalid compaction frontier', () => {
@@ -130,4 +139,4 @@ describe('Index', () => {
       }).toThrow('Invalid version')
     })
   })
-}) 
+})

@@ -6,7 +6,7 @@ export const MessageType = {
   FRONTIER: 2,
 } as const
 
-export type MessageType = typeof MessageType[keyof typeof MessageType]
+export type MessageType = (typeof MessageType)[keyof typeof MessageType]
 
 export type Message<T> = {
   type: MessageType

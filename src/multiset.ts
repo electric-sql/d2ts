@@ -11,6 +11,10 @@ export class MultiSet<T> {
     this.#inner = data
   }
 
+  repr(): string {
+    return `MultiSet(${JSON.stringify(this.#inner)})`
+  }
+
   /**
    * Apply a function to all records in the collection.
    */
