@@ -106,10 +106,7 @@ describe('Index', () => {
       index.compact(frontier)
 
       const result = index.reconstructAt('key1', version2)
-      expect(result).toEqual([
-        [10, -1],
-        [10, 3],
-      ])
+      expect(result).toEqual([[10, 2]])
     })
 
     test('should throw error for invalid compaction frontier', () => {

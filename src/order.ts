@@ -98,6 +98,10 @@ export class Version {
   getInner(): number[] {
     return [...this.#inner]
   }
+
+  getHash(): string {
+    return this.#inner.join(',')
+  }
 }
 
 /**

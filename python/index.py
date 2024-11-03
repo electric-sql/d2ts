@@ -106,3 +106,56 @@ class Index:
             compaction_frontier
         )
         self.compaction_frontier = compaction_frontier
+
+
+if __name__ == "__main__":
+    # Basic operations tests
+    index = Index()
+    version1 = Version([1])
+    version2 = Version([2])
+    
+    # # Test add and reconstruct values
+    # index.add_value("key1", version1, (10, 1))
+    # index.add_value("key1", version1, (20, 2))
+    # assert index.reconstruct_at("key1", version1) == [(10, 1), (20, 2)]
+    
+    # # Test empty key reconstruction
+    # assert index.reconstruct_at("nonexistent", version1) == []
+    
+    # # Test versions for a key
+    # index.add_value("key1", version2, (20, 1))
+    # versions = index.versions("key1")
+    # assert len(versions) == 2
+    # assert version1 in versions
+    # assert version2 in versions
+    
+    # # Test append
+    # other_index = Index()
+    # other_index.add_value("key1", version1, (30, 1))
+    # other_index.add_value("key2", version1, (40, 1))
+    # index.append(other_index)
+    # assert index.reconstruct_at("key1", version1) == [(10, 1), (20, 2), (30, 1)]
+    # assert index.reconstruct_at("key2", version1) == [(40, 1)]
+    
+    # # Test join
+    # join_index1 = Index()
+    # join_index2 = Index()
+    # join_index1.add_value("key1", version1, (10, 2))
+    # join_index2.add_value("key1", version1, (20, 3))
+    # result = join_index1.join(join_index2)
+    # assert len(result) == 1
+    # result_version, multiset = result[0]
+    # assert result_version == version1
+    # assert multiset._inner == [(("key1", (10, 20)), 6)]  # 2 * 3 = 6
+    
+    # Test compaction
+    compact_index = Index()
+    frontier = Antichain([Version([2])])
+    compact_index.add_value("key1", version1, (10, 1))
+    compact_index.add_value("key1", version1, (10, 2))
+    compact_index.add_value("key1", version2, (10, -1))
+    compact_index.compact(frontier)
+    result = compact_index.reconstruct_at("key1", version2)
+    assert sorted(result) == [(10, 2)]
+    
+    print("All tests passed!")
