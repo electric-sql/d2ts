@@ -272,8 +272,12 @@ export class MultiSet<T> {
     return curr
   }
 
-  extend(other: MultiSetArray<T>): void {
-    this.#inner.push(...other)
+  extend(other: MultiSet<T> | MultiSetArray<T>): void {
+    if (other instanceof MultiSet) {
+      this.#inner.push(...other.getInner())
+    } else {
+      this.#inner.push(...other)
+    }
   }
 
   getInner(): MultiSetArray<T> {

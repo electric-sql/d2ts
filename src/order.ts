@@ -98,28 +98,28 @@ export class Version {
  * This keeps the min antichain.
  */
 export class Antichain {
-  elements: Version[]
+  #inner: Version[]
 
   constructor(elements: Version[]) {
-    this.elements = []
+    this.#inner = []
     for (const element of elements) {
       this.#insert(element)
     }
   }
 
   #insert(element: Version): void {
-    for (const e of this.elements) {
+    for (const e of this.#inner) {
       if (e.lessEqual(element)) {
         return
       }
     }
-    this.elements = this.elements.filter((x) => !element.lessEqual(x))
-    this.elements.push(element)
+    this.#inner = this.#inner.filter((x) => !element.lessEqual(x))
+    this.#inner.push(element)
   }
 
   meet(other: Antichain): Antichain {
     const out = new Antichain([])
-    for (const element of this.elements) {
+    for (const element of this.#inner) {
       out.#insert(element)
     }
     for (const element of other.elements) {
@@ -129,10 +129,10 @@ export class Antichain {
   }
 
   equals(other: Antichain): boolean {
-    if (this.elements.length !== other.elements.length) {
+    if (this.#inner.length !== other.elements.length) {
       return false
     }
-    const sorted1 = [...this.elements].sort()
+    const sorted1 = [...this.#inner].sort()
     const sorted2 = [...other.elements].sort()
     return sorted1.every((v, i) => v.equals(sorted2[i]))
   }
@@ -144,7 +144,7 @@ export class Antichain {
   lessEqual(other: Antichain): boolean {
     for (const o of other.elements) {
       let lessEqual = false
-      for (const s of this.elements) {
+      for (const s of this.#inner) {
         if (s.lessEqual(o)) {
           lessEqual = true
           break
@@ -158,7 +158,7 @@ export class Antichain {
   }
 
   lessEqualVersion(version: Version): boolean {
-    for (const elem of this.elements) {
+    for (const elem of this.#inner) {
       if (elem.lessEqual(version)) {
         return true
       }
@@ -167,12 +167,12 @@ export class Antichain {
   }
 
   isEmpty(): boolean {
-    return this.elements.length === 0
+    return this.#inner.length === 0
   }
 
   extend(): Antichain {
     const out = new Antichain([])
-    for (const elem of this.elements) {
+    for (const elem of this.#inner) {
       out.#insert(elem.extend())
     }
     return out
@@ -180,7 +180,7 @@ export class Antichain {
 
   truncate(): Antichain {
     const out = new Antichain([])
-    for (const elem of this.elements) {
+    for (const elem of this.#inner) {
       out.#insert(elem.truncate())
     }
     return out
@@ -188,9 +188,13 @@ export class Antichain {
 
   applyStep(step: number): Antichain {
     const out = new Antichain([])
-    for (const elem of this.elements) {
+    for (const elem of this.#inner) {
       out.#insert(elem.applyStep(step))
     }
     return out
+  }
+
+  get elements(): Version[] {
+    return [...this.#inner]
   }
 }

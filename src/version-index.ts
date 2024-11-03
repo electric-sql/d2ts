@@ -94,8 +94,8 @@ export class Index<K, V> {
     }
   }
 
-  join(other: Index<K, V>): [Version, MultiSet<[K, [V, V]]>][] {
-    const collections = new Map<Version, [K, [V, V], number][]>()
+  join<V2>(other: Index<K, V2>): [Version, MultiSet<[K, [V, V2]]>][] {
+    const collections = new Map<Version, [K, [V, V2], number][]>()
 
     for (const [key, versions] of this.#inner) {
       if (!other.#inner.has(key)) continue
