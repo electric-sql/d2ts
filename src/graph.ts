@@ -2,7 +2,7 @@
  * The implementation of dataflow graph edge, node, and graph objects, used to run a dataflow program.
  */
 
-import { MultiSetArray } from './multiset'
+import { MultiSet } from './multiset'
 import { Version, Antichain } from './order'
 import {
   Message,
@@ -57,7 +57,7 @@ export class DifferenceStreamWriter<T> {
   #queues: Message<T>[][] = []
   frontier: Antichain | null = null
 
-  sendData(version: Version, collection: MultiSetArray<T>): void {
+  sendData(version: Version, collection: MultiSet<T>): void {
     if (this.frontier) {
       if (!this.frontier.lessEqualVersion(version)) {
         throw new Error('Invalid version')
@@ -100,14 +100,14 @@ export abstract class Operator<T> implements IOperator<T> {
   protected output: DifferenceStreamWriter<T>
   protected f: () => void
   protected pendingWork = false
-  protected inputFrontiers: Version[]
-  protected outputFrontier: Version
+  protected inputFrontiers: Antichain[]
+  protected outputFrontier: Antichain
 
   constructor(
     inputs: DifferenceStreamReader<T>[],
     output: DifferenceStreamWriter<T>,
     f: () => void,
-    initialFrontier: Version,
+    initialFrontier: Antichain,
   ) {
     this.inputs = inputs
     this.output = output
@@ -125,7 +125,7 @@ export abstract class Operator<T> implements IOperator<T> {
     return this.inputs.some((input) => !input.isEmpty())
   }
 
-  frontiers(): [Version[], Version] {
+  frontiers(): [Antichain[], Antichain] {
     return [this.inputFrontiers, this.outputFrontier]
   }
 }
@@ -139,7 +139,7 @@ export class UnaryOperator<T> extends Operator<T> {
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     f: () => void,
-    initialFrontier: Version,
+    initialFrontier: Antichain,
   ) {
     super([inputA], output, f, initialFrontier)
   }
@@ -148,11 +148,11 @@ export class UnaryOperator<T> extends Operator<T> {
     return this.inputs[0].drain()
   }
 
-  inputFrontier(): Version {
+  inputFrontier(): Antichain {
     return this.inputFrontiers[0]
   }
 
-  setInputFrontier(frontier: Version): void {
+  setInputFrontier(frontier: Antichain): void {
     this.inputFrontiers[0] = frontier
   }
 }
@@ -167,7 +167,7 @@ export class BinaryOperator<T> extends Operator<T> {
     inputB: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     f: () => void,
-    initialFrontier: Version,
+    initialFrontier: Antichain,
   ) {
     super([inputA, inputB], output, f, initialFrontier)
   }
@@ -176,11 +176,11 @@ export class BinaryOperator<T> extends Operator<T> {
     return this.inputs[0].drain()
   }
 
-  inputAFrontier(): Version {
+  inputAFrontier(): Antichain {
     return this.inputFrontiers[0]
   }
 
-  setInputAFrontier(frontier: Version): void {
+  setInputAFrontier(frontier: Antichain): void {
     this.inputFrontiers[0] = frontier
   }
 
@@ -188,11 +188,11 @@ export class BinaryOperator<T> extends Operator<T> {
     return this.inputs[1].drain()
   }
 
-  inputBFrontier(): Version {
+  inputBFrontier(): Antichain {
     return this.inputFrontiers[1]
   }
 
-  setInputBFrontier(frontier: Version): void {
+  setInputBFrontier(frontier: Antichain): void {
     this.inputFrontiers[1] = frontier
   }
 }

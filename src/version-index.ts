@@ -50,7 +50,7 @@ export class Index<K, V> {
     if (!versions) return out
 
     for (const [version, values] of versions.entries()) {
-      if (version instanceof Version && version.lessEqual(requestedVersion)) {
+      if (version.lessEqual(requestedVersion)) {
         out.push(...values)
       }
     }
@@ -106,10 +106,7 @@ export class Index<K, V> {
         for (const [version2, data2] of otherVersions) {
           for (const [val1, mul1] of data1) {
             for (const [val2, mul2] of data2) {
-              const resultVersion =
-                version1 instanceof Version && version2 instanceof Version
-                  ? version1.join(version2)
-                  : new Version([0]) // fallback for number versions
+              const resultVersion = version1.join(version2)
 
               if (!collections.has(resultVersion)) {
                 collections.set(resultVersion, [])
@@ -133,6 +130,13 @@ export class Index<K, V> {
   }
 
   compact(compactionFrontier: Antichain, keys: K[] = []): void {
+    if (
+      this.#compactionFrontier &&
+      !this.#compactionFrontier.lessEqual(compactionFrontier)
+    ) {
+      throw new Error('Invalid compaction frontier')
+    }
+
     this.#validate(compactionFrontier)
 
     const consolidateValues = (values: [V, number][]): [V, number][] => {
@@ -156,9 +160,7 @@ export class Index<K, V> {
       if (!versions) continue
 
       const toCompact = Array.from(versions.keys()).filter(
-        (version) =>
-          version instanceof Version &&
-          !compactionFrontier.lessEqualVersion(version),
+        (version) => !compactionFrontier.lessEqualVersion(version),
       )
 
       const toConsolidate = new Set<Version>()
@@ -167,10 +169,7 @@ export class Index<K, V> {
         const values = versions.get(version)!
         versions.delete(version)
 
-        const newVersion =
-          version instanceof Version
-            ? version.advanceBy(compactionFrontier)
-            : new Version([0]) // fallback for number versions
+        const newVersion = version.advanceBy(compactionFrontier)
 
         if (!versions.has(newVersion)) {
           versions.set(newVersion, [])
@@ -183,13 +182,6 @@ export class Index<K, V> {
         const values = versions.get(version)!
         versions.set(version, consolidateValues(values))
       }
-    }
-
-    if (
-      this.#compactionFrontier &&
-      !this.#compactionFrontier.lessEqual(compactionFrontier)
-    ) {
-      throw new Error('Invalid compaction frontier')
     }
 
     this.#compactionFrontier = compactionFrontier

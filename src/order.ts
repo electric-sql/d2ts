@@ -24,6 +24,12 @@ export class Version {
     }
   }
 
+  #validate(other: Version): void {
+    if (this.#inner.length !== other.#inner.length) {
+      throw new Error('Version dimensions must match')
+    }
+  }
+
   equals(other: Version): boolean {
     return (
       this.#inner.length === other.#inner.length &&
@@ -53,12 +59,6 @@ export class Version {
     this.#validate(other)
     const out = this.#inner.map((v, i) => Math.min(v, other.#inner[i]))
     return new Version(out)
-  }
-
-  #validate(other: Version): void {
-    if (this.#inner.length !== other.#inner.length) {
-      throw new Error('Version dimensions must match')
-    }
   }
 
   advanceBy(frontier: Antichain): Version {

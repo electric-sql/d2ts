@@ -1,10 +1,12 @@
 import { Version, Antichain } from './order'
-import { MultiSetArray } from './multiset'
+import { MultiSet } from './multiset'
 
-export enum MessageType {
-  DATA = 1,
-  FRONTIER = 2,
-}
+export const MessageType = {
+  DATA: 1,
+  FRONTIER: 2,
+} as const
+
+export type MessageType = typeof MessageType[keyof typeof MessageType]
 
 export type Message<T> = {
   type: MessageType
@@ -13,7 +15,7 @@ export type Message<T> = {
 
 export type DataMessage<T> = {
   version: Version
-  collection: MultiSetArray<T>
+  collection: MultiSet<T>
 }
 
 export type FrontierMessage = Version | Antichain
@@ -21,5 +23,5 @@ export type FrontierMessage = Version | Antichain
 export interface IOperator<_T> {
   run(): void
   hasPendingWork(): boolean
-  frontiers(): [Version[], Version]
+  frontiers(): [Antichain[], Antichain]
 }
