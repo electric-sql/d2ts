@@ -102,6 +102,117 @@ export class DifferenceStreamBuilder<T> {
     this.#graph.addStream(output.connectReader())
     return output
   }
+
+  join<K, V2>(
+    other: DifferenceStreamBuilder<[K, V2]>,
+  ): DifferenceStreamBuilder<[K, [T, V2]]> {
+    if (this.#graph !== other.#graph) {
+      throw new Error('Cannot join streams from different graphs')
+    }
+    const output = new DifferenceStreamBuilder<[K, [T, V2]]>(this.#graph)
+    const operator = new JoinOperator<K, T, V2>(
+      this.connectReader(),
+      other.connectReader(),
+      output.writer(),
+      this.#graph.frontier(),
+    )
+    this.#graph.addOperator(operator)
+    this.#graph.addStream(output.connectReader())
+    return output
+  }
+
+  count<K, V>(
+    this: DifferenceStreamBuilder<[K, V]>,
+  ): DifferenceStreamBuilder<[K, number]> {
+    const output = new DifferenceStreamBuilder<[K, number]>(this.#graph)
+    const operator = new CountOperator<K, V>(
+      this.connectReader(),
+      output.writer(),
+      this.#graph.frontier(),
+    )
+    this.#graph.addOperator(operator)
+    this.#graph.addStream(output.connectReader())
+    return output
+  }
+
+  distinct<K, V>(
+    this: DifferenceStreamBuilder<[K, V]>,
+  ): DifferenceStreamBuilder<[K, V]> {
+    const output = new DifferenceStreamBuilder<[K, V]>(this.#graph)
+    const operator = new DistinctOperator<K, V>(
+      this.connectReader(),
+      output.writer(),
+      this.#graph.frontier(),
+    )
+    this.#graph.addOperator(operator)
+    this.#graph.addStream(output.connectReader())
+    return output
+  }
+
+  consolidate(): DifferenceStreamBuilder<T> {
+    const output = new DifferenceStreamBuilder<T>(this.#graph)
+    const operator = new ConsolidateOperator<T>(
+      this.connectReader(),
+      output.writer(),
+      this.#graph.frontier(),
+    )
+    this.#graph.addOperator(operator)
+    this.#graph.addStream(output.connectReader())
+    return output
+  }
+
+  #startScope(): void {
+    const newFrontier = this.#graph.frontier().extend()
+    this.#graph.pushFrontier(newFrontier)
+  }
+
+  #endScope(): void {
+    this.#graph.popFrontier()
+  }
+
+  #ingress(): DifferenceStreamBuilder<T> {
+    const output = new DifferenceStreamBuilder<T>(this.#graph)
+    const operator = new IngressOperator<T>(
+      this.connectReader(),
+      output.writer(),
+      this.#graph.frontier(),
+    )
+    this.#graph.addOperator(operator)
+    this.#graph.addStream(output.connectReader())
+    return output
+  }
+
+  #egress(): DifferenceStreamBuilder<T> {
+    const output = new DifferenceStreamBuilder<T>(this.#graph)
+    const operator = new EgressOperator<T>(
+      this.connectReader(),
+      output.writer(),
+      this.#graph.frontier(),
+    )
+    this.#graph.addOperator(operator)
+    this.#graph.addStream(output.connectReader())
+    return output
+  }
+
+  iterate(
+    f: (stream: DifferenceStreamBuilder<T>) => DifferenceStreamBuilder<T>,
+  ): DifferenceStreamBuilder<T> {
+    // TODO: I think the types are wrong here
+    this.#startScope()
+    const feedbackStream = new DifferenceStreamBuilder<T>(this.#graph)
+    const entered = this.#ingress().concat(feedbackStream)
+    const result = f(entered)
+    const feedbackOperator = new FeedbackOperator<T>(
+      result.connectReader(),
+      1,
+      feedbackStream.writer(),
+      this.#graph.frontier(),
+    )
+    this.#graph.addStream(feedbackStream.connectReader())
+    this.#graph.addOperator(feedbackOperator)
+    this.#endScope()
+    return result.#egress()
+  }
 }
 
 /**

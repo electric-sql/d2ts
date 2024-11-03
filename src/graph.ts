@@ -27,7 +27,7 @@ export class DifferenceStreamReader<T> {
   }
 
   drain(): Message<T>[] {
-    const out = [...this.#queue]
+    const out = [...this.#queue].reverse()
     this.#queue.length = 0
     return out
   }

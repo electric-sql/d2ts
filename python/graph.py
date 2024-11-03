@@ -3,7 +3,6 @@
 from collections import deque
 from enum import Enum
 
-
 class MessageType(Enum):
     DATA = 1
     FRONTIER = 2
@@ -24,7 +23,6 @@ class DifferenceStreamReader:
         out = []
         while len(self._queue) > 0:
             out.append(self._queue.pop())
-
         return out
 
     def is_empty(self):
