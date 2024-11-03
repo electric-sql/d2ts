@@ -20,6 +20,8 @@ from graph import (
 from index import Index
 from order import Version, Antichain
 
+from pprint import pprint
+
 
 class DifferenceStreamBuilder:
     """A representation of a dataflow edge as the dataflow graph is being built.
@@ -598,6 +600,7 @@ class EgressOperator(UnaryOperator):
 
 
 if __name__ == "__main__":
+    print('===')
     graph_builder = GraphBuilder(Antichain([Version([0, 0])]))
     input_a, input_a_writer = graph_builder.new_input()
     output = input_a.map(lambda data: data + 5).filter(lambda data: data % 2 == 0)
@@ -609,6 +612,7 @@ if __name__ == "__main__":
         input_a_writer.send_frontier(Antichain([Version([i, 0]), Version([0, i])]))
         graph.step()
 
+    print('===')
     graph_builder = GraphBuilder(Antichain([Version([0, 0])]))
     input_a, input_a_writer = graph_builder.new_input()
     input_b, input_b_writer = graph_builder.new_input()
@@ -627,41 +631,43 @@ if __name__ == "__main__":
         input_b_writer.send_frontier(Antichain([Version([i, 0]), Version([0, i * 2])]))
         graph.step()
 
-    # input_a_writer.send_frontier(Antichain([Version([11, 11])]))
-    # input_b_writer.send_frontier(Antichain([Version([11, 11])]))
-    # graph.step()
+    input_a_writer.send_frontier(Antichain([Version([11, 11])]))
+    input_b_writer.send_frontier(Antichain([Version([11, 11])]))
+    graph.step()
 
-    # graph_builder = GraphBuilder(Antichain([Version(0)]))
-    # input_a, input_a_writer = graph_builder.new_input()
+    print('===')
 
-    # def geometric_series(collection):
-    #     return (
-    #         collection.map(lambda data: data * 2)
-    #         .concat(collection)
-    #         .filter(lambda data: data <= 50)
-    #         .map(lambda data: (data, ()))
-    #         .distinct()
-    #         .map(lambda data: data[0])
-    #         .consolidate()
-    #     )
+    graph_builder = GraphBuilder(Antichain([Version(0)]))
+    input_a, input_a_writer = graph_builder.new_input()
 
-    # output = input_a.iterate(geometric_series).debug("iterate").connect_reader()
-    # graph = graph_builder.finalize()
+    def geometric_series(collection):
+        return (
+            collection.map(lambda data: data * 2)
+            .concat(collection)
+            .filter(lambda data: data <= 50)
+            .map(lambda data: (data, ()))
+            .distinct()
+            .map(lambda data: data[0])
+            .consolidate()
+        )
 
-    # input_a_writer.send_data(Version(0), Collection([(1, 1)]))
-    # input_a_writer.send_frontier(Antichain([Version(1)]))
+    output = input_a.iterate(geometric_series).debug("iterate").connect_reader()
+    graph = graph_builder.finalize()
 
-    # while output.probe_frontier_less_than(Antichain([Version(1)])):
-    #     graph.step()
+    input_a_writer.send_data(Version(0), Collection([(1, 1)]))
+    input_a_writer.send_frontier(Antichain([Version(1)]))
 
-    # input_a_writer.send_data(Version(1), Collection([(16, 1), (3, 1)]))
-    # input_a_writer.send_frontier(Antichain([Version(2)]))
+    while output.probe_frontier_less_than(Antichain([Version(1)])):
+        graph.step()
 
-    # while output.probe_frontier_less_than(Antichain([Version(2)])):
-    #     graph.step()
+    input_a_writer.send_data(Version(1), Collection([(16, 1), (3, 1)]))
+    input_a_writer.send_frontier(Antichain([Version(2)]))
 
-    # input_a_writer.send_data(Version(2), Collection([(3, -1)]))
-    # input_a_writer.send_frontier(Antichain([Version(3)]))
+    while output.probe_frontier_less_than(Antichain([Version(2)])):
+        graph.step()
 
-    # while output.probe_frontier_less_than(Antichain([Version(3)])):
-    #     graph.step()
+    input_a_writer.send_data(Version(2), Collection([(3, -1)]))
+    input_a_writer.send_frontier(Antichain([Version(3)]))
+
+    while output.probe_frontier_less_than(Antichain([Version(3)])):
+        graph.step()

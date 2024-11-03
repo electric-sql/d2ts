@@ -27,6 +27,10 @@ export class Index<K, V> {
     this.#compactionFrontier = null
   }
 
+  repr(): string {
+    return `Index(${JSON.stringify([...this.#inner].map(([k, v]) => [k, [...v.entries()]]))})`
+  }
+
   #validate(requestedVersion: Version | Antichain): boolean {
     if (!this.#compactionFrontier) return true
 
@@ -96,7 +100,7 @@ export class Index<K, V> {
   }
 
   join<V2>(other: Index<K, V2>): [Version, MultiSet<[K, [V, V2]]>][] {
-    const collections = new Map<Version, [K, [V, V2], number][]>()
+    const collections = new Map<string, [Version, [K, [V, V2], number][]]>()
 
     for (const [key, versions] of this.#inner) {
       if (!other.#inner.has(key)) continue
@@ -108,13 +112,14 @@ export class Index<K, V> {
           for (const [val1, mul1] of data1) {
             for (const [val2, mul2] of data2) {
               const resultVersion = version1.join(version2)
+              const hash = resultVersion.getHash()
 
-              if (!collections.has(resultVersion)) {
-                collections.set(resultVersion, [])
+              if (!collections.has(hash)) {
+                collections.set(hash, [resultVersion, []])
               }
 
               collections
-                .get(resultVersion)!
+                .get(hash)![1]
                 .push([key, [val1, val2], mul1 * mul2])
             }
           }
@@ -123,8 +128,8 @@ export class Index<K, V> {
     }
 
     return Array.from(collections.entries())
-      .filter(([_, c]) => c.length > 0)
-      .map(([version, data]) => [
+      .filter(([_, [_v, c]]) => c.length > 0)
+      .map(([_, [version, data]]) => [
         version,
         new MultiSet(data.map(([k, v, m]) => [[k, v], m])),
       ])
