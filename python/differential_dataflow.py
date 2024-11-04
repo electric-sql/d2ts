@@ -648,7 +648,9 @@ if __name__ == "__main__":
             .map(lambda data: (data, ()))
             .distinct()
             .map(lambda data: data[0])
+            # .debug("map")
             .consolidate()
+            # .debug("consolidate")
         )
 
     output = input_a.iterate(geometric_series).debug("iterate").connect_reader()

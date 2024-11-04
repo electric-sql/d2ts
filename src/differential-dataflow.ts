@@ -717,13 +717,14 @@ export class DistinctOperator<K, V> extends ReduceOperator<K, V, V> {
     initialFrontier: Antichain,
   ) {
     const distinctInner = (vals: [V, number][]): [V, number][] => {
-      const consolidated = new Map<V, number>()
+      const consolidated = new Map<string, number>()
       for (const [val, diff] of vals) {
-        consolidated.set(val, (consolidated.get(val) || 0) + diff)
+        const key = JSON.stringify(val)
+        consolidated.set(key, (consolidated.get(key) || 0) + diff)
       }
       return Array.from(consolidated.entries())
         .filter(([_, count]) => count > 0)
-        .map(([val, _]) => [val, 1])
+        .map(([key, _]) => [JSON.parse(key) as V, 1])
     }
 
     super(inputA, output, distinctInner, initialFrontier)

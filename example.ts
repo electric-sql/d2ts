@@ -74,7 +74,9 @@ import { Antichain, Version } from './src/order'
       .map((x) => [x, []])
       .distinct()
       .map((x) => x[0])
+      // .debug('map')
       .consolidate() as DifferenceStreamBuilder<number>
+      // .debug('consolidate') as DifferenceStreamBuilder<number>
   }
 
   const output = input_a.iterate(geometricSeries).debug('iterate').connectReader()
