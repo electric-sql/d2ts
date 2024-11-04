@@ -12,7 +12,7 @@ export class MultiSet<T> {
   }
 
   repr(): string {
-    return `MultiSet(${JSON.stringify(this.#inner)})`
+    return `MultiSet(${JSON.stringify(this.#inner, null, 2)})`
   }
 
   /**

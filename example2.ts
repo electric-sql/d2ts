@@ -157,3 +157,151 @@ writer_issues.sendFrontier(new Antichain([new Version([3, 0])]))
 writer_users.sendFrontier(new Antichain([new Version([3, 0])]))
 
 graph.step()
+
+/*
+Output:
+
+debug map data: version: Version([1,0]) collection: MultiSet([
+  [
+    [
+      1,
+      {
+        "id": 1,
+        "title": "Fix login bug",
+        "user_name": "Alice Johnson"
+      }
+    ],
+    1
+  ],
+  [
+    [
+      2,
+      {
+        "id": 2,
+        "title": "Add dark mode",
+        "user_name": "Alice Johnson"
+      }
+    ],
+    1
+  ],
+  [
+    [
+      3,
+      {
+        "id": 3,
+        "title": "Performance optimization",
+        "user_name": "Alice Johnson"
+      }
+    ],
+    1
+  ],
+  [
+    [
+      4,
+      {
+        "id": 4,
+        "title": "Mobile responsiveness",
+        "user_name": "Bob Smith"
+      }
+    ],
+    1
+  ],
+  [
+    [
+      5,
+      {
+        "id": 5,
+        "title": "Update dependencies",
+        "user_name": "Bob Smith"
+      }
+    ],
+    1
+  ],
+  [
+    [
+      6,
+      {
+        "id": 6,
+        "title": "Add unit tests",
+        "user_name": "Bob Smith"
+      }
+    ],
+    1
+  ],
+  [
+    [
+      7,
+      {
+        "id": 7,
+        "title": "Fix typos in docs",
+        "user_name": "Bob Smith"
+      }
+    ],
+    1
+  ],
+  [
+    [
+      8,
+      {
+        "id": 8,
+        "title": "Add search feature",
+        "user_name": "Carol Williams"
+      }
+    ],
+    1
+  ],
+  [
+    [
+      9,
+      {
+        "id": 9,
+        "title": "Improve error handling",
+        "user_name": "Carol Williams"
+      }
+    ],
+    1
+  ],
+  [
+    [
+      10,
+      {
+        "id": 10,
+        "title": "Code cleanup",
+        "user_name": "Carol Williams"
+      }
+    ],
+    1
+  ]
+])
+debug map notification: frontier Antichain([[1,0]])
+debug map data: version: Version([2,0]) collection: MultiSet([
+  [
+    [
+      11,
+      {
+        "id": 11,
+        "title": "New issue",
+        "user_name": "Alice Johnson"
+      }
+    ],
+    1
+  ]
+])
+debug map notification: frontier Antichain([[2,0]])
+debug map data: version: Version([3,0]) collection: MultiSet([
+  [
+    [
+      1,
+      {
+        "id": 1,
+        "title": "Fix login bug",
+        "user_name": "Alice Johnson"
+      }
+    ],
+    -1
+  ]
+])
+debug map notification: frontier Antichain([[3,0]])
+
+
+*/
