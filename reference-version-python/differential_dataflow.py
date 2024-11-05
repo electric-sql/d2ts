@@ -606,7 +606,7 @@ if __name__ == "__main__":
     graph_builder = GraphBuilder(Antichain([Version([0, 0])]))
     input_a, input_a_writer = graph_builder.new_input()
     output = input_a.map(lambda data: data + 5).filter(lambda data: data % 2 == 0)
-    input_a.negate().concat(output).debug("output")
+    input_a.negate().concat(output)#.debug("output")
     graph = graph_builder.finalize()
 
     for i in range(0, 10):
@@ -621,7 +621,7 @@ if __name__ == "__main__":
     input_a, input_a_writer = graph_builder.new_input()
     input_b, input_b_writer = graph_builder.new_input()
 
-    input_a.join(input_b).count().debug("count")
+    input_a.join(input_b).count()#.debug("count")
     graph = graph_builder.finalize()
 
     for i in range(0, 2):
@@ -664,7 +664,10 @@ if __name__ == "__main__":
             # .debug("consolidate")
         )
 
-    output = input_a.iterate(geometric_series).debug("iterate").connect_reader()
+    output = (input_a
+        .iterate(geometric_series)
+        # .debug("iterate")
+        .connect_reader())
     graph = graph_builder.finalize()
 
     input_a_writer.send_data(Version(0), Collection([(1, 1)]))
