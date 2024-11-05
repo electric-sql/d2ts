@@ -2,6 +2,7 @@ import { DifferenceStreamBuilder, GraphBuilder } from './src/differential-datafl
 import { MultiSet } from './src/multiset'
 import { Antichain, Version } from './src/order'
 
+console.time('one')
 {
   console.log('===')
 
@@ -23,7 +24,9 @@ import { Antichain, Version } from './src/order'
     graph.step()
   }
 }
+console.timeEnd('one')
 
+console.time('two')
 {
   console.log('===')
 
@@ -58,7 +61,9 @@ import { Antichain, Version } from './src/order'
   writer_b.sendFrontier(new Antichain([new Version([11, 11])]))
   graph.step()
 }
+console.timeEnd('two')
 
+console.time('three')
 {
   console.log('===')
 
@@ -68,13 +73,17 @@ import { Antichain, Version } from './src/order'
 
   const geometricSeries = (stream: DifferenceStreamBuilder<number>): DifferenceStreamBuilder<number> => {
     return stream
+      // .debug('stream')
       .map((x) => x * 2)
       .concat(stream)
       .filter((x) => x <= 50)
+      // .debug('filter')
       .map((x) => [x, []])
+      // .debug('map1')
       .distinct()
+      // .debug('distinct')
       .map((x) => x[0])
-      // .debug('map')
+      // .debug('map2')
       .consolidate() as DifferenceStreamBuilder<number>
       // .debug('consolidate') as DifferenceStreamBuilder<number>
   }
@@ -103,3 +112,4 @@ import { Antichain, Version } from './src/order'
     graph.step()
   }
 }
+console.timeEnd('three')

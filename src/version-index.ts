@@ -118,9 +118,7 @@ export class Index<K, V> {
                 collections.set(hash, [resultVersion, []])
               }
 
-              collections
-                .get(hash)![1]
-                .push([key, [val1, val2], mul1 * mul2])
+              collections.get(hash)![1].push([key, [val1, val2], mul1 * mul2])
             }
           }
         }

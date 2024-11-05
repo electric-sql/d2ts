@@ -21,6 +21,7 @@ from index import Index
 from order import Version, Antichain
 
 from pprint import pprint
+import time
 
 
 class DifferenceStreamBuilder:
@@ -600,6 +601,7 @@ class EgressOperator(UnaryOperator):
 
 
 if __name__ == "__main__":
+    start = time.time()
     print('===')
     graph_builder = GraphBuilder(Antichain([Version([0, 0])]))
     input_a, input_a_writer = graph_builder.new_input()
@@ -611,7 +613,9 @@ if __name__ == "__main__":
         input_a_writer.send_data(Version([0, i]), Collection([(i, 1)]))
         input_a_writer.send_frontier(Antichain([Version([i, 0]), Version([0, i])]))
         graph.step()
+    print(f'time: {(time.time() - start)*1000}ms')
 
+    start = time.time()
     print('===')
     graph_builder = GraphBuilder(Antichain([Version([0, 0])]))
     input_a, input_a_writer = graph_builder.new_input()
@@ -634,7 +638,9 @@ if __name__ == "__main__":
     input_a_writer.send_frontier(Antichain([Version([11, 11])]))
     input_b_writer.send_frontier(Antichain([Version([11, 11])]))
     graph.step()
+    print(f'time: {(time.time() - start)*1000}ms')
 
+    start = time.time()
     print('===')
 
     graph_builder = GraphBuilder(Antichain([Version(0)]))
@@ -642,13 +648,18 @@ if __name__ == "__main__":
 
     def geometric_series(collection):
         return (
-            collection.map(lambda data: data * 2)
+            collection
+            # .debug("stream")
+            .map(lambda data: data * 2)
             .concat(collection)
             .filter(lambda data: data <= 50)
+            # .debug("filter")
             .map(lambda data: (data, ()))
+            # .debug("map1")
             .distinct()
+            # .debug("distinct")
             .map(lambda data: data[0])
-            # .debug("map")
+            # .debug("map2")
             .consolidate()
             # .debug("consolidate")
         )
@@ -673,3 +684,5 @@ if __name__ == "__main__":
 
     while output.probe_frontier_less_than(Antichain([Version(3)])):
         graph.step()
+
+    print(f'time: {(time.time() - start)*1000}ms')

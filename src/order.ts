@@ -100,7 +100,11 @@ export class Version {
   }
 
   getHash(): string {
-    return this.#inner.join(',')
+    return JSON.stringify(this.#inner)
+  }
+
+  static fromHash(hash: string): Version {
+    return new Version(JSON.parse(hash))
   }
 }
 

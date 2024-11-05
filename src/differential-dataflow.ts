@@ -122,8 +122,7 @@ export class DifferenceStreamBuilder<T> {
     return output
   }
 
-  count<K, V>(
-  ): DifferenceStreamBuilder<[K, number]> {
+  count<K, V>(): DifferenceStreamBuilder<[K, number]> {
     const output = new DifferenceStreamBuilder<[K, number]>(this.#graph)
     const operator = new CountOperator<K, V>(
       // @ts-expect-error
@@ -136,8 +135,7 @@ export class DifferenceStreamBuilder<T> {
     return output
   }
 
-  distinct<K, V>(
-  ): DifferenceStreamBuilder<[K, V]> {
+  distinct<K, V>(): DifferenceStreamBuilder<[K, V]> {
     const output = new DifferenceStreamBuilder<[K, V]>(this.#graph)
     const operator = new DistinctOperator<K, V>(
       // @ts-expect-error
@@ -448,7 +446,7 @@ export class ConsolidateOperator<T> extends UnaryOperator<T> {
         if (message.type === MessageType.DATA) {
           const { version, collection } = message.data as DataMessage<T>
           const hash = version.getHash()
-          const existing = this.#collections.has(hash) 
+          const existing = this.#collections.has(hash)
             ? this.#collections.get(hash)![1]
             : new MultiSet<T>()
           existing.extend(collection)
@@ -463,8 +461,9 @@ export class ConsolidateOperator<T> extends UnaryOperator<T> {
       }
 
       // Find versions that are complete (not covered by input frontier)
-      const finishedVersions = Array.from(this.#collections.values())
-        .filter(([version]) => !this.inputFrontier().lessEqualVersion(version))
+      const finishedVersions = Array.from(this.#collections.values()).filter(
+        ([version]) => !this.inputFrontier().lessEqualVersion(version),
+      )
 
       // Process and remove finished versions
       for (const [version, collection] of finishedVersions) {
@@ -648,16 +647,22 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
           const out = f(curr)
 
           // Calculate delta between current and previous output
-          const delta = new Map<V2, number>()
+          const delta = new Map<string, number>()
+          const values = new Map<string, V2>()
           for (const [value, multiplicity] of out) {
-            delta.set(value, (delta.get(value) || 0) + multiplicity)
+            const valueKey = JSON.stringify(value)
+            values.set(valueKey, value)
+            delta.set(valueKey, (delta.get(valueKey) || 0) + multiplicity)
           }
           for (const [value, multiplicity] of currOut) {
-            delta.set(value, (delta.get(value) || 0) - multiplicity)
+            const valueKey = JSON.stringify(value)
+            values.set(valueKey, value)
+            delta.set(valueKey, (delta.get(valueKey) || 0) - multiplicity)
           }
 
           // Add non-zero deltas to result
-          for (const [value, multiplicity] of delta) {
+          for (const [valueKey, multiplicity] of delta) {
+            const value = values.get(valueKey)!
             if (multiplicity !== 0) {
               result.push([[key, value], multiplicity])
               this.#indexOut.addValue(key, version, [value, multiplicity])
@@ -718,13 +723,15 @@ export class DistinctOperator<K, V> extends ReduceOperator<K, V, V> {
   ) {
     const distinctInner = (vals: [V, number][]): [V, number][] => {
       const consolidated = new Map<string, number>()
+      const values = new Map<string, V>()
       for (const [val, diff] of vals) {
         const key = JSON.stringify(val)
         consolidated.set(key, (consolidated.get(key) || 0) + diff)
+        values.set(key, val)
       }
       return Array.from(consolidated.entries())
         .filter(([_, count]) => count > 0)
-        .map(([key, _]) => [JSON.parse(key) as V, 1])
+        .map(([key, _]) => [values.get(key) as V, 1])
     }
 
     super(inputA, output, distinctInner, initialFrontier)
@@ -816,13 +823,12 @@ export class EgressOperator<T> extends UnaryOperator<T> {
  * 3. Determining when iterations are complete
  */
 export class FeedbackOperator<T> extends UnaryOperator<T> {
-  // Map from top-level version hash -> set of messages where we have
+  // Map from top-level version -> set of messages where we have
   // sent some data at that version
-  #inFlightData = new Map<string, Set<Version>>()
-
+  #inFlightData = new Map<string, Set<string>>()
   // Versions where a given top-level version has updated
-  // its iteration without sending any data
-  #emptyVersions = new Map<string, Set<Version>>()
+  // its iteration without sending any data.
+  #emptyVersions = new Map<string, Set<string>>()
 
   constructor(
     inputA: DifferenceStreamReader<T>,
@@ -842,10 +848,10 @@ export class FeedbackOperator<T> extends UnaryOperator<T> {
           // Record that we sent data at this version
           let inFlightSet = this.#inFlightData.get(truncatedHash)
           if (!inFlightSet) {
-            inFlightSet = new Set<Version>()
+            inFlightSet = new Set<string>()
             this.#inFlightData.set(truncatedHash, inFlightSet)
           }
-          inFlightSet.add(newVersion)
+          inFlightSet.add(newVersion.getHash())
 
           // Make sure we track that we are iterating at this top-level
           // version if we haven't already
@@ -880,11 +886,13 @@ export class FeedbackOperator<T> extends UnaryOperator<T> {
         if (inFlightSet && inFlightSet.size > 0) {
           candidateOutputFrontier.push(elem)
 
-          // We can stop remembering any versions that will be closed
-          // by this frontier element
-          for (const version of inFlightSet) {
+          // Clean up versions that will be closed by this frontier element
+          for (const versionHash of inFlightSet) {
+            // Need to reconstruct Version from hash to compare
+            // This part depends on how you implement Version reconstruction
+            const version = Version.fromHash(versionHash)
             if (version.lessThan(elem)) {
-              inFlightSet.delete(version)
+              inFlightSet.delete(versionHash)
             }
           }
         } else {
@@ -894,10 +902,10 @@ export class FeedbackOperator<T> extends UnaryOperator<T> {
           // Remember that we observed an "empty" update for this top-level version
           let emptySet = this.#emptyVersions.get(truncatedHash)
           if (!emptySet) {
-            emptySet = new Set<Version>()
+            emptySet = new Set<string>()
             this.#emptyVersions.set(truncatedHash, emptySet)
           }
-          emptySet.add(elem)
+          emptySet.add(elem.getHash())
 
           // Don't do anything if we haven't observed at least three "empty" frontier
           // updates for this top-level time
@@ -915,7 +923,10 @@ export class FeedbackOperator<T> extends UnaryOperator<T> {
       // versions that were not rejected
       for (const r of rejected) {
         for (const inFlightSet of this.#inFlightData.values()) {
-          for (const version of inFlightSet) {
+          for (const versionHash of inFlightSet) {
+            // Need to reconstruct Version from hash to compare
+            // This part depends on how you implement Version reconstruction
+            const version = Version.fromHash(versionHash)
             candidateOutputFrontier.push(r.join(version))
           }
         }
