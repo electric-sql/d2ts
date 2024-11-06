@@ -1,3 +1,25 @@
+import { WeakRefMap } from './utils'
+
+// Add this at the top level, before the Version class
+const versionCache = new WeakRefMap<string, Version>()
+
+/**
+ * Factory function for creating cached Version objects.
+ * Ensures only one object exists for each unique version, these can then safely be
+ * used as keys in maps etc.
+ */
+export function V(version: number | number[]): Version {
+  const normalized = Array.isArray(version) ? version : [version]
+  const hash = JSON.stringify(normalized)
+
+  let cached = versionCache.get(hash)
+  if (!cached) {
+    cached = new Version(normalized)
+    versionCache.set(hash, cached)
+  }
+  return cached
+}
+
 /**
  * A partially, or totally ordered version (time), consisting of a tuple of integers.
  *
@@ -56,13 +78,13 @@ export class Version {
   join(other: Version): Version {
     this.#validate(other)
     const out = this.#inner.map((v, i) => Math.max(v, other.#inner[i]))
-    return new Version(out)
+    return V(out)
   }
 
   meet(other: Version): Version {
     this.#validate(other)
     const out = this.#inner.map((v, i) => Math.min(v, other.#inner[i]))
-    return new Version(out)
+    return V(out)
   }
 
   advanceBy(frontier: Antichain): Version {
@@ -77,13 +99,13 @@ export class Version {
   }
 
   extend(): Version {
-    return new Version([...this.#inner, 0])
+    return V([...this.#inner, 0])
   }
 
   truncate(): Version {
     const elements = [...this.#inner]
     elements.pop()
-    return new Version(elements)
+    return V(elements)
   }
 
   applyStep(step: number): Version {
@@ -92,19 +114,11 @@ export class Version {
     }
     const elements = [...this.#inner]
     elements[elements.length - 1] += step
-    return new Version(elements)
+    return V(elements)
   }
 
   getInner(): number[] {
     return [...this.#inner]
-  }
-
-  getHash(): string {
-    return JSON.stringify(this.#inner)
-  }
-
-  static fromHash(hash: string): Version {
-    return new Version(JSON.parse(hash))
   }
 }
 

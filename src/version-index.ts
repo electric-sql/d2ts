@@ -1,7 +1,7 @@
 import { Version, Antichain } from './order'
 import { MultiSet } from './multiset'
 
-type VersionMap<T> = Map<string, [Version, T[]]> // the key is a string representation of the version in order to avoid duplicates
+type VersionMap<T> = Map<Version, T[]> // We use the V factory function to ensure only one object exists for each unique version
 type IndexMap<K, V> = Map<K, VersionMap<[V, number]>>
 
 /**
@@ -53,7 +53,7 @@ export class Index<K, V> {
 
     if (!versions) return out
 
-    for (const [_, [version, values]] of versions.entries()) {
+    for (const [version, values] of versions.entries()) {
       if (version.lessEqual(requestedVersion)) {
         out.push(...values)
       }
@@ -64,7 +64,7 @@ export class Index<K, V> {
 
   versions(key: K): Version[] {
     const versions = this.#inner.get(key)
-    return versions ? Array.from(versions.values()).map(([v]) => v) : []
+    return versions ? Array.from(versions.keys()) : []
   }
 
   addValue(key: K, version: Version, value: [V, number]): void {
@@ -75,12 +75,11 @@ export class Index<K, V> {
     }
 
     const versions = this.#inner.get(key)!
-    const hash = version.getHash()
-    if (!versions.has(hash)) {
-      versions.set(hash, [version, []])
+    if (!versions.has(version)) {
+      versions.set(version, [])
     }
 
-    versions.get(hash)![1].push(value)
+    versions.get(version)!.push(value)
   }
 
   append(other: Index<K, V>): void {
@@ -90,35 +89,36 @@ export class Index<K, V> {
       }
 
       const thisVersions = this.#inner.get(key)!
-      for (const [hash, [version, data]] of versions) {
-        if (!thisVersions.has(hash)) {
-          thisVersions.set(hash, [version, []])
+      for (const [version, data] of versions) {
+        if (!thisVersions.has(version)) {
+          thisVersions.set(version, [])
         }
-        thisVersions.get(hash)![1].push(...data)
+        thisVersions.get(version)!.push(...data)
       }
     }
   }
 
   join<V2>(other: Index<K, V2>): [Version, MultiSet<[K, [V, V2]]>][] {
-    const collections = new Map<string, [Version, [K, [V, V2], number][]]>()
+    const collections = new Map<Version, [K, [V, V2], number][]>()
 
     for (const [key, versions] of this.#inner) {
       if (!other.#inner.has(key)) continue
 
       const otherVersions = other.#inner.get(key)!
 
-      for (const [_, [version1, data1]] of versions) {
-        for (const [_, [version2, data2]] of otherVersions) {
+      for (const [version1, data1] of versions) {
+        for (const [version2, data2] of otherVersions) {
           for (const [val1, mul1] of data1) {
             for (const [val2, mul2] of data2) {
               const resultVersion = version1.join(version2)
-              const hash = resultVersion.getHash()
 
-              if (!collections.has(hash)) {
-                collections.set(hash, [resultVersion, []])
+              if (!collections.has(resultVersion)) {
+                collections.set(resultVersion, [])
               }
 
-              collections.get(hash)![1].push([key, [val1, val2], mul1 * mul2])
+              collections
+                .get(resultVersion)!
+                .push([key, [val1, val2], mul1 * mul2])
             }
           }
         }
@@ -126,8 +126,8 @@ export class Index<K, V> {
     }
 
     return Array.from(collections.entries())
-      .filter(([_, [_v, c]]) => c.length > 0)
-      .map(([_, [version, data]]) => [
+      .filter(([_v, c]) => c.length > 0)
+      .map(([version, data]) => [
         version,
         new MultiSet(data.map(([k, v, m]) => [[k, v], m])),
       ])
@@ -163,31 +163,28 @@ export class Index<K, V> {
       const versions = this.#inner.get(key)
       if (!versions) continue
 
-      const toCompact = Array.from(versions.entries())
-        .filter(
-          ([_, [version]]) => !compactionFrontier.lessEqualVersion(version),
-        )
-        .map(([hash]) => hash)
+      const toCompact = Array.from(versions.keys()).filter(
+        (version) => !compactionFrontier.lessEqualVersion(version),
+      )
 
-      const toConsolidate = new Set<string>()
+      const toConsolidate = new Set<Version>()
 
-      for (const hash of toCompact) {
-        const [version, values] = versions.get(hash)!
-        versions.delete(hash)
+      for (const version of toCompact) {
+        const values = versions.get(version)!
+        versions.delete(version)
 
         const newVersion = version.advanceBy(compactionFrontier)
-        const newHash = newVersion.getHash()
 
-        if (!versions.has(newHash)) {
-          versions.set(newHash, [newVersion, []])
+        if (!versions.has(newVersion)) {
+          versions.set(newVersion, [])
         }
-        versions.get(newHash)![1].push(...values)
-        toConsolidate.add(newHash)
+        versions.get(newVersion)!.push(...values)
+        toConsolidate.add(newVersion)
       }
 
-      for (const hash of toConsolidate) {
-        const [version, values] = versions.get(hash)!
-        versions.set(hash, [version, consolidateValues(values)])
+      for (const version of toConsolidate) {
+        const values = versions.get(version)!
+        versions.set(version, consolidateValues(values))
       }
     }
 

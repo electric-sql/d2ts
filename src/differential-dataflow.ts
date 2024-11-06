@@ -434,7 +434,7 @@ export class DebugOperator<T> extends UnaryOperator<T> {
  * Operator that consolidates collections at each version
  */
 export class ConsolidateOperator<T> extends UnaryOperator<T> {
-  #collections: Map<string, [Version, MultiSet<T>]> = new Map()
+  #collections: Map<Version, MultiSet<T>> = new Map()
 
   constructor(
     inputA: DifferenceStreamReader<T>,
@@ -445,12 +445,11 @@ export class ConsolidateOperator<T> extends UnaryOperator<T> {
       for (const message of this.inputMessages()) {
         if (message.type === MessageType.DATA) {
           const { version, collection } = message.data as DataMessage<T>
-          const hash = version.getHash()
-          const existing = this.#collections.has(hash)
-            ? this.#collections.get(hash)![1]
+          const existing = this.#collections.has(version)
+            ? this.#collections.get(version)!
             : new MultiSet<T>()
           existing.extend(collection)
-          this.#collections.set(hash, [version, existing])
+          this.#collections.set(version, existing)
         } else if (message.type === MessageType.FRONTIER) {
           const frontier = message.data as Antichain
           if (!this.inputFrontier().lessEqual(frontier)) {
@@ -461,14 +460,14 @@ export class ConsolidateOperator<T> extends UnaryOperator<T> {
       }
 
       // Find versions that are complete (not covered by input frontier)
-      const finishedVersions = Array.from(this.#collections.values()).filter(
+      const finishedVersions = Array.from(this.#collections.entries()).filter(
         ([version]) => !this.inputFrontier().lessEqualVersion(version),
       )
 
       // Process and remove finished versions
       for (const [version, collection] of finishedVersions) {
         const consolidated = collection.consolidate()
-        this.#collections.delete(version.getHash())
+        this.#collections.delete(version)
         this.output.sendData(version, consolidated)
       }
 
@@ -537,28 +536,26 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<[K, unknown]> {
       }
 
       // Process results
-      const results = new Map<string, [Version, MultiSet<[K, [V1, V2]]>]>()
+      const results = new Map<Version, MultiSet<[K, [V1, V2]]>>()
 
       // Join deltaA with existing indexB
       for (const [version, collection] of deltaA.join(this.#indexB)) {
-        const hash = version.getHash()
-        const existing = results.get(hash)?.[1] || new MultiSet<[K, [V1, V2]]>()
+        const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
         existing.extend(collection)
-        results.set(hash, [version, existing])
+        results.set(version, existing)
       }
 
       this.#indexA.append(deltaA)
 
       // Join existing indexA with deltaB
       for (const [version, collection] of this.#indexA.join(deltaB)) {
-        const hash = version.getHash()
-        const existing = results.get(hash)?.[1] || new MultiSet<[K, [V1, V2]]>()
+        const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
         existing.extend(collection)
-        results.set(hash, [version, existing])
+        results.set(version, existing)
       }
 
       // Send results
-      for (const [_, [version, collection]] of results) {
+      for (const [version, collection] of results) {
         this.output.sendData(version, collection)
       }
       this.#indexB.append(deltaB)
@@ -586,7 +583,7 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<[K, unknown]> {
 export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
   #index = new Index<K, V1>()
   #indexOut = new Index<K, V2>()
-  #keysTodo = new Map<string, [Version, Set<K>]>() // Changed to use hash string
+  #keysTodo = new Map<Version, Set<K>>()
 
   constructor(
     inputA: DifferenceStreamReader<[K, V1]>,
@@ -602,22 +599,20 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
             const [key, value] = item
             this.#index.addValue(key, version, [value, multiplicity])
 
-            const hash = version.getHash()
-            let todoSet = this.#keysTodo.get(hash)?.[1]
+            let todoSet = this.#keysTodo.get(version)
             if (!todoSet) {
               todoSet = new Set<K>()
-              this.#keysTodo.set(hash, [version, todoSet])
+              this.#keysTodo.set(version, todoSet)
             }
             todoSet.add(key)
 
             // Add key to all join versions
             for (const v2 of this.#index.versions(key)) {
               const joinVersion = version.join(v2)
-              const joinHash = joinVersion.getHash()
-              let joinTodoSet = this.#keysTodo.get(joinHash)?.[1]
+              let joinTodoSet = this.#keysTodo.get(joinVersion)
               if (!joinTodoSet) {
                 joinTodoSet = new Set<K>()
-                this.#keysTodo.set(joinHash, [joinVersion, joinTodoSet])
+                this.#keysTodo.set(joinVersion, joinTodoSet)
               }
               joinTodoSet.add(key)
             }
@@ -632,7 +627,7 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
       }
 
       // Find versions that are complete
-      const finishedVersions = Array.from(this.#keysTodo.values())
+      const finishedVersions = Array.from(this.#keysTodo.entries())
         .filter(([version]) => !this.inputFrontier().lessEqualVersion(version))
         .sort(([a], [b]) => {
           return a.lessEqual(b) ? -1 : 1
@@ -673,7 +668,7 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
         if (result.length > 0) {
           this.output.sendData(version, new MultiSet(result))
         }
-        this.#keysTodo.delete(version.getHash())
+        this.#keysTodo.delete(version)
       }
 
       if (!this.outputFrontier.lessEqual(this.inputFrontier())) {
@@ -825,10 +820,10 @@ export class EgressOperator<T> extends UnaryOperator<T> {
 export class FeedbackOperator<T> extends UnaryOperator<T> {
   // Map from top-level version -> set of messages where we have
   // sent some data at that version
-  #inFlightData = new Map<string, Set<string>>()
+  #inFlightData = new Map<Version, Set<Version>>()
   // Versions where a given top-level version has updated
   // its iteration without sending any data.
-  #emptyVersions = new Map<string, Set<string>>()
+  #emptyVersions = new Map<Version, Set<Version>>()
 
   constructor(
     inputA: DifferenceStreamReader<T>,
@@ -842,21 +837,20 @@ export class FeedbackOperator<T> extends UnaryOperator<T> {
           const { version, collection } = message.data as DataMessage<T>
           const newVersion = version.applyStep(step)
           const truncated = newVersion.truncate()
-          const truncatedHash = truncated.getHash()
           this.output.sendData(newVersion, collection)
 
           // Record that we sent data at this version
-          let inFlightSet = this.#inFlightData.get(truncatedHash)
+          let inFlightSet = this.#inFlightData.get(truncated)
           if (!inFlightSet) {
-            inFlightSet = new Set<string>()
-            this.#inFlightData.set(truncatedHash, inFlightSet)
+            inFlightSet = new Set<Version>()
+            this.#inFlightData.set(truncated, inFlightSet)
           }
-          inFlightSet.add(newVersion.getHash())
+          inFlightSet.add(newVersion)
 
           // Make sure we track that we are iterating at this top-level
           // version if we haven't already
-          if (!this.#emptyVersions.has(truncatedHash)) {
-            this.#emptyVersions.set(truncatedHash, new Set())
+          if (!this.#emptyVersions.has(truncated)) {
+            this.#emptyVersions.set(truncated, new Set())
           }
         } else if (message.type === MessageType.FRONTIER) {
           const frontier = message.data as Antichain
@@ -878,21 +872,17 @@ export class FeedbackOperator<T> extends UnaryOperator<T> {
 
       for (const elem of elements) {
         const truncated = elem.truncate()
-        const truncatedHash = truncated.getHash()
 
         // Always keep a frontier element if there is are differences associated
         // with its top-level version that are still in flight
-        const inFlightSet = this.#inFlightData.get(truncatedHash)
+        const inFlightSet = this.#inFlightData.get(truncated)
         if (inFlightSet && inFlightSet.size > 0) {
           candidateOutputFrontier.push(elem)
 
           // Clean up versions that will be closed by this frontier element
-          for (const versionHash of inFlightSet) {
-            // Need to reconstruct Version from hash to compare
-            // This part depends on how you implement Version reconstruction
-            const version = Version.fromHash(versionHash)
+          for (const version of inFlightSet) {
             if (version.lessThan(elem)) {
-              inFlightSet.delete(versionHash)
+              inFlightSet.delete(version)
             }
           }
         } else {
@@ -900,20 +890,20 @@ export class FeedbackOperator<T> extends UnaryOperator<T> {
           // top-level version that were not closed out by prior frontier updates
 
           // Remember that we observed an "empty" update for this top-level version
-          let emptySet = this.#emptyVersions.get(truncatedHash)
+          let emptySet = this.#emptyVersions.get(truncated)
           if (!emptySet) {
-            emptySet = new Set<string>()
-            this.#emptyVersions.set(truncatedHash, emptySet)
+            emptySet = new Set<Version>()
+            this.#emptyVersions.set(truncated, emptySet)
           }
-          emptySet.add(elem.getHash())
+          emptySet.add(elem)
 
           // Don't do anything if we haven't observed at least three "empty" frontier
           // updates for this top-level time
           if (emptySet.size <= 3) {
             candidateOutputFrontier.push(elem)
           } else {
-            this.#inFlightData.delete(truncatedHash)
-            this.#emptyVersions.delete(truncatedHash)
+            this.#inFlightData.delete(truncated)
+            this.#emptyVersions.delete(truncated)
             rejected.push(elem)
           }
         }
@@ -923,10 +913,7 @@ export class FeedbackOperator<T> extends UnaryOperator<T> {
       // versions that were not rejected
       for (const r of rejected) {
         for (const inFlightSet of this.#inFlightData.values()) {
-          for (const versionHash of inFlightSet) {
-            // Need to reconstruct Version from hash to compare
-            // This part depends on how you implement Version reconstruction
-            const version = Version.fromHash(versionHash)
+          for (const version of inFlightSet) {
             candidateOutputFrontier.push(r.join(version))
           }
         }

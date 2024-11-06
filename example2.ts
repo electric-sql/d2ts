@@ -1,6 +1,6 @@
 import { DifferenceStreamBuilder, GraphBuilder } from './src/differential-dataflow'
 import { MultiSet } from './src/multiset'
-import { Antichain, Version } from './src/order'
+import { Antichain, V } from './src/order'
 
 const issues: {
   id: number
@@ -89,7 +89,7 @@ const users: {
 ]
 
 const graphBuilder = new GraphBuilder<any>(
-  new Antichain([new Version([0, 0])]),
+  new Antichain([V([0, 0])]),
 )
 
 const [input_issues, writer_issues] = graphBuilder.newInput()
@@ -122,39 +122,39 @@ const joined_stream = issues_stream
 const graph = graphBuilder.finalize()
 
 for (const issue of issues) {
-  writer_issues.sendData(new Version([1, 0]), new MultiSet([[[issue.id, issue], 1]]))
+  writer_issues.sendData(V([1, 0]), new MultiSet([[[issue.id, issue], 1]]))
 }
 
 for (const user of users) {
-  writer_users.sendData(new Version([1, 0]), new MultiSet([[[user.id, user], 1]]))
+  writer_users.sendData(V([1, 0]), new MultiSet([[[user.id, user], 1]]))
 }
 
-writer_issues.sendFrontier(new Antichain([new Version([1, 0])]))
-writer_users.sendFrontier(new Antichain([new Version([1, 0])]))
+writer_issues.sendFrontier(new Antichain([V([1, 0])]))
+writer_users.sendFrontier(new Antichain([V([1, 0])]))
 
 graph.step()
 
 // Add a new issue
-writer_issues.sendData(new Version([2, 0]), new MultiSet([[[11, {
+writer_issues.sendData(V([2, 0]), new MultiSet([[[11, {
   id: 11,
   title: 'New issue',
   user_id: 1,
 }], 1]]))
 
-writer_issues.sendFrontier(new Antichain([new Version([2, 0])]))
-writer_users.sendFrontier(new Antichain([new Version([2, 0])]))
+writer_issues.sendFrontier(new Antichain([V([2, 0])]))
+writer_users.sendFrontier(new Antichain([V([2, 0])]))
 
 graph.step()
 
 // Delete an issue
-writer_issues.sendData(new Version([3, 0]), new MultiSet([[[1, {
+writer_issues.sendData(V([3, 0]), new MultiSet([[[1, {
   id: 1,
   title: 'Fix login bug',
   user_id: 1,
 }], -1]]))
 
-writer_issues.sendFrontier(new Antichain([new Version([3, 0])]))
-writer_users.sendFrontier(new Antichain([new Version([3, 0])]))
+writer_issues.sendFrontier(new Antichain([V([3, 0])]))
+writer_users.sendFrontier(new Antichain([V([3, 0])]))
 
 graph.step()
 

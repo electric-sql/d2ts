@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { Version, Antichain } from '../src/order'
+import { V, Antichain } from '../src/order'
 
 describe('Version', () => {
   it('should handle version comparisons', () => {
-    const v0_0 = new Version([0, 0])
-    const v1_0 = new Version([1, 0])
-    const v0_1 = new Version([0, 1])
-    const v1_1 = new Version([1, 1])
+    const v0_0 = V([0, 0])
+    const v1_0 = V([1, 0])
+    const v0_1 = V([0, 1])
+    const v1_1 = V([1, 1])
 
     expect(v0_0.lessThan(v1_0)).toBe(true)
     expect(v0_0.lessThan(v0_1)).toBe(true)
@@ -25,10 +25,10 @@ describe('Version', () => {
   })
 
   it('should handle antichain comparisons', () => {
-    const v0_0 = new Version([0, 0])
-    const v1_0 = new Version([1, 0])
-    const v2_0 = new Version([2, 0])
-    const v1_1 = new Version([1, 1])
+    const v0_0 = V([0, 0])
+    const v1_0 = V([1, 0])
+    const v2_0 = V([2, 0])
+    const v1_1 = V([1, 1])
 
     expect(new Antichain([v0_0]).lessEqual(new Antichain([v1_0]))).toBe(true)
     expect(new Antichain([v0_0]).equals(new Antichain([v1_0]))).toBe(false)
