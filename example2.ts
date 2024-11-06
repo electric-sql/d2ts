@@ -1,4 +1,4 @@
-import { DifferenceStreamBuilder, GraphBuilder } from './src/differential-dataflow'
+import { DifferenceStreamBuilder, GraphBuilder } from './src/builder'
 import { MultiSet } from './src/multiset'
 import { Antichain, v } from './src/order'
 

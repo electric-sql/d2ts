@@ -1,4 +1,4 @@
-export * from './differential-dataflow'
+export * from './builder'
 export * from './order'
 export * from './multiset'
 export * from './version-index'
