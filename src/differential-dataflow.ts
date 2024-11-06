@@ -12,6 +12,8 @@ import { Index } from './version-index'
 import { Version, Antichain } from './order'
 import { DefaultMap } from './utils'
 
+type KeyValue<K, V> = [K, V]
+
 /**
  * A representation of a dataflow edge as the dataflow graph is being built.
  *
@@ -22,9 +24,9 @@ import { DefaultMap } from './utils'
  */
 export class DifferenceStreamBuilder<T> {
   #writer: DifferenceStreamWriter<T>
-  #graph: GraphBuilder<any>
+  #graph: GraphBuilder
 
-  constructor(graph: GraphBuilder<any>) {
+  constructor(graph: GraphBuilder) {
     this.#writer = new DifferenceStreamWriter<T>()
     this.#graph = graph
   }
@@ -104,16 +106,17 @@ export class DifferenceStreamBuilder<T> {
     return output
   }
 
-  join<K, V2>(
-    other: DifferenceStreamBuilder<[K, V2]>,
-  ): DifferenceStreamBuilder<[K, [T, V2]]> {
+  join<K, V1 extends T extends KeyValue<K, infer V> ? V : never, V2>(
+    other: DifferenceStreamBuilder<KeyValue<K, V2>>,
+  ): DifferenceStreamBuilder<KeyValue<K, [V1, V2]>> {
     if (this.#graph !== other.#graph) {
       throw new Error('Cannot join streams from different graphs')
     }
-    const output = new DifferenceStreamBuilder<[K, [T, V2]]>(this.#graph)
-    const operator = new JoinOperator<K, T, V2>(
-      // @ts-expect-error
-      this.connectReader(),
+    const output = new DifferenceStreamBuilder<KeyValue<K, [V1, V2]>>(
+      this.#graph,
+    )
+    const operator = new JoinOperator<K, V1, V2>(
+      this.connectReader() as DifferenceStreamReader<KeyValue<K, V1>>,
       other.connectReader(),
       output.writer(),
       this.#graph.frontier(),
@@ -123,11 +126,13 @@ export class DifferenceStreamBuilder<T> {
     return output
   }
 
-  count<K, V>(): DifferenceStreamBuilder<[K, number]> {
-    const output = new DifferenceStreamBuilder<[K, number]>(this.#graph)
+  count<
+    K,
+    V extends T extends KeyValue<K, infer V> ? V : never,
+  >(): DifferenceStreamBuilder<KeyValue<K, number>> {
+    const output = new DifferenceStreamBuilder<KeyValue<K, number>>(this.#graph)
     const operator = new CountOperator<K, V>(
-      // @ts-expect-error
-      this.connectReader(),
+      this.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
       output.writer(),
       this.#graph.frontier(),
     )
@@ -136,11 +141,13 @@ export class DifferenceStreamBuilder<T> {
     return output
   }
 
-  distinct<K, V>(): DifferenceStreamBuilder<[K, V]> {
-    const output = new DifferenceStreamBuilder<[K, V]>(this.#graph)
+  distinct<
+    K,
+    V extends T extends KeyValue<K, infer V> ? V : never,
+  >(): DifferenceStreamBuilder<KeyValue<K, V>> {
+    const output = new DifferenceStreamBuilder<KeyValue<K, V>>(this.#graph)
     const operator = new DistinctOperator<K, V>(
-      // @ts-expect-error
-      this.connectReader(),
+      this.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
       output.writer(),
       this.#graph.frontier(),
     )
@@ -218,26 +225,26 @@ export class DifferenceStreamBuilder<T> {
 /**
  * A representation of a dataflow graph as it is being built.
  */
-export class GraphBuilder<T> {
-  #streams: DifferenceStreamReader<T>[] = []
-  #operators: (UnaryOperator<T> | BinaryOperator<T>)[] = []
+export class GraphBuilder {
+  #streams: DifferenceStreamReader<any>[] = []
+  #operators: (UnaryOperator<any> | BinaryOperator<any>)[] = []
   #frontierStack: Antichain[] = []
 
   constructor(initialFrontier: Antichain) {
     this.#frontierStack = [initialFrontier]
   }
 
-  newInput(): [DifferenceStreamBuilder<T>, DifferenceStreamWriter<T>] {
+  newInput<T>(): [DifferenceStreamBuilder<T>, DifferenceStreamWriter<T>] {
     const streamBuilder = new DifferenceStreamBuilder<T>(this)
     this.#streams.push(streamBuilder.connectReader())
     return [streamBuilder, streamBuilder.writer()]
   }
 
-  addOperator(operator: UnaryOperator<T> | BinaryOperator<T>): void {
+  addOperator(operator: UnaryOperator<any> | BinaryOperator<any>): void {
     this.#operators.push(operator)
   }
 
-  addStream(stream: DifferenceStreamReader<T>): void {
+  addStream(stream: DifferenceStreamReader<any>): void {
     this.#streams.push(stream)
   }
 
@@ -253,7 +260,7 @@ export class GraphBuilder<T> {
     this.#frontierStack.pop()
   }
 
-  finalize(): Graph<T> {
+  finalize() {
     return new Graph(this.#streams, this.#operators)
   }
 }

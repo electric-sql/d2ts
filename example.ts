@@ -23,11 +23,11 @@ const run = async () => {
   ;(function one() {
     console.log('===')
 
-    const graphBuilder = new GraphBuilder<number>(
+    const graphBuilder = new GraphBuilder(
       new Antichain([V([0, 0])]),
     )
 
-    const [input_a, writer_a] = graphBuilder.newInput()
+    const [input_a, writer_a] = graphBuilder.newInput<number>()
 
     const output = input_a.map((x) => x + 5).filter((x) => x % 2 === 0)
     input_a.negate().concat(output)//.debug('output')
@@ -47,12 +47,12 @@ const run = async () => {
   ;(function two() {
     console.log('===')
 
-    const graphBuilder = new GraphBuilder<[number, number]>(
+    const graphBuilder = new GraphBuilder(
       new Antichain([V([0, 0])]),
     )
 
-    const [input_a, writer_a] = graphBuilder.newInput()
-    const [input_b, writer_b] = graphBuilder.newInput()
+    const [input_a, writer_a] = graphBuilder.newInput<[number, number]>()
+    const [input_b, writer_b] = graphBuilder.newInput<[number, number]>()
 
     input_a.join(input_b).count()//.debug('count')
     const graph = graphBuilder.finalize()
@@ -84,11 +84,11 @@ const run = async () => {
   ;(function three() {
     console.log('===')
 
-    const graphBuilder = new GraphBuilder<number>(
+    const graphBuilder = new GraphBuilder(
       new Antichain([V(0)]),
     )
 
-    const [input_a, writer_a] = graphBuilder.newInput()
+    const [input_a, writer_a] = graphBuilder.newInput<number>()
 
     const geometricSeries = (
       stream: DifferenceStreamBuilder<number>,

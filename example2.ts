@@ -2,12 +2,19 @@ import { DifferenceStreamBuilder, GraphBuilder } from './src/differential-datafl
 import { MultiSet } from './src/multiset'
 import { Antichain, V } from './src/order'
 
-const issues: {
+type Issue = {
   id: number
   title: string
   // description: string
   user_id: number
-}[] = [
+}
+
+type User = {
+  id: number
+  name: string
+}
+
+const issues: Issue[] = [
   {
     id: 1,
     title: "Fix login bug",
@@ -70,10 +77,7 @@ const issues: {
   },
 ]
 
-const users: {
-  id: number
-  name: string
-}[] = [
+const users: User[] = [
   {
     id: 1,
     name: "Alice Johnson"
@@ -88,23 +92,23 @@ const users: {
   }
 ]
 
-const graphBuilder = new GraphBuilder<any>(
+const graphBuilder = new GraphBuilder(
   new Antichain([V([0, 0])]),
 )
 
-const [input_issues, writer_issues] = graphBuilder.newInput()
-const [input_users, writer_users] = graphBuilder.newInput()
+const [input_issues, writer_issues] = graphBuilder.newInput<[number, Issue]>()
+const [input_users, writer_users] = graphBuilder.newInput<[number, User]>()
 
 // Transform issues into [key, value] pairs for joining
 const issues_stream = input_issues
   // .debug('issues_stream')
-  .map(([issue_id, issue]) => [issue.user_id, issue] as [number, [number, typeof issues[0]]])
+  .map(([issue_id, issue]) => [issue.user_id, issue] as [number, Issue])
   // .debug('issues_stream_map')
 
 // Transform users into [key, value] pairs for joining
 const users_stream = input_users
   // .debug('users_stream')
-  .map(([user_id, user]) => [user_id, user] as [number, typeof users[0]])
+  .map(([user_id, user]) => [user_id, user] as [number, User])
   // .debug('users_stream_map')
 
 // Join streams and transform to desired output format
@@ -114,7 +118,7 @@ const joined_stream = issues_stream
   .map(([_key, [issue, user]]) => ([issue.id, {
     id: issue.id,
     title: issue.title,
-    description: issue.description,
+    // description: issue.description,
     user_name: user.name
   }]))
   .debug('map')

@@ -206,11 +206,14 @@ export class BinaryOperator<T> extends Operator<T> {
  * this object does not actually know anything about the connections between the
  * various nodes.
  */
-export class Graph<T> {
-  streams: DifferenceStreamReader<T>[]
-  operators: Operator<T>[]
+export class Graph {
+  streams: DifferenceStreamReader<any>[]
+  operators: Operator<any>[]
 
-  constructor(streams: DifferenceStreamReader<T>[], operators: Operator<T>[]) {
+  constructor(
+    streams: DifferenceStreamReader<any>[],
+    operators: Operator<any>[],
+  ) {
     this.streams = streams
     this.operators = operators
   }
