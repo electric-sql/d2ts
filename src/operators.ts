@@ -198,6 +198,23 @@ export class OutputOperator<T> extends UnaryOperator<T> {
     const inner = () => {
       for (const message of this.inputMessages()) {
         fn(message)
+        if (message.type === MessageType.DATA) {
+          const { version, collection } = message.data as DataMessage<T>
+          this.output.sendData(version, collection)
+        } else if (message.type === MessageType.FRONTIER) {
+          const frontier = message.data as Antichain
+          if (!this.inputFrontier().lessEqual(frontier)) {
+            throw new Error('Invalid frontier update')
+          }
+          this.setInputFrontier(frontier)
+          if (!this.outputFrontier.lessEqual(this.inputFrontier())) {
+            throw new Error('Invalid frontier state')
+          }
+          if (this.outputFrontier.lessThan(this.inputFrontier())) {
+            this.outputFrontier = this.inputFrontier()
+            this.output.sendFrontier(this.outputFrontier)
+          }
+        }
       }
     }
     super(inputA, output, inner, initialFrontier)

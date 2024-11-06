@@ -175,7 +175,7 @@ export class DifferenceStreamBuilder<T> {
    * Counts the number of elements by key
    */
   count<
-    K,
+    K extends T extends KeyValue<infer K, infer _V> ? K : never,
     V extends T extends KeyValue<K, infer V> ? V : never,
   >(): DifferenceStreamBuilder<KeyValue<K, number>> {
     const output = new DifferenceStreamBuilder<KeyValue<K, number>>(this.#graph)
@@ -193,7 +193,7 @@ export class DifferenceStreamBuilder<T> {
    * Removes duplicates by key
    */
   distinct<
-    K,
+    K extends T extends KeyValue<infer K, infer _V> ? K : never,
     V extends T extends KeyValue<K, infer V> ? V : never,
   >(): DifferenceStreamBuilder<KeyValue<K, V>> {
     const output = new DifferenceStreamBuilder<KeyValue<K, V>>(this.#graph)
