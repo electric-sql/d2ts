@@ -1,4 +1,4 @@
-import { DataMessage, MessageType } from './types'
+import { DataMessage, Message, MessageType } from './types'
 import { MultiSet } from './multiset'
 import {
   DifferenceStreamReader,
@@ -143,7 +143,7 @@ export class ConcatOperator<T> extends BinaryOperator<T> {
 }
 
 /**
- * Operator that outputs debug information about the stream
+ * Operator that logs debug information about the stream
  */
 export class DebugOperator<T> extends UnaryOperator<T> {
   constructor(
@@ -181,6 +181,25 @@ export class DebugOperator<T> extends UnaryOperator<T> {
       }
     }
 
+    super(inputA, output, inner, initialFrontier)
+  }
+}
+
+/**
+ * Operator that outputs the messages in the stream
+ */
+export class OutputOperator<T> extends UnaryOperator<T> {
+  constructor(
+    inputA: DifferenceStreamReader<T>,
+    output: DifferenceStreamWriter<T>,
+    fn: (data: Message<T>) => void,
+    initialFrontier: Antichain,
+  ) {
+    const inner = () => {
+      for (const message of this.inputMessages()) {
+        fn(message)
+      }
+    }
     super(inputA, output, inner, initialFrontier)
   }
 }

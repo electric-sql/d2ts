@@ -8,10 +8,15 @@ export const MessageType = {
 
 export type MessageType = (typeof MessageType)[keyof typeof MessageType]
 
-export type Message<T> = {
-  type: MessageType
-  data: DataMessage<T> | FrontierMessage
-}
+export type Message<T> =
+  | {
+      type: typeof MessageType.DATA
+      data: DataMessage<T>
+    }
+  | {
+      type: typeof MessageType.FRONTIER
+      data: FrontierMessage
+    }
 
 export type DataMessage<T> = {
   version: Version

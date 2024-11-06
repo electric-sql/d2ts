@@ -6,6 +6,7 @@ import {
   UnaryOperator,
 } from './graph'
 import { Antichain } from './order'
+import { Message } from './types'
 import {
   ConcatOperator,
   ConsolidateOperator,
@@ -19,6 +20,7 @@ import {
   JoinOperator,
   MapOperator,
   NegateOperator,
+  OutputOperator,
 } from './operators'
 
 type KeyValue<K, V> = [K, V]
@@ -48,6 +50,9 @@ export class DifferenceStreamBuilder<T> {
     return this.#writer
   }
 
+  /**
+   * Applies a function to each element in the stream
+   */
   map<U>(f: (data: T) => U): DifferenceStreamBuilder<U> {
     const output = new DifferenceStreamBuilder<U>(this.#graph)
     const operator = new MapOperator<T, U>(
@@ -61,6 +66,9 @@ export class DifferenceStreamBuilder<T> {
     return output
   }
 
+  /**
+   * Filters the elements in the stream
+   */
   filter(f: (data: T) => boolean): DifferenceStreamBuilder<T> {
     const output = new DifferenceStreamBuilder<T>(this.#graph)
     const operator = new FilterOperator<T>(
@@ -74,6 +82,9 @@ export class DifferenceStreamBuilder<T> {
     return output
   }
 
+  /**
+   * Negates the multiplicities in the stream
+   */
   negate(): DifferenceStreamBuilder<T> {
     const output = new DifferenceStreamBuilder<T>(this.#graph)
     const operator = new NegateOperator<T>(
@@ -86,6 +97,9 @@ export class DifferenceStreamBuilder<T> {
     return output
   }
 
+  /**
+   * Concatenates two streams
+   */
   concat(other: DifferenceStreamBuilder<T>): DifferenceStreamBuilder<T> {
     if (this.#graph !== other.#graph) {
       throw new Error('Cannot concat streams from different graphs')
@@ -102,6 +116,9 @@ export class DifferenceStreamBuilder<T> {
     return output
   }
 
+  /**
+   * Prints the data in the stream
+   */
   debug(name: string = ''): DifferenceStreamBuilder<T> {
     const output = new DifferenceStreamBuilder<T>(this.#graph)
     const operator = new DebugOperator<T>(
@@ -115,6 +132,25 @@ export class DifferenceStreamBuilder<T> {
     return output
   }
 
+  /**
+   * Outputs the messages in the stream
+   */
+  output(fn: (data: Message<T>) => void): DifferenceStreamBuilder<T> {
+    const output = new DifferenceStreamBuilder<T>(this.#graph)
+    const operator = new OutputOperator<T>(
+      this.connectReader(),
+      output.writer(),
+      fn,
+      this.#graph.frontier(),
+    )
+    this.#graph.addOperator(operator)
+    this.#graph.addStream(output.connectReader())
+    return output
+  }
+
+  /**
+   * Joins two streams
+   */
   join<K, V1 extends T extends KeyValue<K, infer V> ? V : never, V2>(
     other: DifferenceStreamBuilder<KeyValue<K, V2>>,
   ): DifferenceStreamBuilder<KeyValue<K, [V1, V2]>> {
@@ -135,6 +171,9 @@ export class DifferenceStreamBuilder<T> {
     return output
   }
 
+  /**
+   * Counts the number of elements by key
+   */
   count<
     K,
     V extends T extends KeyValue<K, infer V> ? V : never,
@@ -150,6 +189,9 @@ export class DifferenceStreamBuilder<T> {
     return output
   }
 
+  /**
+   * Removes duplicates by key
+   */
   distinct<
     K,
     V extends T extends KeyValue<K, infer V> ? V : never,
@@ -165,6 +207,9 @@ export class DifferenceStreamBuilder<T> {
     return output
   }
 
+  /**
+   * Consolidates the elements in the stream
+   */
   consolidate(): DifferenceStreamBuilder<T> {
     const output = new DifferenceStreamBuilder<T>(this.#graph)
     const operator = new ConsolidateOperator<T>(
@@ -210,6 +255,9 @@ export class DifferenceStreamBuilder<T> {
     return output
   }
 
+  /**
+   * Iterates over the stream
+   */
   iterate(
     f: (stream: DifferenceStreamBuilder<T>) => DifferenceStreamBuilder<T>,
   ): DifferenceStreamBuilder<T> {
