@@ -666,7 +666,7 @@ if __name__ == "__main__":
 
     output = (input_a
         .iterate(geometric_series)
-        # .debug("iterate")
+        .debug("iterate")
         .connect_reader())
     graph = graph_builder.finalize()
 

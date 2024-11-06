@@ -1,3 +1,5 @@
+import { DefaultMap } from './utils'
+
 export type MultiSetArray<T> = [T, number][]
 export type KeyedData<T> = [key: string, value: T]
 
@@ -57,12 +59,11 @@ export class MultiSet<T> {
    * (record, multiplicity) pair.
    */
   consolidate(): MultiSet<T> {
-    const consolidated = new Map<string, number>()
+    const consolidated = new DefaultMap<string, number>(() => 0)
 
     for (const [data, multiplicity] of this.#inner) {
       const key = JSON.stringify(data)
-      const currentCount = consolidated.get(key) || 0
-      consolidated.set(key, currentCount + multiplicity)
+      consolidated.update(key, (count) => count + multiplicity)
     }
 
     const result: MultiSetArray<T> = []
@@ -102,15 +103,16 @@ export class MultiSet<T> {
    */
   reduce<U>(f: (vals: [T, number][]) => [U, number][]): MultiSet<KeyedData<U>> {
     // TODO: validate that the collection is keyed
-    const keys = new Map<string, [T, number][]>()
+    const keys = new DefaultMap<string, [T, number][]>(() => [])
     const out: MultiSetArray<KeyedData<U>> = []
 
     for (const [[key, val], multiplicity] of this.#inner as MultiSetArray<
       KeyedData<T>
     >) {
-      const existing = keys.get(key) || []
-      existing.push([val, multiplicity])
-      keys.set(key, existing)
+      keys.update(key, (existing) => {
+        existing.push([val, multiplicity])
+        return existing
+      })
     }
 
     for (const [key, vals] of keys.entries()) {

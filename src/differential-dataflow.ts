@@ -10,6 +10,7 @@ import {
 import { DataMessage } from './types'
 import { Index } from './version-index'
 import { Version, Antichain } from './order'
+import { DefaultMap } from './utils'
 
 /**
  * A representation of a dataflow edge as the dataflow graph is being built.
@@ -434,7 +435,7 @@ export class DebugOperator<T> extends UnaryOperator<T> {
  * Operator that consolidates collections at each version
  */
 export class ConsolidateOperator<T> extends UnaryOperator<T> {
-  #collections: Map<Version, MultiSet<T>> = new Map()
+  #collections = new DefaultMap<Version, MultiSet<T>>(() => new MultiSet<T>())
 
   constructor(
     inputA: DifferenceStreamReader<T>,
@@ -445,11 +446,10 @@ export class ConsolidateOperator<T> extends UnaryOperator<T> {
       for (const message of this.inputMessages()) {
         if (message.type === MessageType.DATA) {
           const { version, collection } = message.data as DataMessage<T>
-          const existing = this.#collections.has(version)
-            ? this.#collections.get(version)!
-            : new MultiSet<T>()
-          existing.extend(collection)
-          this.#collections.set(version, existing)
+          this.#collections.update(version, (existing) => {
+            existing.extend(collection)
+            return existing
+          })
         } else if (message.type === MessageType.FRONTIER) {
           const frontier = message.data as Antichain
           if (!this.inputFrontier().lessEqual(frontier)) {
@@ -820,10 +820,10 @@ export class EgressOperator<T> extends UnaryOperator<T> {
 export class FeedbackOperator<T> extends UnaryOperator<T> {
   // Map from top-level version -> set of messages where we have
   // sent some data at that version
-  #inFlightData = new Map<Version, Set<Version>>()
+  #inFlightData = new DefaultMap<Version, Set<Version>>(() => new Set())
   // Versions where a given top-level version has updated
   // its iteration without sending any data.
-  #emptyVersions = new Map<Version, Set<Version>>()
+  #emptyVersions = new DefaultMap<Version, Set<Version>>(() => new Set())
 
   constructor(
     inputA: DifferenceStreamReader<T>,
@@ -840,18 +840,7 @@ export class FeedbackOperator<T> extends UnaryOperator<T> {
           this.output.sendData(newVersion, collection)
 
           // Record that we sent data at this version
-          let inFlightSet = this.#inFlightData.get(truncated)
-          if (!inFlightSet) {
-            inFlightSet = new Set<Version>()
-            this.#inFlightData.set(truncated, inFlightSet)
-          }
-          inFlightSet.add(newVersion)
-
-          // Make sure we track that we are iterating at this top-level
-          // version if we haven't already
-          if (!this.#emptyVersions.has(truncated)) {
-            this.#emptyVersions.set(truncated, new Set())
-          }
+          this.#inFlightData.get(truncated).add(newVersion)
         } else if (message.type === MessageType.FRONTIER) {
           const frontier = message.data as Antichain
           if (!this.inputFrontier().lessEqual(frontier)) {
@@ -872,11 +861,11 @@ export class FeedbackOperator<T> extends UnaryOperator<T> {
 
       for (const elem of elements) {
         const truncated = elem.truncate()
+        const inFlightSet = this.#inFlightData.get(truncated)
 
         // Always keep a frontier element if there is are differences associated
         // with its top-level version that are still in flight
-        const inFlightSet = this.#inFlightData.get(truncated)
-        if (inFlightSet && inFlightSet.size > 0) {
+        if (inFlightSet.size > 0) {
           candidateOutputFrontier.push(elem)
 
           // Clean up versions that will be closed by this frontier element
@@ -890,11 +879,7 @@ export class FeedbackOperator<T> extends UnaryOperator<T> {
           // top-level version that were not closed out by prior frontier updates
 
           // Remember that we observed an "empty" update for this top-level version
-          let emptySet = this.#emptyVersions.get(truncated)
-          if (!emptySet) {
-            emptySet = new Set<Version>()
-            this.#emptyVersions.set(truncated, emptySet)
-          }
+          const emptySet = this.#emptyVersions.get(truncated)
           emptySet.add(elem)
 
           // Don't do anything if we haven't observed at least three "empty" frontier

@@ -1,9 +1,9 @@
 import {
   DifferenceStreamBuilder,
   GraphBuilder,
-} from './dist/differential-dataflow'
-import { MultiSet } from './dist/multiset'
-import { Antichain, V } from './dist/order'
+} from './src/differential-dataflow'
+import { MultiSet } from './src/multiset'
+import { Antichain, V } from './src/order'
 
 const main = async () => {
   while (true) {
@@ -113,7 +113,7 @@ const run = async () => {
 
     const output = input_a
       .iterate(geometricSeries)
-      // .debug('iterate')
+      .debug('iterate')
       .connectReader()
     const graph = graphBuilder.finalize()
 

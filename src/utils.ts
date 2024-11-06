@@ -22,3 +22,32 @@ export class WeakRefMap<K, V extends object> {
     return this.cacheMap.get(key)?.deref() ?? null
   }
 }
+
+/**
+ * A map that returns a default value for keys that are not present.
+ */
+export class DefaultMap<K, V> extends Map<K, V> {
+  constructor(
+    private defaultValue: () => V,
+    entries?: Iterable<[K, V]>,
+  ) {
+    super(entries)
+  }
+
+  get(key: K): V {
+    if (!this.has(key)) {
+      this.set(key, this.defaultValue())
+    }
+    return super.get(key)!
+  }
+
+  /**
+   * Update the value for a key using a function.
+   */
+  update(key: K, updater: (value: V) => V): V {
+    const value = this.get(key)
+    const newValue = updater(value)
+    this.set(key, newValue)
+    return newValue
+  }
+}
