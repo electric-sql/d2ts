@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from 'vitest'
-import { V, Antichain } from '../src/order'
+import { v, Antichain } from '../src/order'
 import { Index } from '../src/version-index'
 
 describe('Index', () => {
@@ -11,7 +11,7 @@ describe('Index', () => {
 
   describe('basic operations', () => {
     test('should add and reconstruct values', () => {
-      const version = V([1])
+      const version = v([1])
       index.addValue('key1', version, [10, 1])
       index.addValue('key1', version, [20, 2])
 
@@ -23,14 +23,14 @@ describe('Index', () => {
     })
 
     test('should return empty array for non-existent key', () => {
-      const version = V([1])
+      const version = v([1])
       const result = index.reconstructAt('nonexistent', version)
       expect(result).toEqual([])
     })
 
     test('should return versions for a key', () => {
-      const version1 = V([1])
-      const version2 = V([2])
+      const version1 = v([1])
+      const version2 = v([2])
 
       index.addValue('key1', version1, [10, 1])
       index.addValue('key1', version2, [20, 1])
@@ -44,7 +44,7 @@ describe('Index', () => {
 
   describe('append', () => {
     test('should append data from another index', () => {
-      const version = V([1])
+      const version = v([1])
       const other = new Index<string, number>()
 
       index.addValue('key1', version, [10, 1])
@@ -63,7 +63,7 @@ describe('Index', () => {
 
   describe('join', () => {
     test('should join two indexes', () => {
-      const version = V([1])
+      const version = v([1])
       const other = new Index<string, number>()
 
       index.addValue('key1', version, [10, 2])
@@ -82,7 +82,7 @@ describe('Index', () => {
     })
 
     test('should return empty array when no matching keys', () => {
-      const version = V([1])
+      const version = v([1])
       const other = new Index<string, number>()
 
       index.addValue('key1', version, [10, 1])
@@ -95,9 +95,9 @@ describe('Index', () => {
 
   describe('compact', () => {
     test('should compact versions according to frontier', () => {
-      const version1 = V([1])
-      const version2 = V([2])
-      const frontier = new Antichain([V([2])])
+      const version1 = v([1])
+      const version2 = v([2])
+      const frontier = new Antichain([v([2])])
 
       index.addValue('key1', version1, [10, 1])
       index.addValue('key1', version1, [10, 2])
@@ -110,9 +110,9 @@ describe('Index', () => {
     })
 
     test('should throw error for invalid compaction frontier', () => {
-      const version = V([1])
-      const frontier1 = new Antichain([V([2])])
-      const frontier2 = new Antichain([V([1])])
+      const version = v([1])
+      const frontier1 = new Antichain([v([2])])
+      const frontier2 = new Antichain([v([1])])
 
       index.addValue('key1', version, [10, 1])
       index.compact(frontier1)
@@ -125,8 +125,8 @@ describe('Index', () => {
 
   describe('validation', () => {
     test('should throw error for invalid version access', () => {
-      const version1 = V([1])
-      const frontier = new Antichain([V([2])])
+      const version1 = v([1])
+      const frontier = new Antichain([v([2])])
 
       index.addValue('key1', version1, [10, 1])
       index.compact(frontier)

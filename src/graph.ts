@@ -224,5 +224,3 @@ export class Graph {
     }
   }
 }
-
-export { MessageType }

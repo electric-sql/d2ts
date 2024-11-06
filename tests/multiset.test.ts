@@ -1,70 +1,85 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { MultiSet } from '../src/multiset'
 
 describe('MultiSet', () => {
-  it('should handle basic operations', () => {
-    const a = new MultiSet<[string, string | string[]]>([
-      [['apple', '$5'], 2],
-      [['banana', '$2'], 1],
-    ])
-    const b = new MultiSet<[string, string | string[]]>([
-      [['apple', '$3'], 1],
-      [['apple', ['granny smith', '$2']], 1],
-      [['kiwi', '$2'], 1],
-    ])
+  describe('basic operations', () => {
+    let a: MultiSet<[string, string | string[]]>
+    let b: MultiSet<[string, string | string[]]>
 
-    // Test concat
-    const concat = a.concat(b)
-    expect(concat.getInner()).toEqual([
-      [['apple', '$5'], 2],
-      [['banana', '$2'], 1],
-      [['apple', '$3'], 1],
-      [['apple', ['granny smith', '$2']], 1],
-      [['kiwi', '$2'], 1],
-    ])
+    beforeEach(() => {
+      a = new MultiSet<[string, string | string[]]>([
+        [['apple', '$5'], 2],
+        [['banana', '$2'], 1],
+      ])
+      b = new MultiSet<[string, string | string[]]>([
+        [['apple', '$3'], 1],
+        [['apple', ['granny smith', '$2']], 1],
+        [['kiwi', '$2'], 1],
+      ])
+    })
 
-    // Test join
-    const joined = a.join(b)
-    expect(joined.getInner()).toEqual([
-      [['apple', ['$5', '$3']], 2],
-      [['apple', ['$5', ['granny smith', '$2']]], 2],
-    ])
+    it('should concatenate two multisets', () => {
+      const concat = a.concat(b)
+      expect(concat.getInner()).toEqual([
+        [['apple', '$5'], 2],
+        [['banana', '$2'], 1],
+        [['apple', '$3'], 1],
+        [['apple', ['granny smith', '$2']], 1],
+        [['kiwi', '$2'], 1],
+      ])
+    })
 
-    // Test filter
-    const filtered = a.filter((data) => data[0] !== 'apple')
-    expect(filtered.getInner()).toEqual([[['banana', '$2'], 1]])
+    it('should join two multisets', () => {
+      const joined = a.join(b)
+      expect(joined.getInner()).toEqual([
+        [['apple', ['$5', '$3']], 2],
+        [['apple', ['$5', ['granny smith', '$2']]], 2],
+      ])
+    })
 
-    // Test map
-    const mapped = a.map((data) => [data[1], data[0]])
-    expect(mapped.getInner()).toEqual([
-      [['$5', 'apple'], 2],
-      [['$2', 'banana'], 1],
-    ])
+    it('should filter elements', () => {
+      const filtered = a.filter((data) => data[0] !== 'apple')
+      expect(filtered.getInner()).toEqual([[['banana', '$2'], 1]])
+    })
+
+    it('should map elements', () => {
+      const mapped = a.map((data) => [data[1], data[0]])
+      expect(mapped.getInner()).toEqual([
+        [['$5', 'apple'], 2],
+        [['$2', 'banana'], 1],
+      ])
+    })
   })
 
-  it('should handle numeric operations', () => {
-    const d = new MultiSet([
-      [['apple', 11], 1],
-      [['apple', 3], 2],
-      [['banana', 2], 3],
-      [['coconut', 3], 1],
-    ])
+  describe('numeric operations', () => {
+    let d: MultiSet<[string, number]>
 
-    // Test sum
-    const sum = d.sum()
-    expect(sum.getInner()).toEqual([
-      [['apple', 17], 1],
-      [['banana', 6], 1],
-      [['coconut', 3], 1],
-    ])
+    beforeEach(() => {
+      d = new MultiSet([
+        [['apple', 11], 1],
+        [['apple', 3], 2],
+        [['banana', 2], 3],
+        [['coconut', 3], 1],
+      ])
+    })
 
-    // Test count
-    const count = d.count()
-    expect(count.getInner()).toEqual([
-      [['apple', 3], 1],
-      [['banana', 3], 1],
-      [['coconut', 1], 1],
-    ])
+    it('should calculate sum', () => {
+      const sum = d.sum()
+      expect(sum.getInner()).toEqual([
+        [['apple', 17], 1],
+        [['banana', 6], 1],
+        [['coconut', 3], 1],
+      ])
+    })
+
+    it('should calculate count', () => {
+      const count = d.count()
+      expect(count.getInner()).toEqual([
+        [['apple', 3], 1],
+        [['banana', 3], 1],
+        [['coconut', 1], 1],
+      ])
+    })
   })
 
   it('should handle min/max operations', () => {

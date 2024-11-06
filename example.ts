@@ -3,7 +3,7 @@ import {
   GraphBuilder,
 } from './src/differential-dataflow'
 import { MultiSet } from './src/multiset'
-import { Antichain, V } from './src/order'
+import { Antichain, v } from './src/order'
 
 const main = async () => {
   while (true) {
@@ -24,7 +24,7 @@ const run = async () => {
     console.log('===')
 
     const graphBuilder = new GraphBuilder(
-      new Antichain([V([0, 0])]),
+      new Antichain([v([0, 0])]),
     )
 
     const [input_a, writer_a] = graphBuilder.newInput<number>()
@@ -34,9 +34,9 @@ const run = async () => {
     const graph = graphBuilder.finalize()
 
     for (let i = 0; i < 10; i++) {
-      writer_a.sendData(V([0, i]), new MultiSet([[i, 1]]))
+      writer_a.sendData(v([0, i]), new MultiSet([[i, 1]]))
       writer_a.sendFrontier(
-        new Antichain([V([i, 0]), V([0, i])]),
+        new Antichain([v([i, 0]), v([0, i])]),
       )
       graph.step()
     }
@@ -48,7 +48,7 @@ const run = async () => {
     console.log('===')
 
     const graphBuilder = new GraphBuilder(
-      new Antichain([V([0, 0])]),
+      new Antichain([v([0, 0])]),
     )
 
     const [input_a, writer_a] = graphBuilder.newInput<[number, number]>()
@@ -58,24 +58,24 @@ const run = async () => {
     const graph = graphBuilder.finalize()
 
     for (let i = 0; i < 2; i++) {
-      writer_a.sendData(V([0, i]), new MultiSet([[[1, i], 2]]))
-      writer_a.sendData(V([0, i]), new MultiSet([[[2, i], 2]]))
+      writer_a.sendData(v([0, i]), new MultiSet([[[1, i], 2]]))
+      writer_a.sendData(v([0, i]), new MultiSet([[[2, i], 2]]))
 
       const a_frontier = new Antichain([
-        V([i + 2, 0]),
-        V([0, i]),
+        v([i + 2, 0]),
+        v([0, i]),
       ])
       writer_a.sendFrontier(a_frontier)
-      writer_b.sendData(V([i, 0]), new MultiSet([[[1, i + 2], 2]]))
-      writer_b.sendData(V([i, 0]), new MultiSet([[[2, i + 3], 2]]))
+      writer_b.sendData(v([i, 0]), new MultiSet([[[1, i + 2], 2]]))
+      writer_b.sendData(v([i, 0]), new MultiSet([[[2, i + 3], 2]]))
       writer_b.sendFrontier(
-        new Antichain([V([i, 0]), V([0, i * 2])]),
+        new Antichain([v([i, 0]), v([0, i * 2])]),
       )
       graph.step()
     }
 
-    writer_a.sendFrontier(new Antichain([V([11, 11])]))
-    writer_b.sendFrontier(new Antichain([V([11, 11])]))
+    writer_a.sendFrontier(new Antichain([v([11, 11])]))
+    writer_b.sendFrontier(new Antichain([v([11, 11])]))
     graph.step()
   })()
   console.timeEnd('two')
@@ -85,7 +85,7 @@ const run = async () => {
     console.log('===')
 
     const graphBuilder = new GraphBuilder(
-      new Antichain([V(0)]),
+      new Antichain([v(0)]),
     )
 
     const [input_a, writer_a] = graphBuilder.newInput<number>()
@@ -117,30 +117,30 @@ const run = async () => {
       .connectReader()
     const graph = graphBuilder.finalize()
 
-    writer_a.sendData(V(0), new MultiSet([[1, 1]]))
-    writer_a.sendFrontier(new Antichain([V(1)]))
+    writer_a.sendData(v(0), new MultiSet([[1, 1]]))
+    writer_a.sendFrontier(new Antichain([v(1)]))
 
-    while (output.probeFrontierLessThan(new Antichain([V(1)]))) {
+    while (output.probeFrontierLessThan(new Antichain([v(1)]))) {
       graph.step()
     }
 
     writer_a.sendData(
-      V(1),
+      v(1),
       new MultiSet([
         [16, 1],
         [3, 1],
       ]),
     )
-    writer_a.sendFrontier(new Antichain([V(2)]))
+    writer_a.sendFrontier(new Antichain([v(2)]))
 
-    while (output.probeFrontierLessThan(new Antichain([V(2)]))) {
+    while (output.probeFrontierLessThan(new Antichain([v(2)]))) {
       graph.step()
     }
 
-    writer_a.sendData(V(2), new MultiSet([[3, -1]]))
-    writer_a.sendFrontier(new Antichain([V(3)]))
+    writer_a.sendData(v(2), new MultiSet([[3, -1]]))
+    writer_a.sendFrontier(new Antichain([v(3)]))
 
-    while (output.probeFrontierLessThan(new Antichain([V(3)]))) {
+    while (output.probeFrontierLessThan(new Antichain([v(3)]))) {
       graph.step()
     }
   })()

@@ -4,10 +4,9 @@ import {
   DifferenceStreamReader,
   DifferenceStreamWriter,
   Graph,
-  MessageType,
   UnaryOperator,
 } from './graph'
-import { DataMessage } from './types'
+import { DataMessage, MessageType } from './types'
 import { Index } from './version-index'
 import { Version, Antichain } from './order'
 import { DefaultMap } from './utils'

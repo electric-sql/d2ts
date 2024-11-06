@@ -7,7 +7,7 @@ const versionCache = new WeakRefMap<string, Version>()
  * Ensures only one object exists for each unique version, these can then safely be
  * used as keys in maps etc.
  */
-export function V(version: number | number[]): Version {
+export function v(version: number | number[]): Version {
   const normalized = Array.isArray(version) ? version : [version]
   const hash = JSON.stringify(normalized)
 
@@ -77,16 +77,17 @@ export class Version {
   join(other: Version): Version {
     this.#validate(other)
     const out = this.#inner.map((v, i) => Math.max(v, other.#inner[i]))
-    return V(out)
+    return v(out)
   }
 
   meet(other: Version): Version {
     this.#validate(other)
     const out = this.#inner.map((v, i) => Math.min(v, other.#inner[i]))
-    return V(out)
+    return v(out)
   }
 
   advanceBy(frontier: Antichain): Version {
+    // The proof for this is in the sharing arrangements paper.
     if (frontier.isEmpty()) {
       return this
     }
@@ -98,13 +99,13 @@ export class Version {
   }
 
   extend(): Version {
-    return V([...this.#inner, 0])
+    return v([...this.#inner, 0])
   }
 
   truncate(): Version {
     const elements = [...this.#inner]
     elements.pop()
-    return V(elements)
+    return v(elements)
   }
 
   applyStep(step: number): Version {
@@ -113,11 +114,11 @@ export class Version {
     }
     const elements = [...this.#inner]
     elements[elements.length - 1] += step
-    return V(elements)
+    return v(elements)
   }
 
   getInner(): number[] {
-    return [...this.#inner]
+    return this.#inner
   }
 }
 
@@ -162,6 +163,9 @@ export class Antichain {
   }
 
   equals(other: Antichain): boolean {
+    if (this === other) {
+      return true
+    }
     if (this.#inner.length !== other.elements.length) {
       return false
     }
