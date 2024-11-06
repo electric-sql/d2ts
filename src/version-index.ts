@@ -6,11 +6,6 @@ type VersionMap<T> = DefaultMap<Version, T[]>
 type IndexMap<K, V> = DefaultMap<K, VersionMap<[V, number]>>
 
 /**
- * The implementation of index structures roughly analogous to differential arrangements for manipulating and
- * accessing (key, value) structured data across multiple versions (times).
- */
-
-/**
  * A map from a difference collection trace's keys -> versions at which
  * the key has nonzero multiplicity -> (value, multiplicities) that changed.
  *
@@ -30,7 +25,7 @@ export class Index<K, V> {
     this.#compactionFrontier = null
   }
 
-  repr(): string {
+  toString(): string {
     return `Index(${JSON.stringify([...this.#inner].map(([k, v]) => [k, [...v.entries()]]))})`
   }
 

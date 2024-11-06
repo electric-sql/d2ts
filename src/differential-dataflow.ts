@@ -405,7 +405,7 @@ export class DebugOperator<T> extends UnaryOperator<T> {
         if (message.type === MessageType.DATA) {
           const { version, collection } = message.data as DataMessage<T>
           console.log(
-            `debug ${name} data: version: ${version.repr()} collection: ${collection.repr()}`,
+            `debug ${name} data: version: ${version.toString()} collection: ${collection.toString()}`,
           )
           this.output.sendData(version, collection)
         } else if (message.type === MessageType.FRONTIER) {
@@ -414,7 +414,9 @@ export class DebugOperator<T> extends UnaryOperator<T> {
             throw new Error('Invalid frontier update')
           }
           this.setInputFrontier(frontier)
-          console.log(`debug ${name} notification: frontier ${frontier.repr()}`)
+          console.log(
+            `debug ${name} notification: frontier ${frontier.toString()}`,
+          )
 
           if (!this.outputFrontier.lessEqual(this.inputFrontier())) {
             throw new Error('Invalid frontier state')

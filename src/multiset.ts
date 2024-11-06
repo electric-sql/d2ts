@@ -13,9 +13,8 @@ export class MultiSet<T> {
     this.#inner = data
   }
 
-  repr(): string {
-    return `MultiSet(${JSON.stringify(this.#inner)})`
-    // return `MultiSet(${JSON.stringify(this.#inner, null, 2)})`
+  toString(indent = false): string {
+    return `MultiSet(${JSON.stringify(this.#inner, null, indent ? 2 : undefined)})`
   }
 
   /**

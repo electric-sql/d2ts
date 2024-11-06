@@ -1,6 +1,5 @@
 import { WeakRefMap } from './utils'
 
-// Add this at the top level, before the Version class
 const versionCache = new WeakRefMap<string, Version>()
 
 /**
@@ -40,7 +39,7 @@ export class Version {
     }
   }
 
-  repr(): string {
+  toString(): string {
     return `Version(${JSON.stringify(this.#inner)})`
   }
 
@@ -137,7 +136,7 @@ export class Antichain {
     }
   }
 
-  repr(): string {
+  toString(): string {
     return `Antichain(${JSON.stringify(this.#inner.map((v) => v.getInner()))})`
   }
 
