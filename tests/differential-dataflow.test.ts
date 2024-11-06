@@ -345,6 +345,53 @@ describe('Differential dataflow', () => {
     expect(data2).toEqual([[[[3, ['c', 'z']], 1]]])
   })
 
+  test('basic reduce operation', () => {
+    const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
+
+    const [input, writer] = graphBuilder.newInput<[string, number]>()
+
+    let messages: DataMessage<[string, number]>[] = []
+
+    const output = input
+      .reduce((vals) => {
+        let sum = 0
+        for (const [val, diff] of vals) {
+          sum += val * diff
+        }
+        return [[sum, 1]]
+      })
+      .output((message) => {
+        if (message.type === MessageType.DATA) {
+          messages.push(message.data)
+        }
+      })
+
+    const graph = graphBuilder.finalize()
+
+    writer.sendData(
+      v([1, 0]),
+      new MultiSet([
+        [['a', 1], 2],
+        [['a', 2], 1],
+        [['a', 3], 1],
+        [['b', 4], 1],
+      ]),
+    )
+    writer.sendData(v([1, 0]), new MultiSet([[['b', 5], 1]]))
+    writer.sendFrontier(new Antichain([v([2, 0])])) // <-- TODO: Is this correct?
+
+    graph.step()
+
+    const data = messages.map((m) => m.collection.getInner())
+
+    expect(data).toEqual([
+      [
+        [['a', 7], 1],
+        [['b', 9], 1],
+      ],
+    ])
+  })
+
   test('basic count operation', () => {
     const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
 

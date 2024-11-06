@@ -21,6 +21,7 @@ import {
   MapOperator,
   NegateOperator,
   OutputOperator,
+  ReduceOperator,
 } from './operators'
 
 type KeyValue<K, V> = [K, V]
@@ -164,6 +165,28 @@ export class DifferenceStreamBuilder<T> {
       this.connectReader() as DifferenceStreamReader<KeyValue<K, V1>>,
       other.connectReader(),
       output.writer(),
+      this.#graph.frontier(),
+    )
+    this.#graph.addOperator(operator)
+    this.#graph.addStream(output.connectReader())
+    return output
+  }
+
+  /**
+   * Reduces the elements in the stream by key
+   */
+  reduce<
+    K extends T extends KeyValue<infer K, infer _V> ? K : never,
+    V1 extends T extends KeyValue<K, infer V> ? V : never,
+    R,
+  >(
+    f: (values: [V1, number][]) => [R, number][],
+  ): DifferenceStreamBuilder<KeyValue<K, R>> {
+    const output = new DifferenceStreamBuilder<KeyValue<K, R>>(this.#graph)
+    const operator = new ReduceOperator<K, V1, R>(
+      this.connectReader() as DifferenceStreamReader<KeyValue<K, V1>>,
+      output.writer(),
+      f,
       this.#graph.frontier(),
     )
     this.#graph.addOperator(operator)
