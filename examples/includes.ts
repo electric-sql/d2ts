@@ -103,10 +103,12 @@ graph.step()
 console.log('> Comment 8 should not be included in the output above')
 
 // Move issue 2 to project 1, send frontier and step
+// Updates in differential dataflow are done by removing the old value and adding the new value
 writerIssues.sendData(
   v([2, 0]),
   new MultiSet([
-    [[2, { type: 'issue', id: 2, project_id: 1, title: 'Issue 2' }], 1],
+    [[2, { type: 'issue', id: 2, project_id: 2, title: 'Issue 2' }], -1], // Remove
+    [[2, { type: 'issue', id: 2, project_id: 1, title: 'Issue 2' }], 1], // Add
   ]),
 )
 writerIssues.sendFrontier(new Antichain([v([2, 0])]))
