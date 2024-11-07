@@ -82,7 +82,6 @@ export class MultiSet<T> {
    * Match pairs (k, v1) and (k, v2) from the two input collections and produce (k, (v1, v2)).
    */
   join<U>(other: MultiSet<KeyedData<U>>): MultiSet<KeyedData<[T, U]>> {
-    // TODO: validate that both are keyed collections
     const out: MultiSetArray<KeyedData<[T, U]>> = []
 
     for (const [[k1, v1], d1] of this.#inner as MultiSetArray<KeyedData<T>>) {
@@ -101,7 +100,6 @@ export class MultiSet<T> {
    * This method only works on KeyedData types and returns KeyedData results.
    */
   reduce<U>(f: (vals: [T, number][]) => [U, number][]): MultiSet<KeyedData<U>> {
-    // TODO: validate that the collection is keyed
     const keys = new DefaultMap<string, [T, number][]>(() => [])
     const out: MultiSetArray<KeyedData<U>> = []
 

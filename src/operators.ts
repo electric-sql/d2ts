@@ -151,13 +151,14 @@ export class DebugOperator<T> extends UnaryOperator<T> {
     output: DifferenceStreamWriter<T>,
     name: string,
     initialFrontier: Antichain,
+    indent: boolean = false,
   ) {
     const inner = () => {
       for (const message of this.inputMessages()) {
         if (message.type === MessageType.DATA) {
           const { version, collection } = message.data as DataMessage<T>
           console.log(
-            `debug ${name} data: version: ${version.toString()} collection: ${collection.toString()}`,
+            `debug ${name} data: version: ${version.toString()} collection: ${collection.toString(indent)}`,
           )
           this.output.sendData(version, collection)
         } else if (message.type === MessageType.FRONTIER) {

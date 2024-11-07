@@ -120,13 +120,17 @@ export class DifferenceStreamBuilder<T> {
   /**
    * Prints the data in the stream
    */
-  debug(name: string = ''): DifferenceStreamBuilder<T> {
+  debug(
+    name: string = '',
+    indent: boolean = false,
+  ): DifferenceStreamBuilder<T> {
     const output = new DifferenceStreamBuilder<T>(this.#graph)
     const operator = new DebugOperator<T>(
       this.connectReader(),
       output.writer(),
       name,
       this.#graph.frontier(),
+      indent,
     )
     this.#graph.addOperator(operator)
     this.#graph.addStream(output.connectReader())
@@ -284,7 +288,6 @@ export class DifferenceStreamBuilder<T> {
   iterate(
     f: (stream: DifferenceStreamBuilder<T>) => DifferenceStreamBuilder<T>,
   ): DifferenceStreamBuilder<T> {
-    // TODO: I think the types are wrong here
     this.#startScope()
     const feedbackStream = new DifferenceStreamBuilder<T>(this.#graph)
     const entered = this.#ingress().concat(feedbackStream)

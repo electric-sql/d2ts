@@ -549,7 +549,7 @@ class FeedbackOperator(UnaryOperator):
 
         super().__init__(input_a, output, inner, initial_frontier)
 
-    def connect_loop(output):
+    def connect_loop(self, output):
         self.output = output
 
 

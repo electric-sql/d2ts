@@ -5,19 +5,6 @@ import {
 import { MultiSet } from './src/multiset'
 import { Antichain, v } from './src/order'
 
-const main = async () => {
-  while (true) {
-    // Wait for enter key press before continuing
-    console.log('Press enter to continue')
-    await new Promise<void>((resolve) => {
-      process.stdin.once('data', () => {
-        resolve()
-      })
-    })
-    run()
-  }
-}
-
 const run = async () => {
   console.time('one')
   ;(function one() {
@@ -145,6 +132,30 @@ const run = async () => {
     }
   })()
   console.timeEnd('three')
+}
+
+/**
+ * After JS is JIT compiled, the first run is slower.
+ * use --multi-run to run multiple times (blocked on hitting enter)
+ */
+const main = async () => {
+  const multiRun = process.argv.includes('--multi-run')
+  
+  if (multiRun) {
+    while (true) {
+      run()
+      // Wait for enter key press before continuing
+      console.log('===')
+      console.log('Press enter to run again')
+      await new Promise<void>((resolve) => {
+        process.stdin.once('data', () => {
+          resolve()
+        })
+      })
+    }
+  } else {
+    run()
+  }
 }
 
 main()

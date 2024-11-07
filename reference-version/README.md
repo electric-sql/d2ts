@@ -1,4 +1,8 @@
-# Differential Dataflow, in Python.
+# This is a reference implementation of Differential Dataflow in Python.
+
+It is taken from https://github.com/ruchirK/python-differential/ and this blog post: https://materialize.com/blog/differential-from-scratch/
+
+## Differential Dataflow, in Python.
 
 WIP. 
 

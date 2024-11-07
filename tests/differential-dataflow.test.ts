@@ -273,7 +273,7 @@ describe('Differential dataflow', () => {
         [2, -1],
       ]),
     ) // Add two more 3, remove 2
-    writer.sendFrontier(new Antichain([v([1, 1])])) // <-- TODO: Is this correct?
+    writer.sendFrontier(new Antichain([v([1, 1])]))
 
     graph.step()
 
@@ -378,7 +378,7 @@ describe('Differential dataflow', () => {
       ]),
     )
     writer.sendData(v([1, 0]), new MultiSet([[['b', 5], 1]]))
-    writer.sendFrontier(new Antichain([v([2, 0])])) // <-- TODO: Is this correct?
+    writer.sendFrontier(new Antichain([v([2, 0])]))
 
     graph.step()
 
@@ -419,7 +419,7 @@ describe('Differential dataflow', () => {
       ]),
     )
     writer.sendData(v([1, 0]), new MultiSet([[[3, 'z'], 1]]))
-    writer.sendFrontier(new Antichain([v([1, 1])])) // <-- TODO: Is this correct?
+    writer.sendFrontier(new Antichain([v([1, 1])]))
 
     graph.step()
 
@@ -457,7 +457,7 @@ describe('Differential dataflow', () => {
         [[2, 'c'], 2],
       ]),
     )
-    writer.sendFrontier(new Antichain([v([1, 1])])) // <-- TODO: Is this correct?
+    writer.sendFrontier(new Antichain([v([1, 1])]))
 
     graph.step()
 

@@ -121,7 +121,7 @@ const joined_stream = issues_stream
     // description: issue.description,
     user_name: user.name
   }]))
-  .debug('map')
+  .debug('map', true)
 
 const graph = graphBuilder.finalize()
 
