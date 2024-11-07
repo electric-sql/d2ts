@@ -94,11 +94,11 @@ export class NegateOperator<T> extends LinearUnaryOperator<T, T> {
 /**
  * Operator that concatenates two input streams
  */
-export class ConcatOperator<T> extends BinaryOperator<T> {
+export class ConcatOperator<T, T2> extends BinaryOperator<T | T2> {
   constructor(
     inputA: DifferenceStreamReader<T>,
-    inputB: DifferenceStreamReader<T>,
-    output: DifferenceStreamWriter<T>,
+    inputB: DifferenceStreamReader<T2>,
+    output: DifferenceStreamWriter<T | T2>,
     initialFrontier: Antichain,
   ) {
     const inner = () => {

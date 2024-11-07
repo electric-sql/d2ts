@@ -101,12 +101,14 @@ export class DifferenceStreamBuilder<T> {
   /**
    * Concatenates two streams
    */
-  concat(other: DifferenceStreamBuilder<T>): DifferenceStreamBuilder<T> {
+  concat<T2>(
+    other: DifferenceStreamBuilder<T2>,
+  ): DifferenceStreamBuilder<T | T2> {
     if (this.#graph !== other.#graph) {
       throw new Error('Cannot concat streams from different graphs')
     }
-    const output = new DifferenceStreamBuilder<T>(this.#graph)
-    const operator = new ConcatOperator<T>(
+    const output = new DifferenceStreamBuilder<T | T2>(this.#graph)
+    const operator = new ConcatOperator<T, T2>(
       this.connectReader(),
       other.connectReader(),
       output.writer(),

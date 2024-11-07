@@ -1,6 +1,6 @@
-import { DifferenceStreamBuilder, GraphBuilder } from './src/builder'
-import { MultiSet } from './src/multiset'
-import { Antichain, v } from './src/order'
+import { GraphBuilder } from '../src/builder'
+import { MultiSet } from '../src/multiset'
+import { Antichain, v } from '../src/order'
 
 type Issue = {
   id: number
