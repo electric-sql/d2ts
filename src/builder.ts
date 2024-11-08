@@ -23,6 +23,8 @@ import {
   OutputOperator,
   ReduceOperator,
 } from './operators'
+import Database from 'better-sqlite3'
+import { ConsolidateOperatorSQLite } from './operators-sqlite'
 
 type KeyValue<K, V> = [K, V]
 
@@ -37,10 +39,15 @@ type KeyValue<K, V> = [K, V]
 export class DifferenceStreamBuilder<T> {
   #writer: DifferenceStreamWriter<T>
   #graph: GraphBuilder
+  #db: Database.Database | undefined
 
-  constructor(graph: GraphBuilder) {
+  constructor(
+    graph: GraphBuilder,
+    db: Database.Database | undefined = undefined,
+  ) {
     this.#writer = new DifferenceStreamWriter<T>()
     this.#graph = graph
+    this.#db = db
   }
 
   connectReader(): DifferenceStreamReader<T> {
@@ -241,11 +248,18 @@ export class DifferenceStreamBuilder<T> {
    */
   consolidate(): DifferenceStreamBuilder<T> {
     const output = new DifferenceStreamBuilder<T>(this.#graph)
-    const operator = new ConsolidateOperator<T>(
-      this.connectReader(),
-      output.writer(),
-      this.#graph.frontier(),
-    )
+    const operator = this.#db
+      ? new ConsolidateOperatorSQLite<T>(
+          this.connectReader(),
+          output.writer(),
+          this.#graph.frontier(),
+          this.#db,
+        )
+      : new ConsolidateOperator<T>(
+          this.connectReader(),
+          output.writer(),
+          this.#graph.frontier(),
+        )
     this.#graph.addOperator(operator)
     this.#graph.addStream(output.connectReader())
     return output
@@ -314,13 +328,18 @@ export class GraphBuilder {
   #streams: DifferenceStreamReader<any>[] = []
   #operators: (UnaryOperator<any> | BinaryOperator<any>)[] = []
   #frontierStack: Antichain[] = []
+  #db: Database.Database | undefined
 
-  constructor(initialFrontier: Antichain) {
+  constructor(
+    initialFrontier: Antichain,
+    db: Database.Database | undefined = undefined,
+  ) {
     this.#frontierStack = [initialFrontier]
+    this.#db = db
   }
 
   newInput<T>(): [DifferenceStreamBuilder<T>, DifferenceStreamWriter<T>] {
-    const streamBuilder = new DifferenceStreamBuilder<T>(this)
+    const streamBuilder = new DifferenceStreamBuilder<T>(this, this.#db)
     this.#streams.push(streamBuilder.connectReader())
     return [streamBuilder, streamBuilder.writer()]
   }

@@ -43,6 +43,14 @@ export class Version {
     return `Version(${JSON.stringify(this.#inner)})`
   }
 
+  toJSON(): string {
+    return JSON.stringify(Array.from(this.getInner()))
+  }
+
+  static fromJSON(json: string): Version {
+    return new Version(JSON.parse(json))
+  }
+
   #validateNumber(n: number): void {
     if (n < 0 || !Number.isInteger(n)) {
       throw new Error('Version numbers must be non-negative integers')

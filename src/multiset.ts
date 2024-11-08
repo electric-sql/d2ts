@@ -17,6 +17,14 @@ export class MultiSet<T> {
     return `MultiSet(${JSON.stringify(this.#inner, null, indent ? 2 : undefined)})`
   }
 
+  toJSON(): string {
+    return JSON.stringify(Array.from(this.getInner()))
+  }
+
+  static fromJSON<T>(json: string): MultiSet<T> {
+    return new MultiSet(JSON.parse(json))
+  }
+
   /**
    * Apply a function to all records in the collection.
    */
