@@ -4,9 +4,11 @@ import {
   DifferenceStreamReader,
   DifferenceStreamWriter,
   UnaryOperator,
+  BinaryOperator,
 } from './graph'
 import { Version, Antichain } from './order'
 import Database from 'better-sqlite3'
+import { SQLIndex } from './version-index-sqlite'
 
 // Count of operators to generate unique table names for each operator
 // As long as the query is generated in the same order as previous runs, the
@@ -28,7 +30,6 @@ interface CollectionParams {
  */
 export class ConsolidateOperatorSQLite<T> extends UnaryOperator<T> {
   #operatorId: number
-  #db: Database.Database
   #preparedStatements: {
     insert: Database.Statement<CollectionParams>
     update: Database.Statement<CollectionParams>
@@ -113,36 +114,175 @@ export class ConsolidateOperatorSQLite<T> extends UnaryOperator<T> {
     this.#operatorId = operatorId
 
     // Initialize database
-    this.#db = db
-    this.#db.exec(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS collections_${this.#operatorId} (
         version TEXT PRIMARY KEY,
         collection TEXT NOT NULL
       )
     `)
-    this.#db.exec(`
+    db.exec(`
       CREATE INDEX IF NOT EXISTS collections_${this.#operatorId}_version
       ON collections_${this.#operatorId}(version);
     `)
 
     // Prepare statements
     this.#preparedStatements = {
-      insert: this.#db.prepare(
+      insert: db.prepare(
         `INSERT INTO collections_${this.#operatorId} (version, collection) VALUES (@version, @collection)`,
       ),
-      update: this.#db.prepare(
+      update: db.prepare(
         `UPDATE collections_${this.#operatorId} SET collection = @collection WHERE version = @version`,
       ),
-      get: this.#db.prepare(
+      get: db.prepare(
         `SELECT collection FROM collections_${this.#operatorId} WHERE version = ?`,
       ),
-      delete: this.#db.prepare(
+      delete: db.prepare(
         `DELETE FROM collections_${this.#operatorId} WHERE version = ?`,
       ),
-      getAllVersions: this.#db.prepare(
+      getAllVersions: db.prepare(
         `SELECT version, collection FROM collections_${this.#operatorId}`,
       ),
     }
   }
 }
 
+export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
+  [K, unknown]
+> {
+  #indexA: SQLIndex<K, V1>
+  #indexB: SQLIndex<K, V2>
+
+  constructor(
+    inputA: DifferenceStreamReader<[K, V1]>,
+    inputB: DifferenceStreamReader<[K, V2]>,
+    output: DifferenceStreamWriter<[K, [V1, V2]]>,
+    initialFrontier: Antichain,
+    db: Database.Database,
+  ) {
+    const inner = () => {
+      // Create temporary indexes for this iteration
+      const deltaA = new SQLIndex<K, V1>(
+        db,
+        `join_delta_a_${operatorCount}`,
+        true,
+      )
+      const deltaB = new SQLIndex<K, V2>(
+        db,
+        `join_delta_b_${operatorCount}`,
+        true,
+      )
+
+      try {
+        // Process input A
+        console.log('Process input A')
+        for (const message of this.inputAMessages()) {
+          if (message.type === MessageType.DATA) {
+            const { version, collection } = message.data as DataMessage<[K, V1]>
+            for (const [item, multiplicity] of collection.getInner()) {
+              const [key, value] = item
+              deltaA.addValue(key, version, [value, multiplicity])
+            }
+          } else if (message.type === MessageType.FRONTIER) {
+            const frontier = message.data as Antichain
+            if (!this.inputAFrontier().lessEqual(frontier)) {
+              throw new Error('Invalid frontier update')
+            }
+            this.setInputAFrontier(frontier)
+          }
+        }
+
+        // Process input B
+        console.log('Process input B')
+        for (const message of this.inputBMessages()) {
+          if (message.type === MessageType.DATA) {
+            const { version, collection } = message.data as DataMessage<[K, V2]>
+            for (const [item, multiplicity] of collection.getInner()) {
+              const [key, value] = item
+              deltaB.addValue(key, version, [value, multiplicity])
+            }
+          } else if (message.type === MessageType.FRONTIER) {
+            const frontier = message.data as Antichain
+            if (!this.inputBFrontier().lessEqual(frontier)) {
+              throw new Error('Invalid frontier update')
+            }
+            this.setInputBFrontier(frontier)
+          }
+        }
+
+        // Process results
+        console.log('Process results')
+        const results = new Map<Version, MultiSet<[K, [V1, V2]]>>()
+
+        // Join deltaA with existing indexB and collect results
+        console.log('Join deltaA with indexB')
+        for (const [version, collection] of deltaA.join(this.#indexB)) {
+          console.log('version', version.toString())
+          const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
+          existing.extend(collection)
+          results.set(version, existing)
+        }
+
+        // Append deltaA to indexA
+        console.log('Append deltaA to indexA')
+        this.#indexA.append(deltaA)
+
+        // Join indexA with deltaB and collect results
+        console.log('Join indexA with deltaB')
+        for (const [version, collection] of this.#indexA.join(deltaB)) {
+          console.log('version', version.toString())
+          const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
+          existing.extend(collection)
+          results.set(version, existing)
+        }
+
+        console.log('RESULTS =====')
+        console.log(
+          JSON.stringify(
+            [...results.entries()].map(([version, collection]) => [
+              version,
+              collection.getInner(),
+            ]),
+            undefined,
+            '  ',
+          ),
+        )
+
+        // process.exit(0)
+
+        // Send all results
+        console.log('Send results')
+        for (const [version, collection] of results) {
+          console.log('Send', version, collection.toString(true))
+          this.output.sendData(version, collection)
+        }
+
+        // Finally append deltaB to indexB
+        console.log('Append deltaB to indexB')
+        this.#indexB.append(deltaB)
+
+        // Update frontiers
+        console.log('Update frontiers')
+        const inputFrontier = this.inputAFrontier().meet(this.inputBFrontier())
+        if (!this.outputFrontier.lessEqual(inputFrontier)) {
+          throw new Error('Invalid frontier state')
+        }
+        if (this.outputFrontier.lessThan(inputFrontier)) {
+          this.outputFrontier = inputFrontier
+          this.output.sendFrontier(this.outputFrontier)
+          this.#indexA.compact(this.outputFrontier)
+          this.#indexB.compact(this.outputFrontier)
+        }
+      } finally {
+        // Clean up temporary indexes
+        deltaA.destroy()
+        deltaB.destroy()
+      }
+    }
+
+    super(inputA, inputB, output, inner, initialFrontier)
+
+    this.#indexA = new SQLIndex<K, V1>(db, `join_a_${operatorCount}`)
+    this.#indexB = new SQLIndex<K, V2>(db, `join_b_${operatorCount}`)
+    operatorCount++
+  }
+}

@@ -293,6 +293,7 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<[K, unknown]> {
       const deltaB = new Index<K, V2>()
 
       // Process input A
+      console.log('Process input A')
       for (const message of this.inputAMessages()) {
         if (message.type === MessageType.DATA) {
           const { version, collection } = message.data as DataMessage<[K, V1]>
@@ -310,6 +311,7 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<[K, unknown]> {
       }
 
       // Process input B
+      console.log('Process input B')
       for (const message of this.inputBMessages()) {
         if (message.type === MessageType.DATA) {
           const { version, collection } = message.data as DataMessage<[K, V2]>
@@ -327,31 +329,63 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<[K, unknown]> {
       }
 
       // Process results
+      console.log('Process results')
       const results = new Map<Version, MultiSet<[K, [V1, V2]]>>()
 
       // Join deltaA with existing indexB
+      console.log('Join deltaA with indexB')
       for (const [version, collection] of deltaA.join(this.#indexB)) {
+        console.log('version', version.toString())
         const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
         existing.extend(collection)
         results.set(version, existing)
       }
 
+      // Append deltaA to indexA
+      console.log('Append deltaA to indexA')
       this.#indexA.append(deltaA)
 
       // Join existing indexA with deltaB
+      console.log('Join existing indexA with deltaB')
       for (const [version, collection] of this.#indexA.join(deltaB)) {
+        console.log('version', version.toString())
         const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
         existing.extend(collection)
         results.set(version, existing)
       }
 
+      // console.log('IndexA', this.#indexA.toString(true))
+      // console.log('IndexB', this.#indexB.toString(true))
+      // console.log('DeltaA', deltaA.toString(true))
+      // console.log('DeltaB', deltaB.toString(true))
+
+      console.log('RESULTS =====')
+      console.log(
+        JSON.stringify(
+          [...results.entries()].map(([version, collection]) => [
+            version,
+            collection.getInner(),
+          ]),
+          undefined,
+          '  ',
+        ),
+      )
+
+      // process.exit(0)
+
       // Send results
+      console.log('Send results')
       for (const [version, collection] of results) {
+        console.log('Send', version, collection.toString(true))
         this.output.sendData(version, collection)
       }
+
+      // Append deltaB to indexB
+      console.log('Append deltaB to indexB')
       this.#indexB.append(deltaB)
 
       // Update frontiers
+      console.log('Update frontiers')
       const inputFrontier = this.inputAFrontier().meet(this.inputBFrontier())
       if (!this.outputFrontier.lessEqual(inputFrontier)) {
         throw new Error('Invalid frontier state')
@@ -362,6 +396,9 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<[K, unknown]> {
         this.#indexA.compact(this.outputFrontier)
         this.#indexB.compact(this.outputFrontier)
       }
+
+      console.log('IndexA', this.#indexA.toString(true))
+      console.log('IndexB', this.#indexB.toString(true))
     }
 
     super(inputA, inputB, output, inner, initialFrontier)

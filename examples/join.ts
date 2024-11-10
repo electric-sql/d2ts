@@ -1,6 +1,8 @@
+import Database from 'better-sqlite3'
 import { GraphBuilder } from '../src/builder'
 import { MultiSet } from '../src/multiset'
 import { Antichain, v } from '../src/order'
+import { parseArgs } from 'node:util'
 
 type Issue = {
   id: number
@@ -92,8 +94,19 @@ const users: User[] = [
   }
 ]
 
+const args = parseArgs({
+  options: {
+    sqlite: {
+      type: 'boolean',
+      short: 's',
+      default: false
+    }
+  }
+})
+
 const graphBuilder = new GraphBuilder(
   new Antichain([v([0, 0])]),
+  args.values.sqlite ? new Database('join.sqlite') : undefined
 )
 
 const [input_issues, writer_issues] = graphBuilder.newInput<[number, Issue]>()
@@ -101,20 +114,20 @@ const [input_users, writer_users] = graphBuilder.newInput<[number, User]>()
 
 // Transform issues into [key, value] pairs for joining
 const issues_stream = input_issues
-  // .debug('issues_stream')
+  .debug('issues_stream')
   .map(([issue_id, issue]) => [issue.user_id, issue] as [number, Issue])
-  // .debug('issues_stream_map')
+  .debug('issues_stream_map')
 
 // Transform users into [key, value] pairs for joining
 const users_stream = input_users
-  // .debug('users_stream')
+  .debug('users_stream')
   .map(([user_id, user]) => [user_id, user] as [number, User])
-  // .debug('users_stream_map')
+  .debug('users_stream_map')
 
 // Join streams and transform to desired output format
 const joined_stream = issues_stream
   .join(users_stream)
-  // .debug('join')
+  .debug('join')
   .map(([_key, [issue, user]]) => ([issue.id, {
     id: issue.id,
     title: issue.title,
@@ -138,7 +151,7 @@ writer_users.sendFrontier(new Antichain([v([1, 0])]))
 
 graph.step()
 
-// Add a new issue
+// // Add a new issue
 writer_issues.sendData(v([2, 0]), new MultiSet([[[11, {
   id: 11,
   title: 'New issue',
