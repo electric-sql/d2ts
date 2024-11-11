@@ -153,15 +153,21 @@ export class Index<K, V> implements IndexType<K, V> {
     this.#validate(compactionFrontier)
 
     const consolidateValues = (values: [V, number][]): [V, number][] => {
-      const consolidated = new DefaultMap<V, number>(() => 0)
+      // Use string representation of values as keys for proper deduplication
+      const consolidated = new Map<string, [V, number]>()
 
       for (const [value, multiplicity] of values) {
-        consolidated.update(value, (current) => current + multiplicity)
+        const key = JSON.stringify(value)
+        const existing = consolidated.get(key)
+        if (existing) {
+          consolidated.set(key, [value, existing[1] + multiplicity])
+        } else {
+          consolidated.set(key, [value, multiplicity])
+        }
       }
 
-      return Array.from(consolidated.entries())
+      return Array.from(consolidated.values())
         .filter(([_, multiplicity]) => multiplicity !== 0)
-        .map(([value, multiplicity]) => [value, multiplicity])
     }
 
     const keysToProcess =
@@ -189,7 +195,12 @@ export class Index<K, V> implements IndexType<K, V> {
       }
 
       for (const version of toConsolidate) {
-        versions.set(version, consolidateValues(versions.get(version)))
+        const newValues = consolidateValues(versions.get(version))
+        if (newValues.length > 0) {
+          versions.set(version, newValues)
+        } else {
+          this.#inner.delete(key)
+        }
       }
     }
 

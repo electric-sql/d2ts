@@ -134,6 +134,7 @@ const joined_stream = issues_stream
     // description: issue.description,
     user_name: user.name
   }]))
+  .distinct()
   .debug('map', true)
 
 const graph = graphBuilder.finalize()
@@ -146,8 +147,8 @@ for (const user of users) {
   writer_users.sendData(v([1, 0]), new MultiSet([[[user.id, user], 1]]))
 }
 
-writer_issues.sendFrontier(new Antichain([v([1, 0])]))
-writer_users.sendFrontier(new Antichain([v([1, 0])]))
+writer_issues.sendFrontier(new Antichain([v([2, 0])]))
+writer_users.sendFrontier(new Antichain([v([2, 0])]))
 
 graph.step()
 
@@ -158,8 +159,8 @@ writer_issues.sendData(v([2, 0]), new MultiSet([[[11, {
   user_id: 1,
 }], 1]]))
 
-writer_issues.sendFrontier(new Antichain([v([2, 0])]))
-writer_users.sendFrontier(new Antichain([v([2, 0])]))
+writer_issues.sendFrontier(new Antichain([v([3, 0])]))
+writer_users.sendFrontier(new Antichain([v([3, 0])]))
 
 graph.step()
 
@@ -170,8 +171,41 @@ writer_issues.sendData(v([3, 0]), new MultiSet([[[1, {
   user_id: 1,
 }], -1]]))
 
-writer_issues.sendFrontier(new Antichain([v([3, 0])]))
-writer_users.sendFrontier(new Antichain([v([3, 0])]))
+writer_issues.sendFrontier(new Antichain([v([4, 0])]))
+writer_users.sendFrontier(new Antichain([v([4, 0])]))
+
+graph.step()
+
+// Insert a new user and issue by the same user
+writer_users.sendData(v([4, 0]), new MultiSet([[[4, {
+  id: 4,
+  name: 'Dave Brown',
+}], 1]]))
+
+writer_issues.sendData(v([4, 0]), new MultiSet([[[12, {
+  id: 12,
+  title: 'New issue',
+  user_id: 4,
+}], 1]]))
+
+writer_issues.sendFrontier(new Antichain([v([5, 0])]))
+writer_users.sendFrontier(new Antichain([v([5, 0])]))
+
+graph.step()
+
+// Delete a user and their issues
+writer_users.sendData(v([5, 0]), new MultiSet([[[4, {
+  id: 4,
+  name: 'Dave Brown',
+}], -1]]))
+writer_issues.sendData(v([5, 0]), new MultiSet([[[12, {
+  id: 12,
+  title: 'New issue',
+  user_id: 4,
+}], -1]]))
+
+writer_issues.sendFrontier(new Antichain([v([6, 0])]))
+writer_users.sendFrontier(new Antichain([v([6, 0])]))
 
 graph.step()
 

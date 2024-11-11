@@ -397,8 +397,8 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<[K, unknown]> {
         this.#indexB.compact(this.outputFrontier)
       }
 
-      console.log('IndexA', this.#indexA.toString(true))
-      console.log('IndexB', this.#indexB.toString(true))
+      // console.log('IndexA', this.#indexA.toString(true))
+      // console.log('IndexB', this.#indexB.toString(true))
     }
 
     super(inputA, inputB, output, inner, initialFrontier)
