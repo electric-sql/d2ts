@@ -312,7 +312,6 @@ export class SQLIndex<K, V> {
             FROM ${this.#tableName}
             WHERE version = '${versionStr}'
             GROUP BY key, value
-            HAVING SUM(multiplicity) != 0
           )
           INSERT INTO ${this.#tableName} (key, version, value, multiplicity)
           SELECT 
@@ -336,9 +335,17 @@ export class SQLIndex<K, V> {
           WHERE version = '${versionStr}'
         `
 
+        // Delete rows where multiplicity = 0 at the new version
+        const deleteZeroMultiplicityQuery = `
+          DELETE FROM ${this.#tableName}
+          WHERE version = '${newVersionStr}'
+          AND multiplicity = 0
+        `
+
         // Execute the queries
         this.#db.prepare(moveAndConsolidateQuery).run()
         this.#db.prepare(deleteOldVersionQuery).run()
+        this.#db.prepare(deleteZeroMultiplicityQuery).run()
       }
     })()
   }

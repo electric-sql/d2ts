@@ -166,8 +166,9 @@ export class Index<K, V> implements IndexType<K, V> {
         }
       }
 
-      return Array.from(consolidated.values())
-        .filter(([_, multiplicity]) => multiplicity !== 0)
+      return Array.from(consolidated.values()).filter(
+        ([_, multiplicity]) => multiplicity !== 0,
+      )
     }
 
     const keysToProcess =
