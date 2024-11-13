@@ -235,6 +235,10 @@ export class SQLIndex<K, V> {
     return this.#tableName
   }
 
+  get versionTableName(): string {
+    return this.#versionTableName
+  }
+
   getCompactionFrontier(): Antichain | null {
     const frontierRow = this.#preparedStatements.getCompactionFrontier.get()
     if (!frontierRow) return null
@@ -407,51 +411,49 @@ export class SQLIndex<K, V> {
       throw new Error('Invalid compaction frontier')
     }
 
-    this.#db.transaction(() => {
-      // Store the new frontier
-      this.setCompactionFrontier(compactionFrontier)
+    // Store the new frontier
+    this.setCompactionFrontier(compactionFrontier)
 
-      const findVersionsQuery = `
-        SELECT DISTINCT v.id, v.version
-        FROM ${this.#versionTableName} v
-        ${
-          keys.length > 0
-            ? `
-          JOIN ${this.#tableName} d ON d.version_id = v.id
-          WHERE d.key IN (${keys.map((k) => `'${JSON.stringify(k)}'`).join(',')})
-        `
-            : ''
-        }
+    const findVersionsQuery = `
+      SELECT DISTINCT v.id, v.version
+      FROM ${this.#versionTableName} v
+      ${
+        keys.length > 0
+          ? `
+        JOIN ${this.#tableName} d ON d.version_id = v.id
+        WHERE d.key IN (${keys.map((k) => `'${JSON.stringify(k)}'`).join(',')})
       `
-
-      const versions = this.#db
-        .prepare<[], VersionRow>(findVersionsQuery)
-        .all()
-        .map((row) => ({
-          id: row.id,
-          version: Version.fromJSON(row.version),
-        }))
-        .filter((v) => !compactionFrontier.lessEqualVersion(v.version))
-
-      for (const { version } of versions) {
-        const newVersion = version.advanceBy(compactionFrontier)
-
-        // Update version mapping in version table
-        this.#preparedStatements.updateVersionMapping.run(
-          newVersion.toJSON(),
-          version.toJSON(),
-        )
-
-        // Consolidate multiplicities
-        this.#preparedStatements.consolidateVersions.run(
-          newVersion.toJSON(),
-          newVersion.toJSON(),
-        )
-
-        // Delete rows with zero multiplicity
-        this.#preparedStatements.deleteZeroMultiplicity.run()
+          : ''
       }
-    })()
+    `
+
+    const versions = this.#db
+      .prepare<[], VersionRow>(findVersionsQuery)
+      .all()
+      .map((row) => ({
+        id: row.id,
+        version: Version.fromJSON(row.version),
+      }))
+      .filter((v) => !compactionFrontier.lessEqualVersion(v.version))
+
+    for (const { version } of versions) {
+      const newVersion = version.advanceBy(compactionFrontier)
+
+      // Update version mapping in version table
+      this.#preparedStatements.updateVersionMapping.run(
+        newVersion.toJSON(),
+        version.toJSON(),
+      )
+
+      // Consolidate multiplicities
+      this.#preparedStatements.consolidateVersions.run(
+        newVersion.toJSON(),
+        newVersion.toJSON(),
+      )
+
+      // Delete rows with zero multiplicity
+      this.#preparedStatements.deleteZeroMultiplicity.run()
+    }
   }
 
   showAll(): { key: K; version: Version; value: V; multiplicity: number }[] {

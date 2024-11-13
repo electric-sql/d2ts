@@ -2,6 +2,7 @@
  * The implementation of dataflow graph edge, node, and graph objects, used to run a dataflow program.
  */
 
+import type Database from 'better-sqlite3'
 import { MultiSet } from './multiset'
 import { Version, Antichain } from './order'
 import {
@@ -212,18 +213,37 @@ export class BinaryOperator<T> extends Operator<T> {
 export class Graph {
   streams: DifferenceStreamReader<any>[]
   operators: Operator<any>[]
+  #db: Database.Database | undefined
 
   constructor(
     streams: DifferenceStreamReader<any>[],
     operators: Operator<any>[],
+    db: Database.Database | undefined = undefined,
   ) {
     this.streams = streams
     this.operators = operators
+    this.#db = db
+  }
+
+  get db(): Database.Database | undefined {
+    return this.#db
+  }
+
+  #stepInner(): void {
+    for (const op of this.operators) {
+      op.run()
+    }
   }
 
   step(): void {
-    for (const op of this.operators) {
-      op.run()
+    // When we use SQLite, we wrap the step in a transaction to ensure that
+    // we never have a partially applied a query state to the database.
+    if (this.#db) {
+      this.#db.transaction(() => {
+        this.#stepInner()
+      })()
+    } else {
+      this.#stepInner()
     }
   }
 }
