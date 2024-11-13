@@ -114,20 +114,20 @@ const [input_users, writer_users] = graphBuilder.newInput<[number, User]>()
 
 // Transform issues into [key, value] pairs for joining
 const issues_stream = input_issues
-  .debug('issues_stream')
+  // .debug('issues_stream')
   .map(([issue_id, issue]) => [issue.user_id, issue] as [number, Issue])
-  .debug('issues_stream_map')
+  // .debug('issues_stream_map')
 
 // Transform users into [key, value] pairs for joining
 const users_stream = input_users
-  .debug('users_stream')
+  // .debug('users_stream')
   .map(([user_id, user]) => [user_id, user] as [number, User])
-  .debug('users_stream_map')
+  // .debug('users_stream_map')
 
 // Join streams and transform to desired output format
 const joined_stream = issues_stream
   .join(users_stream)
-  .debug('join')
+  // .debug('join')
   .map(([_key, [issue, user]]) => ([issue.id, {
     id: issue.id,
     title: issue.title,

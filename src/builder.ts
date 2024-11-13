@@ -27,6 +27,9 @@ import Database from 'better-sqlite3'
 import {
   ConsolidateOperatorSQLite,
   JoinOperatorSQLite,
+  ReduceOperatorSQLite,
+  CountOperatorSQLite,
+  DistinctOperatorSQLite,
 } from './operators-sqlite'
 
 type KeyValue<K, V> = [K, V]
@@ -210,13 +213,22 @@ export class DifferenceStreamBuilder<T> {
     f: (values: [V1, number][]) => [R, number][],
   ): DifferenceStreamBuilder<KeyValue<K, R>> {
     const output = new DifferenceStreamBuilder<KeyValue<K, R>>(this.#graph)
-    const operator = new ReduceOperator<K, V1, R>(
-      this.#graph.getNextOperatorId(),
-      this.connectReader() as DifferenceStreamReader<KeyValue<K, V1>>,
-      output.writer(),
-      f,
-      this.#graph.frontier(),
-    )
+    const operator = this.#graph.db
+      ? new ReduceOperatorSQLite<K, V1, R>(
+          this.#graph.getNextOperatorId(),
+          this.connectReader() as DifferenceStreamReader<KeyValue<K, V1>>,
+          output.writer(),
+          f,
+          this.#graph.frontier(),
+          this.#graph.db,
+        )
+      : new ReduceOperator<K, V1, R>(
+          this.#graph.getNextOperatorId(),
+          this.connectReader() as DifferenceStreamReader<KeyValue<K, V1>>,
+          output.writer(),
+          f,
+          this.#graph.frontier(),
+        )
     this.#graph.addOperator(operator)
     this.#graph.addStream(output.connectReader())
     return output
@@ -230,12 +242,20 @@ export class DifferenceStreamBuilder<T> {
     V extends T extends KeyValue<K, infer V> ? V : never,
   >(): DifferenceStreamBuilder<KeyValue<K, number>> {
     const output = new DifferenceStreamBuilder<KeyValue<K, number>>(this.#graph)
-    const operator = new CountOperator<K, V>(
-      this.#graph.getNextOperatorId(),
-      this.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
-      output.writer(),
-      this.#graph.frontier(),
-    )
+    const operator = this.#graph.db
+      ? new CountOperatorSQLite<K, V>(
+          this.#graph.getNextOperatorId(),
+          this.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
+          output.writer(),
+          this.#graph.frontier(),
+          this.#graph.db,
+        )
+      : new CountOperator<K, V>(
+          this.#graph.getNextOperatorId(),
+          this.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
+          output.writer(),
+          this.#graph.frontier(),
+        )
     this.#graph.addOperator(operator)
     this.#graph.addStream(output.connectReader())
     return output
@@ -249,12 +269,20 @@ export class DifferenceStreamBuilder<T> {
     V extends T extends KeyValue<K, infer V> ? V : never,
   >(): DifferenceStreamBuilder<KeyValue<K, V>> {
     const output = new DifferenceStreamBuilder<KeyValue<K, V>>(this.#graph)
-    const operator = new DistinctOperator<K, V>(
-      this.#graph.getNextOperatorId(),
-      this.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
-      output.writer(),
-      this.#graph.frontier(),
-    )
+    const operator = this.#graph.db
+      ? new DistinctOperatorSQLite<K, V>(
+          this.#graph.getNextOperatorId(),
+          this.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
+          output.writer(),
+          this.#graph.frontier(),
+          this.#graph.db,
+        )
+      : new DistinctOperator<K, V>(
+          this.#graph.getNextOperatorId(),
+          this.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
+          output.writer(),
+          this.#graph.frontier(),
+        )
     this.#graph.addOperator(operator)
     this.#graph.addStream(output.connectReader())
     return output
@@ -265,7 +293,6 @@ export class DifferenceStreamBuilder<T> {
    */
   consolidate(): DifferenceStreamBuilder<T> {
     const output = new DifferenceStreamBuilder<T>(this.#graph)
-    console.log('Consolidate', this.#graph.db)
     const operator = this.#graph.db
       ? new ConsolidateOperatorSQLite<T>(
           this.#graph.getNextOperatorId(),
@@ -330,6 +357,9 @@ export class DifferenceStreamBuilder<T> {
     const feedbackStream = new DifferenceStreamBuilder<T>(this.#graph)
     const entered = this.#ingress().concat(feedbackStream)
     const result = f(entered)
+    if (this.#graph.db) {
+      throw new Error('iterate operator not (yet) implemented for SQLite')
+    }
     const feedbackOperator = new FeedbackOperator<T>(
       this.#graph.getNextOperatorId(),
       result.connectReader(),

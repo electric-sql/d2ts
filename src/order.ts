@@ -242,4 +242,14 @@ export class Antichain {
   get elements(): Version[] {
     return [...this.#inner]
   }
+
+  toJSON(): string {
+    return JSON.stringify(this.#inner.map((v) => v.getInner()))
+  }
+
+  static fromJSON(json: string): Antichain {
+    return new Antichain(
+      JSON.parse(json).map((version: number[]) => v(version)),
+    )
+  }
 }
