@@ -44,71 +44,8 @@ export class ConsolidateOperatorSQLite<T> extends UnaryOperator<T> {
     initialFrontier: Antichain,
     db: Database.Database,
   ) {
-    const inner = () => {
-      for (const message of this.inputMessages()) {
-        if (message.type === MessageType.DATA) {
-          const { version, collection } = message.data as DataMessage<T>
+    super(id, inputA, output, initialFrontier)
 
-          // Get existing collection or create new one
-          const existingData = this.#preparedStatements.get.get(
-            version.toJSON(),
-          )
-          const existingCollection = existingData
-            ? MultiSet.fromJSON(existingData.collection)
-            : new MultiSet<T>()
-
-          // Merge collections
-          existingCollection.extend(collection)
-
-          // Store updated collection
-          if (existingData) {
-            this.#preparedStatements.update.run({
-              version: version.toJSON(),
-              collection: existingCollection.toJSON(),
-            })
-          } else {
-            this.#preparedStatements.insert.run({
-              version: version.toJSON(),
-              collection: existingCollection.toJSON(),
-            })
-          }
-        } else if (message.type === MessageType.FRONTIER) {
-          const frontier = message.data as Antichain
-          if (!this.inputFrontier().lessEqual(frontier)) {
-            throw new Error('Invalid frontier update')
-          }
-          this.setInputFrontier(frontier)
-        }
-      }
-
-      // Find versions that are complete (not covered by input frontier)
-      const allVersions = this.#preparedStatements.getAllVersions.all()
-      const finishedVersions = allVersions
-        .map((row) => ({
-          version: Version.fromJSON(row.version),
-          collection: MultiSet.fromJSON<T>(row.collection),
-        }))
-        .filter(
-          ({ version }) => !this.inputFrontier().lessEqualVersion(version),
-        )
-
-      // Process and remove finished versions
-      for (const { version, collection } of finishedVersions) {
-        const consolidated = collection.consolidate()
-        this.#preparedStatements.delete.run(version.toJSON())
-        this.output.sendData(version, consolidated)
-      }
-
-      if (!this.outputFrontier.lessEqual(this.inputFrontier())) {
-        throw new Error('Invalid frontier state')
-      }
-      if (this.outputFrontier.lessThan(this.inputFrontier())) {
-        this.outputFrontier = this.inputFrontier()
-        this.output.sendFrontier(this.outputFrontier)
-      }
-    }
-
-    super(id, inputA, output, inner, initialFrontier)
     // Initialize database
     db.exec(`
       CREATE TABLE IF NOT EXISTS collections_${this.id} (
@@ -140,6 +77,66 @@ export class ConsolidateOperatorSQLite<T> extends UnaryOperator<T> {
       ),
     }
   }
+
+  run(): void {
+    for (const message of this.inputMessages()) {
+      if (message.type === MessageType.DATA) {
+        const { version, collection } = message.data as DataMessage<T>
+
+        // Get existing collection or create new one
+        const existingData = this.#preparedStatements.get.get(version.toJSON())
+        const existingCollection = existingData
+          ? MultiSet.fromJSON(existingData.collection)
+          : new MultiSet<T>()
+
+        // Merge collections
+        existingCollection.extend(collection)
+
+        // Store updated collection
+        if (existingData) {
+          this.#preparedStatements.update.run({
+            version: version.toJSON(),
+            collection: existingCollection.toJSON(),
+          })
+        } else {
+          this.#preparedStatements.insert.run({
+            version: version.toJSON(),
+            collection: existingCollection.toJSON(),
+          })
+        }
+      } else if (message.type === MessageType.FRONTIER) {
+        const frontier = message.data as Antichain
+        if (!this.inputFrontier().lessEqual(frontier)) {
+          throw new Error('Invalid frontier update')
+        }
+        this.setInputFrontier(frontier)
+      }
+    }
+
+    // Find versions that are complete (not covered by input frontier)
+    const allVersions = this.#preparedStatements.getAllVersions.all()
+    const finishedVersions = allVersions
+      .map((row) => ({
+        version: Version.fromJSON(row.version),
+        collection: MultiSet.fromJSON<T>(row.collection),
+      }))
+      .filter(({ version }) => !this.inputFrontier().lessEqualVersion(version))
+
+    // Process and remove finished versions
+    for (const { version, collection } of finishedVersions) {
+      const consolidated = collection.consolidate()
+      this.#preparedStatements.delete.run(version.toJSON())
+      this.output.sendData(version, consolidated)
+    }
+
+    if (!this.outputFrontier.lessEqual(this.inputFrontier())) {
+      throw new Error('Invalid frontier state')
+    }
+    if (this.outputFrontier.lessThan(this.inputFrontier())) {
+      this.outputFrontier = this.inputFrontier()
+      this.output.sendFrontier(this.outputFrontier)
+    }
+  }
 }
 
 export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
@@ -147,6 +144,7 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
 > {
   #indexA: SQLIndex<K, V1>
   #indexB: SQLIndex<K, V2>
+  #db: Database.Database
 
   constructor(
     id: number,
@@ -156,96 +154,99 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
     initialFrontier: Antichain,
     db: Database.Database,
   ) {
-    const inner = () => {
-      // Create temporary indexes for this iteration
-      const deltaA = new SQLIndex<K, V1>(db, `join_delta_a_${id}`, true)
-      const deltaB = new SQLIndex<K, V2>(db, `join_delta_b_${id}`, true)
-
-      try {
-        // Process input A
-        for (const message of this.inputAMessages()) {
-          if (message.type === MessageType.DATA) {
-            const { version, collection } = message.data as DataMessage<[K, V1]>
-            for (const [item, multiplicity] of collection.getInner()) {
-              const [key, value] = item
-              deltaA.addValue(key, version, [value, multiplicity])
-            }
-          } else if (message.type === MessageType.FRONTIER) {
-            const frontier = message.data as Antichain
-            if (!this.inputAFrontier().lessEqual(frontier)) {
-              throw new Error('Invalid frontier update')
-            }
-            this.setInputAFrontier(frontier)
-          }
-        }
-
-        // Process input B
-        for (const message of this.inputBMessages()) {
-          if (message.type === MessageType.DATA) {
-            const { version, collection } = message.data as DataMessage<[K, V2]>
-            for (const [item, multiplicity] of collection.getInner()) {
-              const [key, value] = item
-              deltaB.addValue(key, version, [value, multiplicity])
-            }
-          } else if (message.type === MessageType.FRONTIER) {
-            const frontier = message.data as Antichain
-            if (!this.inputBFrontier().lessEqual(frontier)) {
-              throw new Error('Invalid frontier update')
-            }
-            this.setInputBFrontier(frontier)
-          }
-        }
-
-        // Process results
-        const results = new Map<Version, MultiSet<[K, [V1, V2]]>>()
-
-        // Join deltaA with existing indexB and collect results
-        for (const [version, collection] of deltaA.join(this.#indexB)) {
-          const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
-          existing.extend(collection)
-          results.set(version, existing)
-        }
-
-        // Append deltaA to indexA
-        this.#indexA.append(deltaA)
-
-        // Join indexA with deltaB and collect results
-        for (const [version, collection] of this.#indexA.join(deltaB)) {
-          const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
-          existing.extend(collection)
-          results.set(version, existing)
-        }
-
-        // Send all results
-        for (const [version, collection] of results) {
-          this.output.sendData(version, collection)
-        }
-
-        // Finally append deltaB to indexB
-        this.#indexB.append(deltaB)
-
-        // Update frontiers
-        const inputFrontier = this.inputAFrontier().meet(this.inputBFrontier())
-        if (!this.outputFrontier.lessEqual(inputFrontier)) {
-          throw new Error('Invalid frontier state')
-        }
-        if (this.outputFrontier.lessThan(inputFrontier)) {
-          this.outputFrontier = inputFrontier
-          this.output.sendFrontier(this.outputFrontier)
-          this.#indexA.compact(this.outputFrontier)
-          this.#indexB.compact(this.outputFrontier)
-        }
-      } finally {
-        // Clean up temporary indexes
-        deltaA.destroy()
-        deltaB.destroy()
-      }
-    }
-
-    super(id, inputA, inputB, output, inner, initialFrontier)
-
+    super(id, inputA, inputB, output, initialFrontier)
+    this.#db = db
     this.#indexA = new SQLIndex<K, V1>(db, `join_a_${id}`)
     this.#indexB = new SQLIndex<K, V2>(db, `join_b_${id}`)
+  }
+
+  run(): void {
+    const db = this.#db
+    const id = this.id
+
+    // Create temporary indexes for this iteration
+    const deltaA = new SQLIndex<K, V1>(db, `join_delta_a_${id}`, true)
+    const deltaB = new SQLIndex<K, V2>(db, `join_delta_b_${id}`, true)
+
+    try {
+      // Process input A
+      for (const message of this.inputAMessages()) {
+        if (message.type === MessageType.DATA) {
+          const { version, collection } = message.data as DataMessage<[K, V1]>
+          for (const [item, multiplicity] of collection.getInner()) {
+            const [key, value] = item
+            deltaA.addValue(key, version, [value, multiplicity])
+          }
+        } else if (message.type === MessageType.FRONTIER) {
+          const frontier = message.data as Antichain
+          if (!this.inputAFrontier().lessEqual(frontier)) {
+            throw new Error('Invalid frontier update')
+          }
+          this.setInputAFrontier(frontier)
+        }
+      }
+
+      // Process input B
+      for (const message of this.inputBMessages()) {
+        if (message.type === MessageType.DATA) {
+          const { version, collection } = message.data as DataMessage<[K, V2]>
+          for (const [item, multiplicity] of collection.getInner()) {
+            const [key, value] = item
+            deltaB.addValue(key, version, [value, multiplicity])
+          }
+        } else if (message.type === MessageType.FRONTIER) {
+          const frontier = message.data as Antichain
+          if (!this.inputBFrontier().lessEqual(frontier)) {
+            throw new Error('Invalid frontier update')
+          }
+          this.setInputBFrontier(frontier)
+        }
+      }
+
+      // Process results
+      const results = new Map<Version, MultiSet<[K, [V1, V2]]>>()
+
+      // Join deltaA with existing indexB and collect results
+      for (const [version, collection] of deltaA.join(this.#indexB)) {
+        const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
+        existing.extend(collection)
+        results.set(version, existing)
+      }
+
+      // Append deltaA to indexA
+      this.#indexA.append(deltaA)
+
+      // Join indexA with deltaB and collect results
+      for (const [version, collection] of this.#indexA.join(deltaB)) {
+        const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
+        existing.extend(collection)
+        results.set(version, existing)
+      }
+
+      // Send all results
+      for (const [version, collection] of results) {
+        this.output.sendData(version, collection)
+      }
+
+      // Finally append deltaB to indexB
+      this.#indexB.append(deltaB)
+
+      // Update frontiers
+      const inputFrontier = this.inputAFrontier().meet(this.inputBFrontier())
+      if (!this.outputFrontier.lessEqual(inputFrontier)) {
+        throw new Error('Invalid frontier state')
+      }
+      if (this.outputFrontier.lessThan(inputFrontier)) {
+        this.outputFrontier = inputFrontier
+        this.output.sendFrontier(this.outputFrontier)
+        this.#indexA.compact(this.outputFrontier)
+        this.#indexB.compact(this.outputFrontier)
+      }
+    } finally {
+      // Clean up temporary indexes
+      deltaA.destroy()
+      deltaB.destroy()
+    }
   }
 }
 
@@ -264,6 +265,7 @@ export class ReduceOperatorSQLite<K, V1, V2> extends UnaryOperator<
     createKeysTodoTable: Database.Statement
     dropKeysTodoTable: Database.Statement
   }
+  #f: (values: [V1, number][]) => [V2, number][]
 
   constructor(
     id: number,
@@ -273,107 +275,8 @@ export class ReduceOperatorSQLite<K, V1, V2> extends UnaryOperator<
     initialFrontier: Antichain,
     db: Database.Database,
   ) {
-    const inner = () => {
-      for (const message of this.inputMessages()) {
-        if (message.type === MessageType.DATA) {
-          const { version, collection } = message.data as DataMessage<[K, V1]>
-          for (const [item, multiplicity] of collection.getInner()) {
-            const [key, value] = item
-            this.#index.addValue(key, version, [value, multiplicity])
-
-            // Add key to todo list for this version
-            this.#preparedStatements.insertKeyTodo.run(
-              version.toJSON(),
-              JSON.stringify(key),
-            )
-
-            // Add key to all join versions
-            for (const v2 of this.#index.versions(key)) {
-              const joinVersion = version.join(v2)
-              this.#preparedStatements.insertKeyTodo.run(
-                joinVersion.toJSON(),
-                JSON.stringify(key),
-              )
-            }
-          }
-        } else if (message.type === MessageType.FRONTIER) {
-          const frontier = message.data as Antichain
-          if (!this.inputFrontier().lessEqual(frontier)) {
-            throw new Error('Invalid frontier update')
-          }
-          this.setInputFrontier(frontier)
-        }
-      }
-
-      // Find versions that are complete
-      const finishedVersionsRows = this.#preparedStatements.getKeysTodo
-        .all()
-        .map((row) => ({
-          version: Version.fromJSON(row.version),
-          key: JSON.parse(row.key) as K,
-        }))
-
-      // Group by version
-      const finishedVersionsMap = new Map<Version, K[]>()
-      for (const { version, key } of finishedVersionsRows) {
-        const keys = finishedVersionsMap.get(version) || []
-        keys.push(key)
-        finishedVersionsMap.set(version, keys)
-      }
-      const finishedVersions = Array.from(finishedVersionsMap.entries())
-        .filter(([version]) => !this.inputFrontier().lessEqualVersion(version))
-        .sort((a, b) => (a[0].lessEqual(b[0]) ? -1 : 1))
-
-      for (const [version, keys] of finishedVersions) {
-        const result: [[K, V2], number][] = []
-
-        for (const key of keys) {
-          const curr = this.#index.reconstructAt(key, version)
-          const currOut = this.#indexOut.reconstructAt(key, version)
-          const out = f(curr)
-
-          // Calculate delta between current and previous output
-          const delta = new Map<string, number>()
-          const values = new Map<string, V2>()
-          for (const [value, multiplicity] of out) {
-            const valueKey = JSON.stringify(value)
-            values.set(valueKey, value)
-            delta.set(valueKey, (delta.get(valueKey) || 0) + multiplicity)
-          }
-          for (const [value, multiplicity] of currOut) {
-            const valueKey = JSON.stringify(value)
-            values.set(valueKey, value)
-            delta.set(valueKey, (delta.get(valueKey) || 0) - multiplicity)
-          }
-
-          // Add non-zero deltas to result
-          for (const [valueKey, multiplicity] of delta) {
-            const value = values.get(valueKey)!
-            if (multiplicity !== 0) {
-              result.push([[key, value], multiplicity])
-              this.#indexOut.addValue(key, version, [value, multiplicity])
-            }
-          }
-        }
-
-        if (result.length > 0) {
-          this.output.sendData(version, new MultiSet(result))
-        }
-        this.#preparedStatements.deleteKeysTodo.run(version.toJSON())
-      }
-
-      if (!this.outputFrontier.lessEqual(this.inputFrontier())) {
-        throw new Error('Invalid frontier state')
-      }
-      if (this.outputFrontier.lessThan(this.inputFrontier())) {
-        this.outputFrontier = this.inputFrontier()
-        this.output.sendFrontier(this.outputFrontier)
-        this.#index.compact(this.outputFrontier)
-        this.#indexOut.compact(this.outputFrontier)
-      }
-    }
-
-    super(id, inputA, output, inner, initialFrontier)
+    super(id, inputA, output, initialFrontier)
+    this.#f = f
 
     // Initialize indexes
     this.#index = new SQLIndex<K, V1>(db, `reduce_index_${id}`)
@@ -417,6 +320,106 @@ export class ReduceOperatorSQLite<K, V1, V2> extends UnaryOperator<
         DELETE FROM reduce_keys_todo_${id}
         WHERE version = ?
       `),
+    }
+  }
+
+  run(): void {
+    for (const message of this.inputMessages()) {
+      if (message.type === MessageType.DATA) {
+        const { version, collection } = message.data as DataMessage<[K, V1]>
+        for (const [item, multiplicity] of collection.getInner()) {
+          const [key, value] = item
+          this.#index.addValue(key, version, [value, multiplicity])
+
+          // Add key to todo list for this version
+          this.#preparedStatements.insertKeyTodo.run(
+            version.toJSON(),
+            JSON.stringify(key),
+          )
+
+          // Add key to all join versions
+          for (const v2 of this.#index.versions(key)) {
+            const joinVersion = version.join(v2)
+            this.#preparedStatements.insertKeyTodo.run(
+              joinVersion.toJSON(),
+              JSON.stringify(key),
+            )
+          }
+        }
+      } else if (message.type === MessageType.FRONTIER) {
+        const frontier = message.data as Antichain
+        if (!this.inputFrontier().lessEqual(frontier)) {
+          throw new Error('Invalid frontier update')
+        }
+        this.setInputFrontier(frontier)
+      }
+    }
+
+    // Find versions that are complete
+    const finishedVersionsRows = this.#preparedStatements.getKeysTodo
+      .all()
+      .map((row) => ({
+        version: Version.fromJSON(row.version),
+        key: JSON.parse(row.key) as K,
+      }))
+
+    // Group by version
+    const finishedVersionsMap = new Map<Version, K[]>()
+    for (const { version, key } of finishedVersionsRows) {
+      const keys = finishedVersionsMap.get(version) || []
+      keys.push(key)
+      finishedVersionsMap.set(version, keys)
+    }
+    const finishedVersions = Array.from(finishedVersionsMap.entries())
+      .filter(([version]) => !this.inputFrontier().lessEqualVersion(version))
+      .sort((a, b) => (a[0].lessEqual(b[0]) ? -1 : 1))
+
+    for (const [version, keys] of finishedVersions) {
+      const result: [[K, V2], number][] = []
+
+      for (const key of keys) {
+        const curr = this.#index.reconstructAt(key, version)
+        const currOut = this.#indexOut.reconstructAt(key, version)
+        const out = this.#f(curr)
+
+        // Calculate delta between current and previous output
+        const delta = new Map<string, number>()
+        const values = new Map<string, V2>()
+        for (const [value, multiplicity] of out) {
+          const valueKey = JSON.stringify(value)
+          values.set(valueKey, value)
+          delta.set(valueKey, (delta.get(valueKey) || 0) + multiplicity)
+        }
+        for (const [value, multiplicity] of currOut) {
+          const valueKey = JSON.stringify(value)
+          values.set(valueKey, value)
+          delta.set(valueKey, (delta.get(valueKey) || 0) - multiplicity)
+        }
+
+        // Add non-zero deltas to result
+        for (const [valueKey, multiplicity] of delta) {
+          const value = values.get(valueKey)!
+          if (multiplicity !== 0) {
+            result.push([[key, value], multiplicity])
+            this.#indexOut.addValue(key, version, [value, multiplicity])
+          }
+        }
+      }
+
+      if (result.length > 0) {
+        this.output.sendData(version, new MultiSet(result))
+      }
+      this.#preparedStatements.deleteKeysTodo.run(version.toJSON())
+    }
+
+    if (!this.outputFrontier.lessEqual(this.inputFrontier())) {
+      throw new Error('Invalid frontier state')
+    }
+    if (this.outputFrontier.lessThan(this.inputFrontier())) {
+      this.outputFrontier = this.inputFrontier()
+      this.output.sendFrontier(this.outputFrontier)
+      this.#index.compact(this.outputFrontier)
+      this.#indexOut.compact(this.outputFrontier)
     }
   }
 

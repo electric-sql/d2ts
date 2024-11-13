@@ -99,7 +99,6 @@ export class DifferenceStreamWriter<T> {
 export abstract class Operator<T> implements IOperator<T> {
   protected inputs: DifferenceStreamReader<T>[]
   protected output: DifferenceStreamWriter<T>
-  protected f: () => void
   protected pendingWork = false
   protected inputFrontiers: Antichain[]
   protected outputFrontier: Antichain
@@ -108,19 +107,15 @@ export abstract class Operator<T> implements IOperator<T> {
     public id: number,
     inputs: DifferenceStreamReader<T>[],
     output: DifferenceStreamWriter<T>,
-    f: () => void,
     initialFrontier: Antichain,
   ) {
     this.inputs = inputs
     this.output = output
-    this.f = f
     this.inputFrontiers = inputs.map(() => initialFrontier)
     this.outputFrontier = initialFrontier
   }
 
-  run(): void {
-    this.f()
-  }
+  abstract run(): void
 
   hasPendingWork(): boolean {
     if (this.pendingWork) return true
@@ -136,15 +131,14 @@ export abstract class Operator<T> implements IOperator<T> {
  * A convenience implementation of a dataflow operator that has a handle to one
  * incoming stream of data, and one handle to an outgoing stream of data.
  */
-export class UnaryOperator<T> extends Operator<T> {
+export abstract class UnaryOperator<T> extends Operator<T> {
   constructor(
     public id: number,
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
-    f: () => void,
     initialFrontier: Antichain,
   ) {
-    super(id, [inputA], output, f, initialFrontier)
+    super(id, [inputA], output, initialFrontier)
   }
 
   inputMessages(): Message<T>[] {
@@ -164,16 +158,15 @@ export class UnaryOperator<T> extends Operator<T> {
  * A convenience implementation of a dataflow operator that has a handle to two
  * incoming streams of data, and one handle to an outgoing stream of data.
  */
-export class BinaryOperator<T> extends Operator<T> {
+export abstract class BinaryOperator<T> extends Operator<T> {
   constructor(
     public id: number,
     inputA: DifferenceStreamReader<T>,
     inputB: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
-    f: () => void,
     initialFrontier: Antichain,
   ) {
-    super(id, [inputA, inputB], output, f, initialFrontier)
+    super(id, [inputA, inputB], output, initialFrontier)
   }
 
   inputAMessages(): Message<T>[] {
