@@ -43,6 +43,14 @@ export class Version {
     return `Version(${JSON.stringify(this.#inner)})`
   }
 
+  toJSON(): string {
+    return JSON.stringify(Array.from(this.getInner()))
+  }
+
+  static fromJSON(json: string): Version {
+    return v(JSON.parse(json))
+  }
+
   #validateNumber(n: number): void {
     if (n < 0 || !Number.isInteger(n)) {
       throw new Error('Version numbers must be non-negative integers')
@@ -233,5 +241,15 @@ export class Antichain {
 
   get elements(): Version[] {
     return [...this.#inner]
+  }
+
+  toJSON(): string {
+    return JSON.stringify(this.#inner.map((v) => v.getInner()))
+  }
+
+  static fromJSON(json: string): Antichain {
+    return new Antichain(
+      JSON.parse(json).map((version: number[]) => v(version)),
+    )
   }
 }

@@ -2,6 +2,7 @@
  * The implementation of dataflow graph edge, node, and graph objects, used to run a dataflow program.
  */
 
+import type Database from 'better-sqlite3'
 import { MultiSet } from './multiset'
 import { Version, Antichain } from './order'
 import {
@@ -98,27 +99,23 @@ export class DifferenceStreamWriter<T> {
 export abstract class Operator<T> implements IOperator<T> {
   protected inputs: DifferenceStreamReader<T>[]
   protected output: DifferenceStreamWriter<T>
-  protected f: () => void
   protected pendingWork = false
   protected inputFrontiers: Antichain[]
   protected outputFrontier: Antichain
 
   constructor(
+    public id: number,
     inputs: DifferenceStreamReader<T>[],
     output: DifferenceStreamWriter<T>,
-    f: () => void,
     initialFrontier: Antichain,
   ) {
     this.inputs = inputs
     this.output = output
-    this.f = f
     this.inputFrontiers = inputs.map(() => initialFrontier)
     this.outputFrontier = initialFrontier
   }
 
-  run(): void {
-    this.f()
-  }
+  abstract run(): void
 
   hasPendingWork(): boolean {
     if (this.pendingWork) return true
@@ -134,14 +131,14 @@ export abstract class Operator<T> implements IOperator<T> {
  * A convenience implementation of a dataflow operator that has a handle to one
  * incoming stream of data, and one handle to an outgoing stream of data.
  */
-export class UnaryOperator<T> extends Operator<T> {
+export abstract class UnaryOperator<T> extends Operator<T> {
   constructor(
+    public id: number,
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
-    f: () => void,
     initialFrontier: Antichain,
   ) {
-    super([inputA], output, f, initialFrontier)
+    super(id, [inputA], output, initialFrontier)
   }
 
   inputMessages(): Message<T>[] {
@@ -161,15 +158,15 @@ export class UnaryOperator<T> extends Operator<T> {
  * A convenience implementation of a dataflow operator that has a handle to two
  * incoming streams of data, and one handle to an outgoing stream of data.
  */
-export class BinaryOperator<T> extends Operator<T> {
+export abstract class BinaryOperator<T> extends Operator<T> {
   constructor(
+    public id: number,
     inputA: DifferenceStreamReader<T>,
     inputB: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
-    f: () => void,
     initialFrontier: Antichain,
   ) {
-    super([inputA, inputB], output, f, initialFrontier)
+    super(id, [inputA, inputB], output, initialFrontier)
   }
 
   inputAMessages(): Message<T>[] {
@@ -209,18 +206,37 @@ export class BinaryOperator<T> extends Operator<T> {
 export class Graph {
   streams: DifferenceStreamReader<any>[]
   operators: Operator<any>[]
+  #db: Database.Database | undefined
 
   constructor(
     streams: DifferenceStreamReader<any>[],
     operators: Operator<any>[],
+    db: Database.Database | undefined = undefined,
   ) {
     this.streams = streams
     this.operators = operators
+    this.#db = db
+  }
+
+  get db(): Database.Database | undefined {
+    return this.#db
+  }
+
+  #stepInner(): void {
+    for (const op of this.operators) {
+      op.run()
+    }
   }
 
   step(): void {
-    for (const op of this.operators) {
-      op.run()
+    // When we use SQLite, we wrap the step in a transaction to ensure that
+    // we never have a partially applied a query state to the database.
+    if (this.#db) {
+      this.#db.transaction(() => {
+        this.#stepInner()
+      })()
+    } else {
+      this.#stepInner()
     }
   }
 }

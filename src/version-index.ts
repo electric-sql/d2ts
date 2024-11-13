@@ -5,6 +5,17 @@ import { DefaultMap } from './utils'
 type VersionMap<T> = DefaultMap<Version, T[]>
 type IndexMap<K, V> = DefaultMap<K, VersionMap<[V, number]>>
 
+export interface IndexType<K, V> {
+  reconstructAt(key: K, requestedVersion: Version): [V, number][]
+  versions(key: K): Version[]
+  addValue(key: K, version: Version, value: [V, number]): void
+  append(other: IndexType<K, V>): void
+  join<V2>(other: IndexType<K, V2>): [Version, MultiSet<[K, [V, V2]]>][]
+  compact(compactionFrontier: Antichain, keys: K[]): void
+  keys(): K[]
+  has(key: K): boolean
+}
+
 /**
  * A map from a difference collection trace's keys -> versions at which
  * the key has nonzero multiplicity -> (value, multiplicities) that changed.
@@ -14,7 +25,7 @@ type IndexMap<K, V> = DefaultMap<K, VersionMap<[V, number]>>
  *
  * This implementation supports the general case of partially ordered versions.
  */
-export class Index<K, V> {
+export class Index<K, V> implements IndexType<K, V> {
   #inner: IndexMap<K, V>
   #compactionFrontier: Antichain | null
 
@@ -25,8 +36,12 @@ export class Index<K, V> {
     this.#compactionFrontier = null
   }
 
-  toString(): string {
-    return `Index(${JSON.stringify([...this.#inner].map(([k, v]) => [k, [...v.entries()]]))})`
+  toString(indent = false): string {
+    return `Index(${JSON.stringify(
+      [...this.#inner].map(([k, v]) => [k, [...v.entries()]]),
+      undefined,
+      indent ? '  ' : undefined,
+    )})`
   }
 
   #validate(requestedVersion: Version | Antichain): boolean {
@@ -59,7 +74,8 @@ export class Index<K, V> {
   }
 
   versions(key: K): Version[] {
-    return Array.from(this.#inner.get(key).keys())
+    const result = Array.from(this.#inner.get(key).keys())
+    return result
   }
 
   addValue(key: K, version: Version, value: [V, number]): void {
@@ -108,12 +124,13 @@ export class Index<K, V> {
       }
     }
 
-    return Array.from(collections.entries())
+    const result = Array.from(collections.entries())
       .filter(([_v, c]) => c.length > 0)
       .map(([version, data]) => [
         version,
         new MultiSet(data.map(([k, v, m]) => [[k, v], m])),
       ])
+    return result as [Version, MultiSet<[K, [V, V2]]>][]
   }
 
   compact(compactionFrontier: Antichain, keys: K[] = []): void {
@@ -127,15 +144,22 @@ export class Index<K, V> {
     this.#validate(compactionFrontier)
 
     const consolidateValues = (values: [V, number][]): [V, number][] => {
-      const consolidated = new DefaultMap<V, number>(() => 0)
+      // Use string representation of values as keys for proper deduplication
+      const consolidated = new Map<string, [V, number]>()
 
       for (const [value, multiplicity] of values) {
-        consolidated.update(value, (current) => current + multiplicity)
+        const key = JSON.stringify(value)
+        const existing = consolidated.get(key)
+        if (existing) {
+          consolidated.set(key, [value, existing[1] + multiplicity])
+        } else {
+          consolidated.set(key, [value, multiplicity])
+        }
       }
 
-      return Array.from(consolidated.entries())
-        .filter(([_, multiplicity]) => multiplicity !== 0)
-        .map(([value, multiplicity]) => [value, multiplicity])
+      return Array.from(consolidated.values()).filter(
+        ([_, multiplicity]) => multiplicity !== 0,
+      )
     }
 
     const keysToProcess =
@@ -163,10 +187,23 @@ export class Index<K, V> {
       }
 
       for (const version of toConsolidate) {
-        versions.set(version, consolidateValues(versions.get(version)))
+        const newValues = consolidateValues(versions.get(version))
+        if (newValues.length > 0) {
+          versions.set(version, newValues)
+        } else {
+          this.#inner.delete(key)
+        }
       }
     }
 
     this.#compactionFrontier = compactionFrontier
+  }
+
+  keys(): K[] {
+    return Array.from(this.#inner.keys())
+  }
+
+  has(key: K): boolean {
+    return this.#inner.has(key)
   }
 }
