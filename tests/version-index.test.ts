@@ -123,6 +123,141 @@ function createIndexTests<
         const result = index.join(other)
         expect(result).toEqual([])
       })
+
+      test('should handle multiple values with same key at different versions', () => {
+        const version1 = v([1])
+        const version2 = v([2])
+        const other = createIndex('other')
+
+        index.addValue('key1', version1, [10, 2])
+        index.addValue('key1', version2, [20, 3])
+        other.addValue('key1', version1, [30, 1])
+        other.addValue('key1', version2, [40, 2])
+
+        // @ts-expect-error
+        const result = index.join(other)
+        expect(result).toHaveLength(2)
+
+        // Version 1 join results
+        const [version1Result, multiset1] = result[0]
+        expect(version1Result).toEqual(version1)
+        const entries1 = multiset1.getInner()
+        expect(entries1).toContainEqual([['key1', [10, 30]], 2])
+
+        // Version 2 join results
+        const [version2Result, multiset2] = result[1]
+        expect(version2Result).toEqual(version2)
+        const entries2 = multiset2.getInner()
+        expect(entries2).toContainEqual([['key1', [20, 40]], 6])
+      })
+
+      test('should handle joins with multidimensional versions', () => {
+        const version1 = v([1, 0])
+        const version2 = v([1, 1])
+        const version3 = v([2, 0])
+        const other = createIndex('other')
+
+        index.addValue('key1', version1, [10, 1])
+        index.addValue('key1', version2, [20, 1])
+        other.addValue('key1', version2, [30, 1])
+        other.addValue('key1', version3, [40, 1])
+
+        // @ts-expect-error
+        const result = index.join(other).map(([v, m]) => [v, m.getInner()])
+        expect(result).toEqual([
+          [
+            v([1, 1]),
+            [
+              [['key1', [10, 30]], 1],
+              [['key1', [20, 30]], 1],
+            ],
+          ],
+          [v([2, 0]), [[['key1', [10, 40]], 1]]],
+          [v([2, 1]), [[['key1', [20, 40]], 1]]],
+        ])
+      })
+
+      test('should handle multiple keys with overlapping versions', () => {
+        const version = v([1])
+        const other = createIndex('other')
+
+        index.addValue('key1', version, [10, 2])
+        index.addValue('key2', version, [20, 3])
+        other.addValue('key1', version, [30, 1])
+        other.addValue('key2', version, [40, 2])
+
+        // @ts-expect-error
+        const result = index.join(other)
+        expect(result).toHaveLength(1)
+
+        const [resultVersion, multiset] = result[0]
+        expect(resultVersion).toEqual(version)
+
+        const entries = multiset.getInner()
+        expect(entries).toHaveLength(2)
+        expect(entries).toContainEqual([['key1', [10, 30]], 2])
+        expect(entries).toContainEqual([['key2', [20, 40]], 6])
+      })
+
+      test('should handle zero multiplicities correctly', () => {
+        const version = v([1])
+        const other = createIndex('other')
+
+        index.addValue('key1', version, [10, 0])
+        other.addValue('key1', version, [20, 2])
+
+        // @ts-expect-error
+        const result = index.join(other)
+        expect(result).toHaveLength(1)
+
+        const [_, multiset] = result[0]
+        const entries = multiset.getInner()
+        expect(entries).toHaveLength(1)
+        expect(entries[0][1]).toBe(0) // Multiplicity should be 0
+      })
+
+      test('should handle complex version hierarchies', () => {
+        const version1 = v([1, 0])
+        const version2 = v([0, 1])
+        const version3 = v([1, 1])
+        const version4 = v([2, 1])
+        const other = createIndex('other')
+
+        // Add values at different versions in first index
+        index.addValue('key1', version1, [10, 1])
+        index.addValue('key1', version3, [20, 2])
+        index.addValue('key1', version4, [30, 3])
+
+        // Add values at different versions in second index
+        other.addValue('key1', version2, [40, 1])
+        other.addValue('key1', version2, [50, 2])
+        other.addValue('key1', version4, [60, 3])
+
+        // @ts-expect-error
+        const result = index.join(other)
+        const expected = [
+          [
+            v([1, 1]),
+            [
+              [['key1', [10, 40]], 1],
+              [['key1', [10, 50]], 2],
+              [['key1', [20, 40]], 2],
+              [['key1', [20, 50]], 4],
+            ],
+          ],
+          [
+            v([2, 1]),
+            [
+              [['key1', [10, 60]], 3],
+              [['key1', [20, 60]], 6],
+              [['key1', [30, 40]], 3],
+              [['key1', [30, 50]], 6],
+              [['key1', [30, 60]], 9],
+            ],
+          ],
+        ]
+        expect(result.map(([v, m]) => [v, m.getInner()])).toEqual(expected)
+      })
     })
 
     describe('compact', () => {
@@ -205,7 +340,7 @@ function createIndexTests<
 
         // key1 should be compacted
         expect(index.reconstructAt('key1', version2)).toEqual([[10, 2]])
-        
+
         // key2 should maintain original versions
         const key2Versions = index.versions('key2')
         expect(key2Versions).toHaveLength(2)
