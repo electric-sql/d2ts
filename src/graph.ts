@@ -3,8 +3,8 @@
  */
 
 import type Database from 'better-sqlite3'
-import { MultiSet } from './multiset'
-import { Version, Antichain } from './order'
+import { MultiSet, MultiSetArray } from './multiset'
+import { Version, Antichain, v } from './order'
 import {
   Message,
   MessageType,
@@ -58,7 +58,20 @@ export class DifferenceStreamWriter<T> {
   #queues: Message<T>[][] = []
   frontier: Antichain | null = null
 
-  sendData(version: Version, collection: MultiSet<T>): void {
+  sendData(
+    version: Version | number | number[],
+    collection: MultiSet<T> | MultiSetArray<T>,
+  ): void {
+    if (typeof version === 'number') {
+      version = v(version)
+    } else if (Array.isArray(version)) {
+      version = v(version)
+    }
+
+    if (!(collection instanceof MultiSet)) {
+      collection = new MultiSet(collection)
+    }
+
     if (this.frontier) {
       if (!this.frontier.lessEqualVersion(version)) {
         throw new Error('Invalid version')
@@ -74,7 +87,15 @@ export class DifferenceStreamWriter<T> {
     }
   }
 
-  sendFrontier(frontier: Antichain): void {
+  sendFrontier(frontier: Antichain | Version | number | number[]): void {
+    if (typeof frontier === 'number') {
+      frontier = new Antichain([v(frontier)])
+    } else if (Array.isArray(frontier)) {
+      frontier = new Antichain([v(frontier)])
+    } else if (frontier instanceof Version) {
+      frontier = new Antichain([frontier])
+    }
+
     if (this.frontier && !this.frontier.lessEqual(frontier)) {
       throw new Error('Invalid frontier')
     }
