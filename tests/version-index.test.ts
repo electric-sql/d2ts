@@ -141,6 +141,78 @@ function createIndexTests<
         expect(result).toEqual([[10, 2]])
       })
 
+      test('should compact multiple keys correctly', () => {
+        const version1 = v([1])
+        const version2 = v([2])
+        const frontier = new Antichain([v([2])])
+
+        index.addValue('key1', version1, [10, 3])
+        index.addValue('key2', version1, [20, 2])
+        index.addValue('key1', version2, [10, -1])
+        index.addValue('key2', version2, [20, 3])
+
+        index.compact(frontier)
+
+        expect(index.reconstructAt('key1', version2)).toEqual([[10, 2]])
+        expect(index.reconstructAt('key2', version2)).toEqual([[20, 5]])
+      })
+
+      test('should handle multiple values for same key and version', () => {
+        const version1 = v([1])
+        const frontier = new Antichain([v([2])])
+
+        index.addValue('key1', version1, [10, 1])
+        index.addValue('key1', version1, [20, 2])
+        index.addValue('key1', version1, [10, 3])
+
+        index.compact(frontier)
+
+        const result = index.reconstructAt('key1', v([2]))
+        expect(result).toEqual([
+          [10, 4],
+          [20, 2],
+        ])
+      })
+
+      test('should handle compaction with multidimensional versions', () => {
+        const version1 = v([1, 0])
+        const version2 = v([0, 1])
+        const version3 = v([1, 1])
+        const frontier = new Antichain([v([1, 1])])
+
+        index.addValue('key1', version1, [10, 1])
+        index.addValue('key1', version2, [10, 2])
+        index.addValue('key1', version3, [10, -1])
+
+        index.compact(frontier)
+
+        const result = index.reconstructAt('key1', version3)
+        expect(result).toEqual([[10, 2]])
+      })
+
+      test('should handle selective key compaction', () => {
+        const version1 = v([1])
+        const version2 = v([2])
+        const frontier = new Antichain([v([2])])
+
+        index.addValue('key1', version1, [10, 3])
+        index.addValue('key2', version1, [20, 2])
+        index.addValue('key1', version2, [10, -1])
+        index.addValue('key2', version2, [20, 3])
+
+        // Only compact 'key1'
+        index.compact(frontier, ['key1'])
+
+        // key1 should be compacted
+        expect(index.reconstructAt('key1', version2)).toEqual([[10, 2]])
+        
+        // key2 should maintain original versions
+        const key2Versions = index.versions('key2')
+        expect(key2Versions).toHaveLength(2)
+        expect(key2Versions).toContainEqual(version1)
+        expect(key2Versions).toContainEqual(version2)
+      })
+
       test('should throw error for invalid compaction frontier', () => {
         const version = v([1])
         const frontier1 = new Antichain([v([2])])
