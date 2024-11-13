@@ -60,7 +60,6 @@ export class Index<K, V> implements IndexType<K, V> {
   }
 
   reconstructAt(key: K, requestedVersion: Version): [V, number][] {
-    console.log('-> reconstructAt', key, requestedVersion)
     this.#validate(requestedVersion)
     const out: [V, number][] = []
     const versions = this.#inner.get(key)
@@ -71,19 +70,15 @@ export class Index<K, V> implements IndexType<K, V> {
       }
     }
 
-    console.log('<- reconstructAt', out)
     return out
   }
 
   versions(key: K): Version[] {
-    console.log('-> versions', key)
     const result = Array.from(this.#inner.get(key).keys())
-    console.log('<- versions', result)
     return result
   }
 
   addValue(key: K, version: Version, value: [V, number]): void {
-    console.log('-- addValue', key, version, value)
     this.#validate(version)
     const versions = this.#inner.get(key)
     versions.update(version, (values) => {
@@ -93,7 +88,6 @@ export class Index<K, V> implements IndexType<K, V> {
   }
 
   append(other: Index<K, V>): void {
-    console.log('-- append', other.toString())
     for (const [key, versions] of other.#inner) {
       const thisVersions = this.#inner.get(key)
       for (const [version, data] of versions) {
@@ -106,7 +100,6 @@ export class Index<K, V> implements IndexType<K, V> {
   }
 
   join<V2>(other: Index<K, V2>): [Version, MultiSet<[K, [V, V2]]>][] {
-    console.log('-> join', other.toString())
     const collections = new DefaultMap<Version, [K, [V, V2], number][]>(
       () => [],
     )
@@ -137,12 +130,10 @@ export class Index<K, V> implements IndexType<K, V> {
         version,
         new MultiSet(data.map(([k, v, m]) => [[k, v], m])),
       ])
-    console.log('<- join', result)
     return result as [Version, MultiSet<[K, [V, V2]]>][]
   }
 
   compact(compactionFrontier: Antichain, keys: K[] = []): void {
-    console.log('-- compact', compactionFrontier, keys)
     if (
       this.#compactionFrontier &&
       !this.#compactionFrontier.lessEqual(compactionFrontier)

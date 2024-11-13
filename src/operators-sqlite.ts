@@ -174,7 +174,6 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
 
       try {
         // Process input A
-        console.log('Process input A')
         for (const message of this.inputAMessages()) {
           if (message.type === MessageType.DATA) {
             const { version, collection } = message.data as DataMessage<[K, V1]>
@@ -192,7 +191,6 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
         }
 
         // Process input B
-        console.log('Process input B')
         for (const message of this.inputBMessages()) {
           if (message.type === MessageType.DATA) {
             const { version, collection } = message.data as DataMessage<[K, V2]>
@@ -210,58 +208,34 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
         }
 
         // Process results
-        console.log('Process results')
         const results = new Map<Version, MultiSet<[K, [V1, V2]]>>()
 
         // Join deltaA with existing indexB and collect results
-        console.log('Join deltaA with indexB')
         for (const [version, collection] of deltaA.join(this.#indexB)) {
-          console.log('version', version.toString())
           const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
           existing.extend(collection)
           results.set(version, existing)
         }
 
         // Append deltaA to indexA
-        console.log('Append deltaA to indexA')
         this.#indexA.append(deltaA)
 
         // Join indexA with deltaB and collect results
-        console.log('Join indexA with deltaB')
         for (const [version, collection] of this.#indexA.join(deltaB)) {
-          console.log('version', version.toString())
           const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
           existing.extend(collection)
           results.set(version, existing)
         }
 
-        console.log('RESULTS =====')
-        console.log(
-          JSON.stringify(
-            [...results.entries()].map(([version, collection]) => [
-              version,
-              collection.getInner(),
-            ]),
-            undefined,
-            '  ',
-          ),
-        )
-
-        // process.exit(0)
-
         // Send all results
-        console.log('Send results')
         for (const [version, collection] of results) {
-          console.log('Send', version, collection.toString(true))
           this.output.sendData(version, collection)
         }
 
         // Finally append deltaB to indexB
-        console.log('Append deltaB to indexB')
         this.#indexB.append(deltaB)
 
         // Update frontiers
-        console.log('Update frontiers')
         const inputFrontier = this.inputAFrontier().meet(this.inputBFrontier())
         if (!this.outputFrontier.lessEqual(inputFrontier)) {
           throw new Error('Invalid frontier state')

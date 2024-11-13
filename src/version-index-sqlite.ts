@@ -11,7 +11,7 @@ interface IndexRow {
 
 interface InsertParams {
   key: string
-  version: string
+  version_id: number
   value: string
   multiplicity: number
 }
@@ -32,14 +32,15 @@ interface JoinResult {
   multiplicity: number
 }
 
-interface CompactParams {
+interface VersionRow {
+  id: number
   version: string
-  newVersion: string
 }
 
 export class SQLIndex<K, V> {
   #db: Database.Database
   #tableName: string
+  #versionTableName: string
   #isTemp: boolean
   #preparedStatements: {
     insert: Database.Statement<InsertParams>
@@ -48,104 +49,155 @@ export class SQLIndex<K, V> {
     getAllForKey: Database.Statement<[string, GetAllForKeyParams], IndexRow>
     delete: Database.Statement<[string]>
     deleteAll: Database.Statement
+    deleteAllVersions: Database.Statement
     getForCompaction: Database.Statement<[string], IndexRow>
-    updateVersion: Database.Statement<CompactParams>
     consolidateVersions: Database.Statement<[string, string]>
+    insertVersion: Database.Statement<[string], { id: number }>
+    updateVersionMapping: Database.Statement<[string, string]>
+    deleteZeroMultiplicity: Database.Statement
+    getVersionId: Database.Statement<[string], { id: number }>
   }
 
   constructor(db: Database.Database, name: string, isTemp = false) {
-    isTemp = false // Temp for debugging
     this.#db = db
     this.#tableName = `index_${name}`
+    this.#versionTableName = `${this.#tableName}_versions`
     this.#isTemp = isTemp
 
-    // Create table
+    // Create tables
     this.#db.exec(`
-      CREATE ${isTemp ? 'TEMP' : ''} TABLE IF NOT EXISTS ${this.#tableName} (
-        key TEXT NOT NULL,
-        version TEXT NOT NULL,
-        value TEXT NOT NULL,
-        multiplicity INTEGER NOT NULL,
-        PRIMARY KEY (key, version, value)
+      CREATE ${isTemp ? 'TEMP' : ''} TABLE IF NOT EXISTS ${this.#versionTableName} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        version TEXT NOT NULL
       )
     `)
 
-    // Create index on version for efficient queries
+    this.#db.exec(`
+      CREATE ${isTemp ? 'TEMP' : ''} TABLE IF NOT EXISTS ${this.#tableName} (
+        key TEXT NOT NULL,
+        version_id INTEGER NOT NULL,
+        value TEXT NOT NULL,
+        multiplicity INTEGER NOT NULL,
+        PRIMARY KEY (key, version_id, value),
+        FOREIGN KEY (version_id) REFERENCES ${this.#versionTableName}(id)
+      )
+    `)
+
+    // Create indexes
     if (!isTemp) {
       this.#db.exec(`
         CREATE INDEX IF NOT EXISTS ${this.#tableName}_version_idx 
-        ON ${this.#tableName}(version)
+        ON ${this.#tableName}(version_id)
+      `)
+      this.#db.exec(`
+        CREATE INDEX IF NOT EXISTS ${this.#tableName}_key_idx 
+        ON ${this.#tableName}(key)
+      `)
+      this.#db.exec(`
+        CREATE INDEX IF NOT EXISTS ${this.#versionTableName}_version_idx 
+        ON ${this.#versionTableName}(version)
       `)
     }
 
     // Prepare statements
     this.#preparedStatements = {
       insert: this.#db.prepare(`
-        INSERT INTO ${this.#tableName} (key, version, value, multiplicity)
-        VALUES (@key, @version, @value, @multiplicity)
-        ON CONFLICT (key, version, value) DO UPDATE SET
-        multiplicity = multiplicity + @multiplicity
+        INSERT INTO ${this.#tableName} (key, version_id, value, multiplicity)
+        VALUES (@key, @version_id, @value, @multiplicity)
+        ON CONFLICT(key, version_id, value) DO
+          UPDATE SET multiplicity = multiplicity + excluded.multiplicity
+      `),
+
+      insertVersion: this.#db.prepare(`
+        INSERT INTO ${this.#versionTableName} (version)
+        VALUES (?)
+        RETURNING id
       `),
 
       get: this.#db.prepare(`
         SELECT value, multiplicity 
-        FROM ${this.#tableName}
-        WHERE key = @key AND version = @version
+        FROM ${this.#tableName} t
+        JOIN ${this.#versionTableName} v ON v.id = t.version_id
+        WHERE key = @key AND v.version = @version
       `),
 
       getVersions: this.#db.prepare(`
-        SELECT DISTINCT version 
-        FROM ${this.#tableName}
+        SELECT DISTINCT v.version 
+        FROM ${this.#tableName} t
+        JOIN ${this.#versionTableName} v ON v.id = t.version_id
         WHERE key = ?
       `),
 
       getAllForKey: this.#db.prepare(`
-        SELECT version, value, multiplicity 
-        FROM ${this.#tableName}
-        WHERE key = ? AND json_array_length(version) <= json_array_length(@requestedVersion)
+        SELECT v.version, t.value, t.multiplicity 
+        FROM ${this.#tableName} t
+        JOIN ${this.#versionTableName} v ON v.id = t.version_id
+        WHERE t.key = ? AND json_array_length(v.version) <= json_array_length(@requestedVersion)
       `),
 
       delete: this.#db.prepare(`
         DELETE FROM ${this.#tableName}
-        WHERE version = ?
+        WHERE version_id IN (
+          SELECT id FROM ${this.#versionTableName}
+          WHERE version = ?
+        )
       `),
 
       deleteAll: this.#db.prepare(`
         DROP TABLE IF EXISTS ${this.#tableName}
       `),
 
-      getForCompaction: this.#db.prepare(`
-        SELECT key, version, value, multiplicity
-        FROM ${this.#tableName}
-        WHERE version = ?
+      deleteAllVersions: this.#db.prepare(`
+        DROP TABLE IF EXISTS ${this.#versionTableName}
       `),
 
-      updateVersion: this.#db.prepare(`
-        UPDATE ${this.#tableName}
-        SET version = @newVersion
-        WHERE version = @version
+      getForCompaction: this.#db.prepare(`
+        SELECT t.key, v.version, t.value, t.multiplicity
+        FROM ${this.#tableName} t
+        JOIN ${this.#versionTableName} v ON v.id = t.version_id
+        WHERE v.version = ?
       `),
 
       consolidateVersions: this.#db.prepare(`
         WITH consolidated AS (
           SELECT 
-            key,
-            version,
-            value,
-            SUM(multiplicity) as multiplicity
-          FROM ${this.#tableName}
-          WHERE version = ?
-          GROUP BY key, version, value
+            t1.key,
+            t1.version_id,
+            t1.value,
+            CAST(SUM(CAST(t1.multiplicity AS BIGINT)) AS INTEGER) as new_multiplicity
+          FROM ${this.#tableName} t1
+          JOIN ${this.#versionTableName} v1 ON v1.id = t1.version_id
+          WHERE v1.version = ?
+          GROUP BY t1.key, t1.value, t1.version_id
         )
         UPDATE ${this.#tableName}
         SET multiplicity = (
-          SELECT multiplicity 
-          FROM consolidated 
+          SELECT new_multiplicity
+          FROM consolidated c
           WHERE 
-            consolidated.key = ${this.#tableName}.key AND
-            consolidated.version = ${this.#tableName}.version AND
-            consolidated.value = ${this.#tableName}.value
+            c.key = ${this.#tableName}.key AND
+            c.value = ${this.#tableName}.value AND
+            c.version_id = ${this.#tableName}.version_id
         )
+        WHERE version_id IN (
+          SELECT id FROM ${this.#versionTableName}
+          WHERE version = ?
+        )
+      `),
+
+      deleteZeroMultiplicity: this.#db.prepare(`
+        DELETE FROM ${this.#tableName}
+        WHERE multiplicity = 0
+      `),
+
+      updateVersionMapping: this.#db.prepare(`
+        UPDATE ${this.#versionTableName}
+        SET version = ?
+        WHERE version = ?
+      `),
+
+      getVersionId: this.#db.prepare(`
+        SELECT id FROM ${this.#versionTableName}
         WHERE version = ?
       `),
     }
@@ -160,7 +212,6 @@ export class SQLIndex<K, V> {
   }
 
   reconstructAt(key: K, requestedVersion: Version): [V, number][] {
-    console.log('-> reconstructAt', key, requestedVersion)
     const rows = this.#preparedStatements.getAllForKey.all(
       JSON.stringify(key),
       { requestedVersion: requestedVersion.toJSON() },
@@ -172,43 +223,66 @@ export class SQLIndex<K, V> {
         return version.lessEqual(requestedVersion)
       })
       .map((row) => [JSON.parse(row.value) as V, row.multiplicity])
-    console.log('<- reconstructAt', result)
     return result as [V, number][]
   }
 
   versions(key: K): Version[] {
-    console.log('-> versions', key)
     const rows = this.#preparedStatements.getVersions.all(JSON.stringify(key))
     const result = rows.map(({ version }) => Version.fromJSON(version))
-    console.log('<- versions', result)
     return result
   }
 
   addValue(key: K, version: Version, value: [V, number]): void {
-    console.log('-- addValue', key, version, value)
+    const versionJson = version.toJSON()
+
+    // First try to get existing version id
+    let versionRow = this.#preparedStatements.getVersionId.get(versionJson) as
+      | { id: number }
+      | undefined
+
+    // If version doesn't exist, insert it
+    if (!versionRow) {
+      versionRow = this.#preparedStatements.insertVersion.get(versionJson) as {
+        id: number
+      }
+    }
+
+    // Insert the actual value
     this.#preparedStatements.insert.run({
       key: JSON.stringify(key),
-      version: version.toJSON(),
+      version_id: versionRow.id,
       value: JSON.stringify(value[0]),
       multiplicity: value[1],
     })
   }
 
   append(other: SQLIndex<K, V>): void {
-    console.log('-- append', other.tableName)
+    // First, copy any missing versions from the other version table
+    const copyVersionsQuery = `
+      INSERT INTO ${this.#versionTableName} (version)
+      SELECT DISTINCT o.version 
+      FROM ${other.#versionTableName} o
+      WHERE NOT EXISTS (
+        SELECT 1 FROM ${this.#versionTableName} t 
+        WHERE t.version = o.version
+      )
+    `
+    this.#db.prepare(copyVersionsQuery).run()
 
-    // Copy all data from the other index into this one
+    // Now copy all data from the other index into this one
     const insertQuery = `
-      INSERT OR REPLACE INTO ${this.#tableName} (key, version, value, multiplicity)
+      INSERT OR REPLACE INTO ${this.#tableName} (key, version_id, value, multiplicity)
       SELECT 
         o.key,
-        o.version,
+        v2.id as version_id,
         o.value,
         COALESCE(t.multiplicity, 0) + o.multiplicity as multiplicity
       FROM ${other.tableName} o
+      JOIN ${other.#versionTableName} v1 ON v1.id = o.version_id
+      JOIN ${this.#versionTableName} v2 ON v2.version = v1.version
       LEFT JOIN ${this.#tableName} t 
         ON t.key = o.key 
-        AND t.version = o.version 
+        AND t.version_id = v2.id
         AND t.value = o.value
     `
     this.#db.prepare(insertQuery).run()
@@ -216,7 +290,6 @@ export class SQLIndex<K, V> {
 
   join<V2>(other: SQLIndex<K, V2>): [Version, MultiSet<[K, [V, V2]]>][] {
     // Create the join query dynamically with the actual table names
-    console.log('-> join', other.tableName)
     const joinQuery = `
       SELECT 
         a.key,
@@ -225,12 +298,12 @@ export class SQLIndex<K, V> {
             SELECT 0
             UNION ALL
             SELECT i + 1 FROM numbers 
-            WHERE i < json_array_length(a.version) - 1
+            WHERE i < json_array_length(va.version) - 1
           )
           SELECT json_group_array(
             MAX(
-              json_extract(a.version, '$[' || i || ']'),
-              json_extract(b.version, '$[' || i || ']')
+              json_extract(va.version, '$[' || i || ']'),
+              json_extract(vb.version, '$[' || i || ']')
             )
           )
           FROM numbers
@@ -238,7 +311,9 @@ export class SQLIndex<K, V> {
         json_array(json(a.value), json(b.value)) as joined_value,
         a.multiplicity * b.multiplicity as multiplicity
       FROM ${this.#tableName} a
+      JOIN ${this.#versionTableName} va ON va.id = a.version_id
       JOIN ${other.tableName} b ON a.key = b.key
+      JOIN ${other.#versionTableName} vb ON vb.id = b.version_id
       GROUP BY a.key, a.value, b.value
     `
 
@@ -262,91 +337,74 @@ export class SQLIndex<K, V> {
     const result = Array.from(versionMap.entries()).map(
       ([versionStr, collection]) => [Version.fromJSON(versionStr), collection],
     )
-    console.log('<- join', result)
     return result as [Version, MultiSet<[K, [V, V2]]>][]
   }
 
   destroy(): void {
-    console.log('-- destroy')
     this.#preparedStatements.deleteAll.run()
+    this.#preparedStatements.deleteAllVersions.run()
   }
 
   compact(compactionFrontier: Antichain, keys: K[] = []): void {
-    console.log('-- compact', compactionFrontier, keys)
-
-    // Do everything in a single transaction
     this.#db.transaction(() => {
-      // First, find all versions that need compaction
-      const findVersionsQuery =
-        keys.length > 0
-          ? `
-          SELECT DISTINCT version 
-          FROM ${this.#tableName}
-          WHERE key IN (${keys.map((k) => `'${JSON.stringify(k)}'`).join(',')})
+      const findVersionsQuery = `
+        SELECT DISTINCT v.id, v.version
+        FROM ${this.#versionTableName} v
+        ${
+          keys.length > 0
+            ? `
+          JOIN ${this.#tableName} d ON d.version_id = v.id
+          WHERE d.key IN (${keys.map((k) => `'${JSON.stringify(k)}'`).join(',')})
         `
-          : `
-          SELECT DISTINCT version 
-          FROM ${this.#tableName}
-        `
+            : ''
+        }
+      `
 
       const versions = this.#db
-        .prepare<[], { version: string }>(findVersionsQuery)
+        .prepare<[], VersionRow>(findVersionsQuery)
         .all()
-        .map((row) => Version.fromJSON(row.version))
-        .filter((version) => !compactionFrontier.lessEqualVersion(version))
+        .map((row) => ({
+          id: row.id,
+          version: Version.fromJSON(row.version),
+        }))
+        .filter((v) => !compactionFrontier.lessEqualVersion(v.version))
 
-      // For each version that needs compaction
-      for (const version of versions) {
+      for (const { version } of versions) {
         const newVersion = version.advanceBy(compactionFrontier)
-        const versionStr = version.toJSON()
-        const newVersionStr = newVersion.toJSON()
 
-        // Move data to new version and consolidate in a single query
-        const moveAndConsolidateQuery = `
-          WITH moved_data AS (
-            SELECT 
-              key as moved_key,
-              '${newVersionStr}' as moved_version,
-              value as moved_value,
-              SUM(multiplicity) as moved_multiplicity
-            FROM ${this.#tableName}
-            WHERE version = '${versionStr}'
-            GROUP BY key, value
-          )
-          INSERT INTO ${this.#tableName} (key, version, value, multiplicity)
-          SELECT 
-            moved_data.moved_key,
-            moved_data.moved_version,
-            moved_data.moved_value,
-            COALESCE(moved_data.moved_multiplicity, 0) + COALESCE(existing.multiplicity, 0) as multiplicity
-          FROM moved_data
-          LEFT JOIN ${this.#tableName} existing
-            ON existing.key = moved_data.moved_key 
-            AND existing.version = moved_data.moved_version
-            AND existing.value = moved_data.moved_value
-          WHERE COALESCE(moved_data.moved_multiplicity, 0) + COALESCE(existing.multiplicity, 0) != 0
-          ON CONFLICT (key, version, value) DO UPDATE SET
-            multiplicity = excluded.multiplicity
-        `
+        // Update version mapping in version table
+        this.#preparedStatements.updateVersionMapping.run(
+          newVersion.toJSON(),
+          version.toJSON(),
+        )
 
-        // Delete old version after moving data
-        const deleteOldVersionQuery = `
-          DELETE FROM ${this.#tableName}
-          WHERE version = '${versionStr}'
-        `
+        // Consolidate multiplicities
+        this.#preparedStatements.consolidateVersions.run(
+          newVersion.toJSON(),
+          newVersion.toJSON(),
+        )
 
-        // Delete rows where multiplicity = 0 at the new version
-        const deleteZeroMultiplicityQuery = `
-          DELETE FROM ${this.#tableName}
-          WHERE version = '${newVersionStr}'
-          AND multiplicity = 0
-        `
-
-        // Execute the queries
-        this.#db.prepare(moveAndConsolidateQuery).run()
-        this.#db.prepare(deleteOldVersionQuery).run()
-        this.#db.prepare(deleteZeroMultiplicityQuery).run()
+        // Delete rows with zero multiplicity
+        this.#preparedStatements.deleteZeroMultiplicity.run()
       }
     })()
+  }
+
+  showAll(): { key: K; version: Version; value: V; multiplicity: number }[] {
+    const rows = this.#db
+      .prepare(
+        `
+      SELECT i.*, v.version 
+      FROM ${this.#tableName} i
+      JOIN ${this.#versionTableName} v ON i.version_id = v.id
+    `,
+      )
+      .all()
+    return rows as {
+      key: K
+      version: Version
+      value: V
+      multiplicity: number
+    }[]
   }
 }

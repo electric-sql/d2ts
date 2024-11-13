@@ -48,7 +48,7 @@ export class Version {
   }
 
   static fromJSON(json: string): Version {
-    return new Version(JSON.parse(json))
+    return v(JSON.parse(json))
   }
 
   #validateNumber(n: number): void {

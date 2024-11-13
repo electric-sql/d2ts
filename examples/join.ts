@@ -134,8 +134,9 @@ const joined_stream = issues_stream
     // description: issue.description,
     user_name: user.name
   }]))
-  .distinct()
   .debug('map', true)
+  .distinct()
+  .debug('distinct', true)
 
 const graph = graphBuilder.finalize()
 
@@ -152,7 +153,7 @@ writer_users.sendFrontier(new Antichain([v([2, 0])]))
 
 graph.step()
 
-// // Add a new issue
+// Add a new issue
 writer_issues.sendData(v([2, 0]), new MultiSet([[[11, {
   id: 11,
   title: 'New issue',
@@ -184,7 +185,7 @@ writer_users.sendData(v([4, 0]), new MultiSet([[[4, {
 
 writer_issues.sendData(v([4, 0]), new MultiSet([[[12, {
   id: 12,
-  title: 'New issue',
+  title: 'New issue 2',
   user_id: 4,
 }], 1]]))
 
@@ -200,7 +201,7 @@ writer_users.sendData(v([5, 0]), new MultiSet([[[4, {
 }], -1]]))
 writer_issues.sendData(v([5, 0]), new MultiSet([[[12, {
   id: 12,
-  title: 'New issue',
+  title: 'New issue 2',
   user_id: 4,
 }], -1]]))
 
