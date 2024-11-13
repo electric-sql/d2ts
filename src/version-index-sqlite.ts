@@ -32,11 +32,6 @@ interface JoinResult {
   multiplicity: number
 }
 
-interface VersionRow {
-  id: number
-  version: string
-}
-
 export class SQLIndex<K, V> {
   #db: Database.Database
   #tableName: string
@@ -59,6 +54,13 @@ export class SQLIndex<K, V> {
     setCompactionFrontier: Database.Statement<[string]>
     getCompactionFrontier: Database.Statement<[], { value: string }>
     deleteMeta: Database.Statement
+    getAllKeys: Database.Statement<[], { key: string }>
+    getVersionsForKey: Database.Statement<
+      [string],
+      { version: string; version_id: number }
+    >
+    moveDataToNewVersion: Database.Statement<[number, string, number]>
+    deleteOldVersionData: Database.Statement<[string, number]>
   }
 
   constructor(db: Database.Database, name: string, isTemp = false) {
@@ -223,6 +225,31 @@ export class SQLIndex<K, V> {
 
       deleteMeta: this.#db.prepare(`
         DROP TABLE IF EXISTS ${this.#tableName}_meta
+      `),
+
+      getAllKeys: this.#db.prepare(`
+        SELECT DISTINCT key FROM ${this.#tableName}
+      `),
+
+      getVersionsForKey: this.#db.prepare(`
+        SELECT DISTINCT v.version, v.id as version_id
+        FROM ${this.#tableName} t
+        JOIN ${this.#versionTableName} v ON v.id = t.version_id
+        WHERE t.key = ?
+      `),
+
+      moveDataToNewVersion: this.#db.prepare(`
+        INSERT INTO ${this.#tableName} (key, version_id, value, multiplicity)
+        SELECT key, ?, value, multiplicity
+        FROM ${this.#tableName}
+        WHERE key = ? AND version_id = ?
+        ON CONFLICT(key, version_id, value) DO UPDATE SET
+        multiplicity = multiplicity + excluded.multiplicity
+      `),
+
+      deleteOldVersionData: this.#db.prepare(`
+        DELETE FROM ${this.#tableName}
+        WHERE key = ? AND version_id = ?
       `),
     }
   }
@@ -411,49 +438,81 @@ export class SQLIndex<K, V> {
       throw new Error('Invalid compaction frontier')
     }
 
-    // Store the new frontier
-    this.setCompactionFrontier(compactionFrontier)
+    this.#validate(compactionFrontier)
 
-    const findVersionsQuery = `
-      SELECT DISTINCT v.id, v.version
-      FROM ${this.#versionTableName} v
-      ${
-        keys.length > 0
-          ? `
-        JOIN ${this.#tableName} d ON d.version_id = v.id
-        WHERE d.key IN (${keys.map((k) => `'${JSON.stringify(k)}'`).join(',')})
-      `
-          : ''
+    // Get all keys if none provided
+    const keysToProcess =
+      keys.length > 0
+        ? keys
+        : (() => {
+            const rows = this.#preparedStatements.getAllKeys.all() as {
+              key: string
+            }[]
+            return rows.map((row) => JSON.parse(row.key))
+          })()
+
+    // Process each key
+    for (const key of keysToProcess) {
+      // Get versions for this key that need compaction
+      const versionsToCompact = this.#preparedStatements.getVersionsForKey.all(
+        JSON.stringify(key),
+      ) as { version: string; version_id: number }[]
+
+      const toCompact = versionsToCompact.filter((row) => {
+        const version = Version.fromJSON(row.version)
+        return !compactionFrontier.lessEqualVersion(version)
+      })
+
+      // Track versions that need consolidation
+      const toConsolidate = new Set<string>()
+
+      // Process each version that needs compaction
+      for (const versionRow of toCompact) {
+        const oldVersion = Version.fromJSON(versionRow.version)
+        const newVersion = oldVersion.advanceBy(compactionFrontier)
+        const newVersionJson = newVersion.toJSON()
+
+        // Get or create the new version ID
+        let newVersionId = this.#preparedStatements.getVersionId.get(
+          newVersionJson,
+        ) as { id: number } | undefined
+
+        if (!newVersionId) {
+          newVersionId = this.#preparedStatements.insertVersion.get(
+            newVersionJson,
+          ) as { id: number }
+        }
+
+        // Move data to new version, handling conflicts by adding multiplicities
+        this.#preparedStatements.moveDataToNewVersion.run(
+          newVersionId.id,
+          JSON.stringify(key),
+          versionRow.version_id,
+        )
+
+        // Delete old version data
+        this.#preparedStatements.deleteOldVersionData.run(
+          JSON.stringify(key),
+          versionRow.version_id,
+        )
+
+        toConsolidate.add(newVersionJson)
       }
-    `
 
-    const versions = this.#db
-      .prepare<[], VersionRow>(findVersionsQuery)
-      .all()
-      .map((row) => ({
-        id: row.id,
-        version: Version.fromJSON(row.version),
-      }))
-      .filter((v) => !compactionFrontier.lessEqualVersion(v.version))
+      // Consolidate values for each affected version
+      for (const versionJson of toConsolidate) {
+        // Consolidate by summing multiplicities
+        this.#preparedStatements.consolidateVersions.run(
+          versionJson,
+          versionJson,
+        )
 
-    for (const { version } of versions) {
-      const newVersion = version.advanceBy(compactionFrontier)
-
-      // Update version mapping in version table
-      this.#preparedStatements.updateVersionMapping.run(
-        newVersion.toJSON(),
-        version.toJSON(),
-      )
-
-      // Consolidate multiplicities
-      this.#preparedStatements.consolidateVersions.run(
-        newVersion.toJSON(),
-        newVersion.toJSON(),
-      )
-
-      // Delete rows with zero multiplicity
-      this.#preparedStatements.deleteZeroMultiplicity.run()
+        // Remove entries with zero multiplicity
+        this.#preparedStatements.deleteZeroMultiplicity.run()
+      }
     }
+
+    this.setCompactionFrontier(compactionFrontier)
   }
 
   showAll(): { key: K; version: Version; value: V; multiplicity: number }[] {
