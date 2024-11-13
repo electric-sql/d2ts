@@ -153,16 +153,8 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
   ) {
     const inner = () => {
       // Create temporary indexes for this iteration
-      const deltaA = new SQLIndex<K, V1>(
-        db,
-        `join_delta_a_${id}`,
-        true,
-      )
-      const deltaB = new SQLIndex<K, V2>(
-        db,
-        `join_delta_b_${id}`,
-        true,
-      )
+      const deltaA = new SQLIndex<K, V1>(db, `join_delta_a_${id}`, true)
+      const deltaB = new SQLIndex<K, V2>(db, `join_delta_b_${id}`, true)
 
       try {
         // Process input A

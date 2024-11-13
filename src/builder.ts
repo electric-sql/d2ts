@@ -42,15 +42,10 @@ type KeyValue<K, V> = [K, V]
 export class DifferenceStreamBuilder<T> {
   #writer: DifferenceStreamWriter<T>
   #graph: GraphBuilder
-  #db: Database.Database | undefined
 
-  constructor(
-    graph: GraphBuilder,
-    db: Database.Database | undefined = undefined,
-  ) {
+  constructor(graph: GraphBuilder) {
     this.#writer = new DifferenceStreamWriter<T>()
     this.#graph = graph
-    this.#db = db
   }
 
   connectReader(): DifferenceStreamReader<T> {
@@ -65,7 +60,7 @@ export class DifferenceStreamBuilder<T> {
    * Applies a function to each element in the stream
    */
   map<U>(f: (data: T) => U): DifferenceStreamBuilder<U> {
-    const output = new DifferenceStreamBuilder<U>(this.#graph, this.#db)
+    const output = new DifferenceStreamBuilder<U>(this.#graph)
     const operator = new MapOperator<T, U>(
       this.#graph.getNextOperatorId(),
       this.connectReader(),
@@ -82,7 +77,7 @@ export class DifferenceStreamBuilder<T> {
    * Filters the elements in the stream
    */
   filter(f: (data: T) => boolean): DifferenceStreamBuilder<T> {
-    const output = new DifferenceStreamBuilder<T>(this.#graph, this.#db)
+    const output = new DifferenceStreamBuilder<T>(this.#graph)
     const operator = new FilterOperator<T>(
       this.#graph.getNextOperatorId(),
       this.connectReader(),
@@ -99,7 +94,7 @@ export class DifferenceStreamBuilder<T> {
    * Negates the multiplicities in the stream
    */
   negate(): DifferenceStreamBuilder<T> {
-    const output = new DifferenceStreamBuilder<T>(this.#graph, this.#db)
+    const output = new DifferenceStreamBuilder<T>(this.#graph)
     const operator = new NegateOperator<T>(
       this.#graph.getNextOperatorId(),
       this.connectReader(),
@@ -120,7 +115,7 @@ export class DifferenceStreamBuilder<T> {
     if (this.#graph !== other.#graph) {
       throw new Error('Cannot concat streams from different graphs')
     }
-    const output = new DifferenceStreamBuilder<T | T2>(this.#graph, this.#db)
+    const output = new DifferenceStreamBuilder<T | T2>(this.#graph)
     const operator = new ConcatOperator<T, T2>(
       this.#graph.getNextOperatorId(),
       this.connectReader(),
@@ -140,7 +135,7 @@ export class DifferenceStreamBuilder<T> {
     name: string = '',
     indent: boolean = false,
   ): DifferenceStreamBuilder<T> {
-    const output = new DifferenceStreamBuilder<T>(this.#graph, this.#db)
+    const output = new DifferenceStreamBuilder<T>(this.#graph)
     const operator = new DebugOperator<T>(
       this.#graph.getNextOperatorId(),
       this.connectReader(),
@@ -158,7 +153,7 @@ export class DifferenceStreamBuilder<T> {
    * Outputs the messages in the stream
    */
   output(fn: (data: Message<T>) => void): DifferenceStreamBuilder<T> {
-    const output = new DifferenceStreamBuilder<T>(this.#graph, this.#db)
+    const output = new DifferenceStreamBuilder<T>(this.#graph)
     const operator = new OutputOperator<T>(
       this.#graph.getNextOperatorId(),
       this.connectReader(),
@@ -183,14 +178,14 @@ export class DifferenceStreamBuilder<T> {
     const output = new DifferenceStreamBuilder<KeyValue<K, [V1, V2]>>(
       this.#graph,
     )
-    const operator = this.#db
+    const operator = this.#graph.db
       ? new JoinOperatorSQLite<K, V1, V2>(
           this.#graph.getNextOperatorId(),
           this.connectReader() as DifferenceStreamReader<KeyValue<K, V1>>,
           other.connectReader(),
           output.writer(),
           this.#graph.frontier(),
-          this.#db,
+          this.#graph.db,
         )
       : new JoinOperator<K, V1, V2>(
           this.#graph.getNextOperatorId(),
@@ -214,10 +209,7 @@ export class DifferenceStreamBuilder<T> {
   >(
     f: (values: [V1, number][]) => [R, number][],
   ): DifferenceStreamBuilder<KeyValue<K, R>> {
-    const output = new DifferenceStreamBuilder<KeyValue<K, R>>(
-      this.#graph,
-      this.#db,
-    )
+    const output = new DifferenceStreamBuilder<KeyValue<K, R>>(this.#graph)
     const operator = new ReduceOperator<K, V1, R>(
       this.#graph.getNextOperatorId(),
       this.connectReader() as DifferenceStreamReader<KeyValue<K, V1>>,
@@ -237,10 +229,7 @@ export class DifferenceStreamBuilder<T> {
     K extends T extends KeyValue<infer K, infer _V> ? K : never,
     V extends T extends KeyValue<K, infer V> ? V : never,
   >(): DifferenceStreamBuilder<KeyValue<K, number>> {
-    const output = new DifferenceStreamBuilder<KeyValue<K, number>>(
-      this.#graph,
-      this.#db,
-    )
+    const output = new DifferenceStreamBuilder<KeyValue<K, number>>(this.#graph)
     const operator = new CountOperator<K, V>(
       this.#graph.getNextOperatorId(),
       this.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
@@ -259,10 +248,7 @@ export class DifferenceStreamBuilder<T> {
     K extends T extends KeyValue<infer K, infer _V> ? K : never,
     V extends T extends KeyValue<K, infer V> ? V : never,
   >(): DifferenceStreamBuilder<KeyValue<K, V>> {
-    const output = new DifferenceStreamBuilder<KeyValue<K, V>>(
-      this.#graph,
-      this.#db,
-    )
+    const output = new DifferenceStreamBuilder<KeyValue<K, V>>(this.#graph)
     const operator = new DistinctOperator<K, V>(
       this.#graph.getNextOperatorId(),
       this.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
@@ -278,14 +264,15 @@ export class DifferenceStreamBuilder<T> {
    * Consolidates the elements in the stream
    */
   consolidate(): DifferenceStreamBuilder<T> {
-    const output = new DifferenceStreamBuilder<T>(this.#graph, this.#db)
-    const operator = this.#db
+    const output = new DifferenceStreamBuilder<T>(this.#graph)
+    console.log('Consolidate', this.#graph.db)
+    const operator = this.#graph.db
       ? new ConsolidateOperatorSQLite<T>(
           this.#graph.getNextOperatorId(),
           this.connectReader(),
           output.writer(),
           this.#graph.frontier(),
-          this.#db,
+          this.#graph.db,
         )
       : new ConsolidateOperator<T>(
           this.#graph.getNextOperatorId(),
@@ -308,7 +295,7 @@ export class DifferenceStreamBuilder<T> {
   }
 
   #ingress(): DifferenceStreamBuilder<T> {
-    const output = new DifferenceStreamBuilder<T>(this.#graph, this.#db)
+    const output = new DifferenceStreamBuilder<T>(this.#graph)
     const operator = new IngressOperator<T>(
       this.#graph.getNextOperatorId(),
       this.connectReader(),
@@ -321,7 +308,7 @@ export class DifferenceStreamBuilder<T> {
   }
 
   #egress(): DifferenceStreamBuilder<T> {
-    const output = new DifferenceStreamBuilder<T>(this.#graph, this.#db)
+    const output = new DifferenceStreamBuilder<T>(this.#graph)
     const operator = new EgressOperator<T>(
       this.#graph.getNextOperatorId(),
       this.connectReader(),
@@ -340,7 +327,7 @@ export class DifferenceStreamBuilder<T> {
     f: (stream: DifferenceStreamBuilder<T>) => DifferenceStreamBuilder<T>,
   ): DifferenceStreamBuilder<T> {
     this.#startScope()
-    const feedbackStream = new DifferenceStreamBuilder<T>(this.#graph, this.#db)
+    const feedbackStream = new DifferenceStreamBuilder<T>(this.#graph)
     const entered = this.#ingress().concat(feedbackStream)
     const result = f(entered)
     const feedbackOperator = new FeedbackOperator<T>(
@@ -375,12 +362,16 @@ export class GraphBuilder {
     this.#db = db
   }
 
+  get db(): Database.Database | undefined {
+    return this.#db
+  }
+
   getNextOperatorId(): number {
     return this.#nextOperatorId++
   }
 
   newInput<T>(): [DifferenceStreamBuilder<T>, DifferenceStreamWriter<T>] {
-    const streamBuilder = new DifferenceStreamBuilder<T>(this, this.#db)
+    const streamBuilder = new DifferenceStreamBuilder<T>(this)
     this.#streams.push(streamBuilder.connectReader())
     return [streamBuilder, streamBuilder.writer()]
   }
