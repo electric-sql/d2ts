@@ -4,7 +4,7 @@ import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
 import { Message, MessageType } from '../../src/types'
 
-describe('Operators', () => {
+describe('Operators - in-memory', () => {
   describe('Filter operation', () => {
     test('basic filter operation', () => {
       const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))

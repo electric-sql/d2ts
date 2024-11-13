@@ -3,7 +3,7 @@ import { GraphBuilder } from '../../src/builder'
 import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
 
-describe('Operators', () => {
+describe('Operators - in-memory', () => {
   describe('Debug operation', () => {
     test('basic debug operation', () => {
       const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))

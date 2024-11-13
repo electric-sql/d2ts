@@ -4,7 +4,7 @@ import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
 import { DataMessage, MessageType } from '../../src/types'
 
-describe('Operators', () => {
+describe('Operators - in-memory', () => {
   describe('Negate operation', () => {
     test('basic negate operation', () => {
       const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
