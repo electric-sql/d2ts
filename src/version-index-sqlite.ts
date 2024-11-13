@@ -1,4 +1,4 @@
-import { Version, Antichain } from './order'
+import { Version, Antichain, v } from './order'
 import { MultiSet } from './multiset'
 import Database from 'better-sqlite3'
 
@@ -56,6 +56,9 @@ export class SQLIndex<K, V> {
     updateVersionMapping: Database.Statement<[string, string]>
     deleteZeroMultiplicity: Database.Statement
     getVersionId: Database.Statement<[string], { id: number }>
+    setCompactionFrontier: Database.Statement<[string]>
+    getCompactionFrontier: Database.Statement<[], { value: string }>
+    deleteMeta: Database.Statement
   }
 
   constructor(db: Database.Database, name: string, isTemp = false) {
@@ -80,6 +83,13 @@ export class SQLIndex<K, V> {
         multiplicity INTEGER NOT NULL,
         PRIMARY KEY (key, version_id, value),
         FOREIGN KEY (version_id) REFERENCES ${this.#versionTableName}(id)
+      )
+    `)
+
+    this.#db.exec(`
+      CREATE ${isTemp ? 'TEMP' : ''} TABLE IF NOT EXISTS ${this.#tableName}_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT
       )
     `)
 
@@ -200,6 +210,20 @@ export class SQLIndex<K, V> {
         SELECT id FROM ${this.#versionTableName}
         WHERE version = ?
       `),
+
+      setCompactionFrontier: this.#db.prepare(`
+        INSERT OR REPLACE INTO ${this.#tableName}_meta (key, value)
+        VALUES ('compaction_frontier', ?)
+      `),
+
+      getCompactionFrontier: this.#db.prepare(`
+        SELECT value FROM ${this.#tableName}_meta
+        WHERE key = 'compaction_frontier'
+      `),
+
+      deleteMeta: this.#db.prepare(`
+        DROP TABLE IF EXISTS ${this.#tableName}_meta
+      `),
     }
   }
 
@@ -211,7 +235,36 @@ export class SQLIndex<K, V> {
     return this.#tableName
   }
 
+  getCompactionFrontier(): Antichain | null {
+    const frontierRow = this.#preparedStatements.getCompactionFrontier.get()
+    if (!frontierRow) return null
+    const data = JSON.parse(frontierRow.value) as number[][]
+    return new Antichain(data.map((inner) => v(inner)))
+  }
+
+  setCompactionFrontier(frontier: Antichain): void {
+    const json = JSON.stringify(frontier.elements.map((v) => v.getInner()))
+    this.#preparedStatements.setCompactionFrontier.run(json)
+  }
+
+  #validate(requestedVersion: Version | Antichain): boolean {
+    const compactionFrontier = this.getCompactionFrontier()
+    if (!compactionFrontier) return true
+
+    if (requestedVersion instanceof Antichain) {
+      if (!compactionFrontier.lessEqual(requestedVersion)) {
+        throw new Error('Invalid version')
+      }
+    } else if (requestedVersion instanceof Version) {
+      if (!compactionFrontier.lessEqualVersion(requestedVersion)) {
+        throw new Error('Invalid version')
+      }
+    }
+    return true
+  }
+
   reconstructAt(key: K, requestedVersion: Version): [V, number][] {
+    this.#validate(requestedVersion)
     const rows = this.#preparedStatements.getAllForKey.all(
       JSON.stringify(key),
       { requestedVersion: requestedVersion.toJSON() },
@@ -233,6 +286,7 @@ export class SQLIndex<K, V> {
   }
 
   addValue(key: K, version: Version, value: [V, number]): void {
+    this.#validate(version)
     const versionJson = version.toJSON()
 
     // First try to get existing version id
@@ -341,12 +395,22 @@ export class SQLIndex<K, V> {
   }
 
   destroy(): void {
+    this.#preparedStatements.deleteMeta.run()
     this.#preparedStatements.deleteAll.run()
     this.#preparedStatements.deleteAllVersions.run()
   }
 
   compact(compactionFrontier: Antichain, keys: K[] = []): void {
+    // Check existing frontier
+    const existingFrontier = this.getCompactionFrontier()
+    if (existingFrontier && !existingFrontier.lessEqual(compactionFrontier)) {
+      throw new Error('Invalid compaction frontier')
+    }
+
     this.#db.transaction(() => {
+      // Store the new frontier
+      this.setCompactionFrontier(compactionFrontier)
+
       const findVersionsQuery = `
         SELECT DISTINCT v.id, v.version
         FROM ${this.#versionTableName} v
