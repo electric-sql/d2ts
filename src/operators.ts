@@ -15,6 +15,7 @@ import { DefaultMap } from './utils'
  */
 class LinearUnaryOperator<T, U> extends UnaryOperator<T | U> {
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<U>,
     f: (collection: MultiSet<T>) => MultiSet<U>,
@@ -43,7 +44,7 @@ class LinearUnaryOperator<T, U> extends UnaryOperator<T | U> {
       }
     }
 
-    super(inputA, output, inner, initialFrontier)
+    super(id, inputA, output, inner, initialFrontier)
   }
 }
 
@@ -52,13 +53,14 @@ class LinearUnaryOperator<T, U> extends UnaryOperator<T | U> {
  */
 export class MapOperator<T, U> extends LinearUnaryOperator<T, U> {
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<U>,
     f: (data: T) => U,
     initialFrontier: Antichain,
   ) {
     const mapInner = (collection: MultiSet<T>) => collection.map(f)
-    super(inputA, output, mapInner, initialFrontier)
+    super(id, inputA, output, mapInner, initialFrontier)
   }
 }
 
@@ -67,13 +69,14 @@ export class MapOperator<T, U> extends LinearUnaryOperator<T, U> {
  */
 export class FilterOperator<T> extends LinearUnaryOperator<T, T> {
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     f: (data: T) => boolean,
     initialFrontier: Antichain,
   ) {
     const filterInner = (collection: MultiSet<T>) => collection.filter(f)
-    super(inputA, output, filterInner, initialFrontier)
+    super(id, inputA, output, filterInner, initialFrontier)
   }
 }
 
@@ -82,12 +85,13 @@ export class FilterOperator<T> extends LinearUnaryOperator<T, T> {
  */
 export class NegateOperator<T> extends LinearUnaryOperator<T, T> {
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     initialFrontier: Antichain,
   ) {
     const negateInner = (collection: MultiSet<T>) => collection.negate()
-    super(inputA, output, negateInner, initialFrontier)
+    super(id, inputA, output, negateInner, initialFrontier)
   }
 }
 
@@ -96,6 +100,7 @@ export class NegateOperator<T> extends LinearUnaryOperator<T, T> {
  */
 export class ConcatOperator<T, T2> extends BinaryOperator<T | T2> {
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<T>,
     inputB: DifferenceStreamReader<T2>,
     output: DifferenceStreamWriter<T | T2>,
@@ -138,7 +143,7 @@ export class ConcatOperator<T, T2> extends BinaryOperator<T | T2> {
       }
     }
 
-    super(inputA, inputB, output, inner, initialFrontier)
+    super(id, inputA, inputB, output, inner, initialFrontier)
   }
 }
 
@@ -147,6 +152,7 @@ export class ConcatOperator<T, T2> extends BinaryOperator<T | T2> {
  */
 export class DebugOperator<T> extends UnaryOperator<T> {
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     name: string,
@@ -182,7 +188,7 @@ export class DebugOperator<T> extends UnaryOperator<T> {
       }
     }
 
-    super(inputA, output, inner, initialFrontier)
+    super(id, inputA, output, inner, initialFrontier)
   }
 }
 
@@ -191,6 +197,7 @@ export class DebugOperator<T> extends UnaryOperator<T> {
  */
 export class OutputOperator<T> extends UnaryOperator<T> {
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     fn: (data: Message<T>) => void,
@@ -218,7 +225,7 @@ export class OutputOperator<T> extends UnaryOperator<T> {
         }
       }
     }
-    super(inputA, output, inner, initialFrontier)
+    super(id, inputA, output, inner, initialFrontier)
   }
 }
 
@@ -229,6 +236,7 @@ export class ConsolidateOperator<T> extends UnaryOperator<T> {
   #collections = new DefaultMap<Version, MultiSet<T>>(() => new MultiSet<T>())
 
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     initialFrontier: Antichain,
@@ -271,7 +279,7 @@ export class ConsolidateOperator<T> extends UnaryOperator<T> {
       }
     }
 
-    super(inputA, output, inner, initialFrontier)
+    super(id, inputA, output, inner, initialFrontier)
   }
 }
 
@@ -283,6 +291,7 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<[K, unknown]> {
   #indexB = new Index<K, V2>()
 
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<[K, V1]>,
     inputB: DifferenceStreamReader<[K, V2]>,
     output: DifferenceStreamWriter<[K, [V1, V2]]>,
@@ -367,7 +376,7 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<[K, unknown]> {
       }
     }
 
-    super(inputA, inputB, output, inner, initialFrontier)
+    super(id, inputA, inputB, output, inner, initialFrontier)
   }
 }
 
@@ -380,6 +389,7 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
   #keysTodo = new Map<Version, Set<K>>()
 
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<[K, V1]>,
     output: DifferenceStreamWriter<[K, V2]>,
     f: (values: [V1, number][]) => [V2, number][],
@@ -476,7 +486,7 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
       }
     }
 
-    super(inputA, output, inner, initialFrontier)
+    super(id, inputA, output, inner, initialFrontier)
   }
 }
 
@@ -485,6 +495,7 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
  */
 export class CountOperator<K, V> extends ReduceOperator<K, V, number> {
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<[K, V]>,
     output: DifferenceStreamWriter<[K, number]>,
     initialFrontier: Antichain,
@@ -497,7 +508,7 @@ export class CountOperator<K, V> extends ReduceOperator<K, V, number> {
       return [[count, 1]]
     }
 
-    super(inputA, output, countInner, initialFrontier)
+    super(id, inputA, output, countInner, initialFrontier)
   }
 }
 
@@ -506,6 +517,7 @@ export class CountOperator<K, V> extends ReduceOperator<K, V, number> {
  */
 export class DistinctOperator<K, V> extends ReduceOperator<K, V, V> {
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<[K, V]>,
     output: DifferenceStreamWriter<[K, V]>,
     initialFrontier: Antichain,
@@ -523,7 +535,7 @@ export class DistinctOperator<K, V> extends ReduceOperator<K, V, V> {
         .map(([key, _]) => [values.get(key) as V, 1])
     }
 
-    super(inputA, output, distinctInner, initialFrontier)
+    super(id, inputA, output, distinctInner, initialFrontier)
   }
 }
 
@@ -532,6 +544,7 @@ export class DistinctOperator<K, V> extends ReduceOperator<K, V, V> {
  */
 export class IngressOperator<T> extends UnaryOperator<T> {
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     initialFrontier: Antichain,
@@ -562,7 +575,7 @@ export class IngressOperator<T> extends UnaryOperator<T> {
       }
     }
 
-    super(inputA, output, inner, initialFrontier)
+    super(id, inputA, output, inner, initialFrontier)
   }
 }
 
@@ -571,6 +584,7 @@ export class IngressOperator<T> extends UnaryOperator<T> {
  */
 export class EgressOperator<T> extends UnaryOperator<T> {
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     initialFrontier: Antichain,
@@ -600,7 +614,7 @@ export class EgressOperator<T> extends UnaryOperator<T> {
       }
     }
 
-    super(inputA, output, inner, initialFrontier)
+    super(id, inputA, output, inner, initialFrontier)
   }
 }
 
@@ -620,6 +634,7 @@ export class FeedbackOperator<T> extends UnaryOperator<T> {
   #emptyVersions = new DefaultMap<Version, Set<Version>>(() => new Set())
 
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<T>,
     step: number,
     output: DifferenceStreamWriter<T>,
@@ -710,6 +725,6 @@ export class FeedbackOperator<T> extends UnaryOperator<T> {
       }
     }
 
-    super(inputA, output, inner, initialFrontier)
+    super(id, inputA, output, inner, initialFrontier)
   }
 }

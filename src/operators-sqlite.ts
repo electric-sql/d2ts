@@ -10,11 +10,6 @@ import { Version, Antichain } from './order'
 import Database from 'better-sqlite3'
 import { SQLIndex } from './version-index-sqlite'
 
-// Count of operators to generate unique table names for each operator
-// As long as the query is generated in the same order as previous runs, the
-// operator count will be correct and the correct table will be used.
-let operatorCount = 0
-
 interface CollectionRow {
   version: string
   collection: string
@@ -29,7 +24,6 @@ interface CollectionParams {
  * Operator that consolidates collections at each version, persisting state to SQLite
  */
 export class ConsolidateOperatorSQLite<T> extends UnaryOperator<T> {
-  #operatorId: number
   #preparedStatements: {
     insert: Database.Statement<CollectionParams>
     update: Database.Statement<CollectionParams>
@@ -39,13 +33,12 @@ export class ConsolidateOperatorSQLite<T> extends UnaryOperator<T> {
   }
 
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     initialFrontier: Antichain,
     db: Database.Database,
   ) {
-    const operatorId = operatorCount++
-
     const inner = () => {
       for (const message of this.inputMessages()) {
         if (message.type === MessageType.DATA) {
@@ -110,37 +103,35 @@ export class ConsolidateOperatorSQLite<T> extends UnaryOperator<T> {
       }
     }
 
-    super(inputA, output, inner, initialFrontier)
-    this.#operatorId = operatorId
-
+    super(id, inputA, output, inner, initialFrontier)
     // Initialize database
     db.exec(`
-      CREATE TABLE IF NOT EXISTS collections_${this.#operatorId} (
+      CREATE TABLE IF NOT EXISTS collections_${this.id} (
         version TEXT PRIMARY KEY,
         collection TEXT NOT NULL
       )
     `)
     db.exec(`
-      CREATE INDEX IF NOT EXISTS collections_${this.#operatorId}_version
-      ON collections_${this.#operatorId}(version);
+      CREATE INDEX IF NOT EXISTS collections_${this.id}_version
+      ON collections_${this.id}(version);
     `)
 
     // Prepare statements
     this.#preparedStatements = {
       insert: db.prepare(
-        `INSERT INTO collections_${this.#operatorId} (version, collection) VALUES (@version, @collection)`,
+        `INSERT INTO collections_${this.id} (version, collection) VALUES (@version, @collection)`,
       ),
       update: db.prepare(
-        `UPDATE collections_${this.#operatorId} SET collection = @collection WHERE version = @version`,
+        `UPDATE collections_${this.id} SET collection = @collection WHERE version = @version`,
       ),
       get: db.prepare(
-        `SELECT collection FROM collections_${this.#operatorId} WHERE version = ?`,
+        `SELECT collection FROM collections_${this.id} WHERE version = ?`,
       ),
       delete: db.prepare(
-        `DELETE FROM collections_${this.#operatorId} WHERE version = ?`,
+        `DELETE FROM collections_${this.id} WHERE version = ?`,
       ),
       getAllVersions: db.prepare(
-        `SELECT version, collection FROM collections_${this.#operatorId}`,
+        `SELECT version, collection FROM collections_${this.id}`,
       ),
     }
   }
@@ -153,6 +144,7 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
   #indexB: SQLIndex<K, V2>
 
   constructor(
+    id: number,
     inputA: DifferenceStreamReader<[K, V1]>,
     inputB: DifferenceStreamReader<[K, V2]>,
     output: DifferenceStreamWriter<[K, [V1, V2]]>,
@@ -163,12 +155,12 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
       // Create temporary indexes for this iteration
       const deltaA = new SQLIndex<K, V1>(
         db,
-        `join_delta_a_${operatorCount}`,
+        `join_delta_a_${id}`,
         true,
       )
       const deltaB = new SQLIndex<K, V2>(
         db,
-        `join_delta_b_${operatorCount}`,
+        `join_delta_b_${id}`,
         true,
       )
 
@@ -253,10 +245,9 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
       }
     }
 
-    super(inputA, inputB, output, inner, initialFrontier)
+    super(id, inputA, inputB, output, inner, initialFrontier)
 
-    this.#indexA = new SQLIndex<K, V1>(db, `join_a_${operatorCount}`)
-    this.#indexB = new SQLIndex<K, V2>(db, `join_b_${operatorCount}`)
-    operatorCount++
+    this.#indexA = new SQLIndex<K, V1>(db, `join_a_${id}`)
+    this.#indexB = new SQLIndex<K, V2>(db, `join_b_${id}`)
   }
 }

@@ -104,6 +104,7 @@ export abstract class Operator<T> implements IOperator<T> {
   protected outputFrontier: Antichain
 
   constructor(
+    public id: number,
     inputs: DifferenceStreamReader<T>[],
     output: DifferenceStreamWriter<T>,
     f: () => void,
@@ -136,12 +137,13 @@ export abstract class Operator<T> implements IOperator<T> {
  */
 export class UnaryOperator<T> extends Operator<T> {
   constructor(
+    public id: number,
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     f: () => void,
     initialFrontier: Antichain,
   ) {
-    super([inputA], output, f, initialFrontier)
+    super(id, [inputA], output, f, initialFrontier)
   }
 
   inputMessages(): Message<T>[] {
@@ -163,13 +165,14 @@ export class UnaryOperator<T> extends Operator<T> {
  */
 export class BinaryOperator<T> extends Operator<T> {
   constructor(
+    public id: number,
     inputA: DifferenceStreamReader<T>,
     inputB: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     f: () => void,
     initialFrontier: Antichain,
   ) {
-    super([inputA, inputB], output, f, initialFrontier)
+    super(id, [inputA, inputB], output, f, initialFrontier)
   }
 
   inputAMessages(): Message<T>[] {
