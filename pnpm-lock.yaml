@@ -20,6 +20,9 @@ importers:
       better-sqlite3:
         specifier: ^7.6.0
         version: 7.6.2
+      tsx:
+        specifier: ^4.7.0
+        version: 4.19.2
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.0

@@ -9,7 +9,8 @@
     "lint": "eslint src/**/*.ts"
   },
   "dependencies": {
-    "better-sqlite3": "^7.6.0"
+    "better-sqlite3": "^7.6.0",
+    "tsx": "^4.7.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
@@ -17,4 +18,4 @@
     "typescript": "^5.0.0",
     "vitest": "^1.0.0"
   }
-} 
+}
