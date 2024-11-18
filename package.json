@@ -1,33 +1,13 @@
 {
-  "name": "d2ts",
-  "version": "0.0.0",
-  "description": "",
-  "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "name": "d2ts-monorepo",
+  "private": true,
   "scripts": {
-    "test": "vitest",
-    "format": "prettier --write ./src ./tests",
-    "build": "tsc"
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint"
   },
-  "keywords": [],
-  "author": "Sam Willis",
-  "license": "Apache-2.0",
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.11",
-    "@types/node": "^22.9.0",
-    "better-sqlite3": "^11.5.0",
-    "prettier": "^3.3.3",
-    "tsx": "^4.19.2",
-    "typescript": "^5.6.3",
-    "vitest": "^2.1.4"
-  },
-  "peerDependencies": {
-    "better-sqlite3": "^11.5.0"
-  },
-  "peerDependenciesMeta": {
-    "better-sqlite3": {
-      "optional": true
-    }
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
   }
 }
