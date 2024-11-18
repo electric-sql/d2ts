@@ -4,7 +4,8 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "bench": "pnpm --filter d2ts-benchmark bench"
   },
   "devDependencies": {
     "typescript": "^5.0.0",

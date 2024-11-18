@@ -1,0 +1,17 @@
+{
+  "name": "d2ts-benchmark",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "bench": "tsx src/index.ts"
+  },
+  "devDependencies": {
+    "@types/benchmark": "^2.1.5",
+    "benchmark": "^2.1.4",
+    "tsx": "^4.7.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "d2ts": "workspace:*"
+  }
+} 
