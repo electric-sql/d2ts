@@ -1,8 +1,9 @@
 import { describe, test, expect } from 'vitest'
-import { GraphBuilder } from '../../src/builder'
+import { D2 } from '../../src/pipe'
 import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
 import { DataMessage, MessageType } from '../../src/types'
+import { join, output } from '../../src/operators'
 import Database from 'better-sqlite3'
 
 describe('Operators - in-memory', () => {
@@ -20,29 +21,32 @@ describe('Operators - sqlite', () => {
 
 function testJoin(newDb?: () => InstanceType<typeof Database>) {
   test('basic join operation', () => {
-    const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]), newDb?.())
-    const [inputA, writerA] = graphBuilder.newInput<[number, string]>()
-    const [inputB, writerB] = graphBuilder.newInput<[number, string]>()
-
+    const graph = new D2({ initialFrontier: v([0, 0]) })
+    const inputA = graph.newInput<[number, string]>()
+    const inputB = graph.newInput<[number, string]>()
     let messages: DataMessage<[number, [string, string]]>[] = []
 
-    const output = inputA.join(inputB).output((message) => {
-      if (message.type === MessageType.DATA) {
-        messages.push(message.data)
-      }
-    })
+    inputA.pipe(
+      join(inputB),
+      output((message) => {
+        if (message.type === MessageType.DATA) {
+          messages.push(message.data)
+        }
+      })
+    )
 
-    const graph = graphBuilder.finalize()
+    graph.finalize()
 
-    writerA.sendData(
+    inputA.sendData(
       v([1, 0]),
       new MultiSet([
         [[1, 'a'], 1],
         [[2, 'b'], 1],
       ]),
     )
-    writerA.sendFrontier(new Antichain([v([1, 0])]))
-    writerB.sendData(
+    inputA.sendFrontier(new Antichain([v([1, 0])]))
+    
+    inputB.sendData(
       v([1, 0]),
       new MultiSet([
         [[1, 'x'], 1],
@@ -50,7 +54,7 @@ function testJoin(newDb?: () => InstanceType<typeof Database>) {
         [[3, 'z'], 1],
       ]),
     )
-    writerB.sendFrontier(new Antichain([v([1, 0])]))
+    inputB.sendFrontier(new Antichain([v([1, 0])]))
 
     graph.step()
 
@@ -65,39 +69,41 @@ function testJoin(newDb?: () => InstanceType<typeof Database>) {
   })
 
   test('join with late arriving data', () => {
-    const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]), newDb?.())
-    const [inputA, writerA] = graphBuilder.newInput<[number, string]>()
-    const [inputB, writerB] = graphBuilder.newInput<[number, string]>()
-
+    const graph = new D2({ initialFrontier: v([0, 0]) })
+    const inputA = graph.newInput<[number, string]>()
+    const inputB = graph.newInput<[number, string]>()
     let messages: DataMessage<[number, [string, string]]>[] = []
 
-    const output = inputA.join(inputB).output((message) => {
-      if (message.type === MessageType.DATA) {
-        messages.push(message.data)
-      }
-    })
+    inputA.pipe(
+      join(inputB),
+      output((message) => {
+        if (message.type === MessageType.DATA) {
+          messages.push(message.data)
+        }
+      })
+    )
 
-    const graph = graphBuilder.finalize()
+    graph.finalize()
 
-    writerA.sendData(
+    inputA.sendData(
       v([1, 0]),
       new MultiSet([
         [[1, 'a'], 1],
         [[2, 'b'], 1],
       ]),
     )
-    writerA.sendFrontier(new Antichain([v([1, 0])]))
+    inputA.sendFrontier(new Antichain([v([1, 0])]))
 
     graph.step()
 
-    writerB.sendData(
+    inputB.sendData(
       v([1, 0]),
       new MultiSet([
         [[1, 'x'], 1],
         [[2, 'y'], 1],
       ]),
     )
-    writerB.sendFrontier(new Antichain([v([1, 0])]))
+    inputB.sendFrontier(new Antichain([v([1, 0])]))
 
     graph.step()
 
@@ -112,36 +118,38 @@ function testJoin(newDb?: () => InstanceType<typeof Database>) {
   })
 
   test('join with negative multiplicities', () => {
-    const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]), newDb?.())
-    const [inputA, writerA] = graphBuilder.newInput<[number, string]>()
-    const [inputB, writerB] = graphBuilder.newInput<[number, string]>()
-
+    const graph = new D2({ initialFrontier: v([0, 0]) })
+    const inputA = graph.newInput<[number, string]>()
+    const inputB = graph.newInput<[number, string]>()
     let messages: DataMessage<[number, [string, string]]>[] = []
 
-    const output = inputA.join(inputB).output((message) => {
-      if (message.type === MessageType.DATA) {
-        messages.push(message.data)
-      }
-    })
+    inputA.pipe(
+      join(inputB),
+      output((message) => {
+        if (message.type === MessageType.DATA) {
+          messages.push(message.data)
+        }
+      })
+    )
 
-    const graph = graphBuilder.finalize()
+    graph.finalize()
 
-    writerA.sendData(
+    inputA.sendData(
       v([1, 0]),
       new MultiSet([
         [[1, 'a'], 1],
         [[2, 'b'], -1],
       ]),
     )
-    writerB.sendData(
+    inputB.sendData(
       v([1, 0]),
       new MultiSet([
         [[1, 'x'], 1],
         [[2, 'y'], 1],
       ]),
     )
-    writerA.sendFrontier(new Antichain([v([1, 0])]))
-    writerB.sendFrontier(new Antichain([v([1, 0])]))
+    inputA.sendFrontier(new Antichain([v([1, 0])]))
+    inputB.sendFrontier(new Antichain([v([1, 0])]))
 
     graph.step()
 

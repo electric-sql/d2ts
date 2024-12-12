@@ -1,25 +1,27 @@
 import { describe, test, expect } from 'vitest'
-import { GraphBuilder } from '../../src/builder'
+import { D2 } from '../../src/pipe'
 import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
 import { Message, MessageType } from '../../src/types'
+import { output } from '../../src/operators'
 
 describe('Operators - in-memory', () => {
   describe('Output operation', () => {
     test('basic output operation', () => {
-      const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
-      const [input, writer] = graphBuilder.newInput<number>()
-
+      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const input = graph.newInput<number>()
       let messages: Message<number>[] = []
 
-      const output = input.output((message) => {
-        messages.push(message)
-      })
+      input.pipe(
+        output((message) => {
+          messages.push(message)
+        })
+      )
 
-      const graph = graphBuilder.finalize()
+      graph.finalize()
 
-      writer.sendData(v([1, 0]), new MultiSet([[1, 1]]))
-      writer.sendFrontier(new Antichain([v([1, 0])]))
+      input.sendData(v([1, 0]), new MultiSet([[1, 1]]))
+      input.sendFrontier(new Antichain([v([1, 0])]))
 
       graph.step()
 
@@ -33,20 +35,21 @@ describe('Operators - in-memory', () => {
     })
 
     test('output with multiple versions', () => {
-      const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
-      const [input, writer] = graphBuilder.newInput<number>()
-
+      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const input = graph.newInput<number>()
       let messages: Message<number>[] = []
 
-      const output = input.output((message) => {
-        messages.push(message)
-      })
+      input.pipe(
+        output((message) => {
+          messages.push(message)
+        })
+      )
 
-      const graph = graphBuilder.finalize()
+      graph.finalize()
 
-      writer.sendData(v([1, 0]), new MultiSet([[1, 1]]))
-      writer.sendData(v([2, 0]), new MultiSet([[2, 1]]))
-      writer.sendFrontier(new Antichain([v([2, 0])]))
+      input.sendData(v([1, 0]), new MultiSet([[1, 1]]))
+      input.sendData(v([2, 0]), new MultiSet([[2, 1]]))
+      input.sendFrontier(new Antichain([v([2, 0])]))
 
       graph.step()
 
@@ -64,19 +67,20 @@ describe('Operators - in-memory', () => {
     })
 
     test('output with empty collection', () => {
-      const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
-      const [input, writer] = graphBuilder.newInput<number>()
-
+      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const input = graph.newInput<number>()
       let messages: Message<number>[] = []
 
-      const output = input.output((message) => {
-        messages.push(message)
-      })
+      input.pipe(
+        output((message) => {
+          messages.push(message)
+        })
+      )
 
-      const graph = graphBuilder.finalize()
+      graph.finalize()
 
-      writer.sendData(v([1, 0]), new MultiSet([]))
-      writer.sendFrontier(new Antichain([v([1, 0])]))
+      input.sendData(v([1, 0]), new MultiSet([]))
+      input.sendFrontier(new Antichain([v([1, 0])]))
 
       graph.step()
 

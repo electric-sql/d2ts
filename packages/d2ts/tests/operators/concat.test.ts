@@ -1,43 +1,46 @@
 import { describe, test, expect } from 'vitest'
-import { GraphBuilder } from '../../src/builder'
+import { D2 } from '../../src/pipe'
 import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
 import { DataMessage, Message, MessageType } from '../../src/types'
+import { concat, output } from '../../src/operators'
 
 describe('Operators - in-memory', () => {
   describe('Concat operation', () => {
     test('basic concat operation', () => {
-      const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
-
-      const [inputA, writerA] = graphBuilder.newInput<number>()
-      const [inputB, writerB] = graphBuilder.newInput<number>()
-
+      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const inputA = graph.newInput<number>()
+      const inputB = graph.newInput<number>()
       let messages: DataMessage<number>[] = []
 
-      const output = inputA.concat(inputB).output((message) => {
-        if (message.type === MessageType.DATA) {
-          messages.push(message.data)
-        }
-      })
+      inputA.pipe(
+        concat(inputB),
+        output((message) => {
+          if (message.type === MessageType.DATA) {
+            messages.push(message.data)
+          }
+        })
+      )
 
-      const graph = graphBuilder.finalize()
+      graph.finalize()
 
-      writerA.sendData(
+      inputA.sendData(
         v([1, 0]),
         new MultiSet([
           [1, 1],
           [2, 1],
         ]),
       )
-      writerA.sendFrontier(new Antichain([v([1, 0])]))
-      writerB.sendData(
+      inputA.sendFrontier(new Antichain([v([1, 0])]))
+      
+      inputB.sendData(
         v([1, 0]),
         new MultiSet([
           [3, 1],
           [4, 1],
         ]),
       )
-      writerB.sendFrontier(new Antichain([v([1, 0])]))
+      inputB.sendFrontier(new Antichain([v([1, 0])]))
 
       graph.step()
 
@@ -56,21 +59,23 @@ describe('Operators - in-memory', () => {
     })
 
     test('concat with overlapping data', () => {
-      const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
-      const [inputA, writerA] = graphBuilder.newInput<number>()
-      const [inputB, writerB] = graphBuilder.newInput<number>()
-
+      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const inputA = graph.newInput<number>()
+      const inputB = graph.newInput<number>()
       let messages: DataMessage<number>[] = []
 
-      const output = inputA.concat(inputB).output((message) => {
-        if (message.type === MessageType.DATA) {
-          messages.push(message.data)
-        }
-      })
+      inputA.pipe(
+        concat(inputB),
+        output((message) => {
+          if (message.type === MessageType.DATA) {
+            messages.push(message.data)
+          }
+        })
+      )
 
-      const graph = graphBuilder.finalize()
+      graph.finalize()
 
-      writerA.sendData(
+      inputA.sendData(
         v([1, 0]),
         new MultiSet([
           [1, 1],
@@ -78,7 +83,7 @@ describe('Operators - in-memory', () => {
           [3, 1],
         ]),
       )
-      writerB.sendData(
+      inputB.sendData(
         v([1, 0]),
         new MultiSet([
           [2, 2],
@@ -86,8 +91,8 @@ describe('Operators - in-memory', () => {
           [4, 1],
         ]),
       )
-      writerA.sendFrontier(new Antichain([v([1, 0])]))
-      writerB.sendFrontier(new Antichain([v([1, 0])]))
+      inputA.sendFrontier(new Antichain([v([1, 0])]))
+      inputB.sendFrontier(new Antichain([v([1, 0])]))
 
       graph.step()
 
@@ -108,23 +113,25 @@ describe('Operators - in-memory', () => {
     })
 
     test('concat with different frontiers', () => {
-      const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
-      const [inputA, writerA] = graphBuilder.newInput<number>()
-      const [inputB, writerB] = graphBuilder.newInput<number>()
-
+      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const inputA = graph.newInput<number>()
+      const inputB = graph.newInput<number>()
       let messages: Message<number>[] = []
 
-      const output = inputA.concat(inputB).output((message) => {
-        messages.push(message)
-      })
+      inputA.pipe(
+        concat(inputB),
+        output((message) => {
+          messages.push(message)
+        })
+      )
 
-      const graph = graphBuilder.finalize()
+      graph.finalize()
 
-      writerA.sendData(v([1, 0]), new MultiSet([[1, 1]]))
-      writerA.sendFrontier(new Antichain([v([1, 0])]))
+      inputA.sendData(v([1, 0]), new MultiSet([[1, 1]]))
+      inputA.sendFrontier(new Antichain([v([1, 0])]))
 
-      writerB.sendData(v([2, 0]), new MultiSet([[2, 1]]))
-      writerB.sendFrontier(new Antichain([v([2, 0])]))
+      inputB.sendData(v([2, 0]), new MultiSet([[2, 1]]))
+      inputB.sendFrontier(new Antichain([v([2, 0])]))
 
       graph.step()
 

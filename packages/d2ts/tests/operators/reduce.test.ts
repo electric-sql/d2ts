@@ -1,8 +1,9 @@
 import { describe, test, expect } from 'vitest'
-import { GraphBuilder } from '../../src/builder'
+import { D2 } from '../../src/pipe'
 import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
 import { DataMessage, MessageType } from '../../src/types'
+import { reduce, output } from '../../src/operators'
 import Database from 'better-sqlite3'
 
 describe('Operators - in-memory', () => {
@@ -20,28 +21,28 @@ describe('Operators - sqlite', () => {
 
 function testReduce(newDb?: () => InstanceType<typeof Database>) {
   test('basic reduce operation', () => {
-    const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]), newDb?.())
-    const [input, writer] = graphBuilder.newInput<[string, number]>()
-
+    const graph = new D2({ initialFrontier: v([0, 0]) })
+    const input = graph.newInput<[string, number]>()
     let messages: DataMessage<[string, number]>[] = []
 
-    const output = input
-      .reduce((vals) => {
+    input.pipe(
+      reduce((vals) => {
         let sum = 0
         for (const [val, diff] of vals) {
           sum += val * diff
         }
         return [[sum, 1]]
-      })
-      .output((message) => {
+      }),
+      output((message) => {
         if (message.type === MessageType.DATA) {
           messages.push(message.data)
         }
       })
+    )
 
-    const graph = graphBuilder.finalize()
+    graph.finalize()
 
-    writer.sendData(
+    input.sendData(
       v([1, 0]),
       new MultiSet([
         [['a', 1], 2],
@@ -50,8 +51,8 @@ function testReduce(newDb?: () => InstanceType<typeof Database>) {
         [['b', 4], 1],
       ]),
     )
-    writer.sendData(v([1, 0]), new MultiSet([[['b', 5], 1]]))
-    writer.sendFrontier(new Antichain([v([2, 0])]))
+    input.sendData(v([1, 0]), new MultiSet([[['b', 5], 1]]))
+    input.sendFrontier(new Antichain([v([2, 0])]))
 
     graph.step()
 
@@ -66,28 +67,28 @@ function testReduce(newDb?: () => InstanceType<typeof Database>) {
   })
 
   test('reduce with negative multiplicities', () => {
-    const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]), newDb?.())
-    const [input, writer] = graphBuilder.newInput<[string, number]>()
-
+    const graph = new D2({ initialFrontier: v([0, 0]) })
+    const input = graph.newInput<[string, number]>()
     let messages: DataMessage<[string, number]>[] = []
 
-    const output = input
-      .reduce((vals) => {
+    input.pipe(
+      reduce((vals) => {
         let sum = 0
         for (const [val, diff] of vals) {
           sum += val * diff
         }
         return [[sum, 1]]
-      })
-      .output((message) => {
+      }),
+      output((message) => {
         if (message.type === MessageType.DATA) {
           messages.push(message.data)
         }
       })
+    )
 
-    const graph = graphBuilder.finalize()
+    graph.finalize()
 
-    writer.sendData(
+    input.sendData(
       v([1, 0]),
       new MultiSet([
         [['a', 1], -1],
@@ -95,7 +96,7 @@ function testReduce(newDb?: () => InstanceType<typeof Database>) {
         [['b', 3], -2],
       ]),
     )
-    writer.sendFrontier(new Antichain([v([2, 0])]))
+    input.sendFrontier(new Antichain([v([2, 0])]))
 
     graph.step()
 

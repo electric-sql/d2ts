@@ -1,8 +1,9 @@
 import { describe, test, expect } from 'vitest'
-import { GraphBuilder } from '../../src/builder'
+import { D2 } from '../../src/pipe'
 import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
 import { DataMessage, MessageType } from '../../src/types'
+import { consolidate, output } from '../../src/operators'
 import Database from 'better-sqlite3'
 
 describe('Operators - in-memory', () => {
@@ -20,41 +21,43 @@ describe('Operators - sqlite', () => {
 
 function testConsolidate(newDb?: () => InstanceType<typeof Database>) {
   test('basic consolidate operation', () => {
-    const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]), newDb?.())
-    const [input, writer] = graphBuilder.newInput<number>()
-
+    const graph = new D2({ initialFrontier: v([0, 0]) })
+    const input = graph.newInput<number>()
     let messages: DataMessage<number>[] = []
 
-    const output = input.consolidate().output((message) => {
-      if (message.type === MessageType.DATA) {
-        messages.push(message.data)
-      }
-    })
+    input.pipe(
+      consolidate(),
+      output((message) => {
+        if (message.type === MessageType.DATA) {
+          messages.push(message.data)
+        }
+      })
+    )
 
-    const graph = graphBuilder.finalize()
+    graph.finalize()
 
-    writer.sendData(
+    input.sendData(
       v([1, 0]),
       new MultiSet([
         [1, 1],
         [2, 1],
       ]),
     )
-    writer.sendData(
+    input.sendData(
       v([1, 0]),
       new MultiSet([
         [3, 1],
         [4, 1],
       ]),
     )
-    writer.sendData(
+    input.sendData(
       v([1, 0]),
       new MultiSet([
         [3, 2],
         [2, -1],
       ]),
     )
-    writer.sendFrontier(new Antichain([v([1, 1])]))
+    input.sendFrontier(new Antichain([v([1, 1])]))
 
     graph.step()
 
@@ -70,34 +73,36 @@ function testConsolidate(newDb?: () => InstanceType<typeof Database>) {
   })
 
   test('consolidate with all removed', () => {
-    const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]), newDb?.())
-    const [input, writer] = graphBuilder.newInput<number>()
-
+    const graph = new D2({ initialFrontier: v([0, 0]) })
+    const input = graph.newInput<number>()
     let messages: DataMessage<number>[] = []
 
-    const output = input.consolidate().output((message) => {
-      if (message.type === MessageType.DATA) {
-        messages.push(message.data)
-      }
-    })
+    input.pipe(
+      consolidate(),
+      output((message) => {
+        if (message.type === MessageType.DATA) {
+          messages.push(message.data)
+        }
+      })
+    )
 
-    const graph = graphBuilder.finalize()
+    graph.finalize()
 
-    writer.sendData(
+    input.sendData(
       v([1, 0]),
       new MultiSet([
         [1, 1],
         [2, 2],
       ]),
     )
-    writer.sendData(
+    input.sendData(
       v([1, 0]),
       new MultiSet([
         [1, -1],
         [2, -2],
       ]),
     )
-    writer.sendFrontier(new Antichain([v([1, 0])]))
+    input.sendFrontier(new Antichain([v([1, 0])]))
 
     graph.step()
 
@@ -107,34 +112,36 @@ function testConsolidate(newDb?: () => InstanceType<typeof Database>) {
   })
 
   test('consolidate with multiple versions', () => {
-    const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]), newDb?.())
-    const [input, writer] = graphBuilder.newInput<number>()
-
+    const graph = new D2({ initialFrontier: v([0, 0]) })
+    const input = graph.newInput<number>()
     let messages: DataMessage<number>[] = []
 
-    const output = input.consolidate().output((message) => {
-      if (message.type === MessageType.DATA) {
-        messages.push(message.data)
-      }
-    })
+    input.pipe(
+      consolidate(),
+      output((message) => {
+        if (message.type === MessageType.DATA) {
+          messages.push(message.data)
+        }
+      })
+    )
 
-    const graph = graphBuilder.finalize()
+    graph.finalize()
 
-    writer.sendData(
+    input.sendData(
       v([1, 0]),
       new MultiSet([
         [1, 1],
         [2, 1],
       ]),
     )
-    writer.sendData(
+    input.sendData(
       v([2, 0]),
       new MultiSet([
         [2, 1],
         [3, 1],
       ]),
     )
-    writer.sendFrontier(new Antichain([v([3, 0])]))
+    input.sendFrontier(new Antichain([v([3, 0])]))
 
     graph.step()
 

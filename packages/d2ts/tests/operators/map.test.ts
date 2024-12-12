@@ -1,28 +1,27 @@
 import { describe, test, expect } from 'vitest'
-import { GraphBuilder } from '../../src/builder'
+import { D2 } from '../../src/pipe'
 import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
 import { Message, MessageType } from '../../src/types'
+import { map, output } from '../../src/operators'
 
 describe('Operators - in-memory', () => {
   describe('Map operation', () => {
     test('basic map operation', () => {
-      const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
-      const [input, writer] = graphBuilder.newInput<number>()
-
+      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const input = graph.newInput<number>()
       let messages: Message<number>[] = []
 
-      // Create a simple pipeline that adds 5 and filters even numbers
-      const output = input
-        .map((x) => x + 5)
-        .output((message) => {
+      input.pipe(
+        map((x) => x + 5),
+        output((message) => {
           messages.push(message)
         })
+      )
 
-      const graph = graphBuilder.finalize()
+      graph.finalize()
 
-      // Send initial data
-      writer.sendData(
+      input.sendData(
         v([1, 0]),
         new MultiSet([
           [1, 1],
@@ -30,7 +29,7 @@ describe('Operators - in-memory', () => {
           [3, 1],
         ]),
       )
-      writer.sendFrontier(new Antichain([v([1, 0])]))
+      input.sendFrontier(new Antichain([v([1, 0])]))
 
       graph.step()
 
@@ -51,21 +50,21 @@ describe('Operators - in-memory', () => {
     })
 
     test('map with multiple transformations', () => {
-      const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
-      const [input, writer] = graphBuilder.newInput<number>()
-
+      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const input = graph.newInput<number>()
       let messages: Message<number>[] = []
 
-      const output = input
-        .map((x) => x * 2)
-        .map((x) => x + 1)
-        .output((message) => {
+      input.pipe(
+        map((x) => x * 2),
+        map((x) => x + 1),
+        output((message) => {
           messages.push(message)
         })
+      )
 
-      const graph = graphBuilder.finalize()
+      graph.finalize()
 
-      writer.sendData(
+      input.sendData(
         v([1, 0]),
         new MultiSet([
           [1, 1],
@@ -73,7 +72,7 @@ describe('Operators - in-memory', () => {
           [3, 1],
         ]),
       )
-      writer.sendFrontier(new Antichain([v([1, 0])]))
+      input.sendFrontier(new Antichain([v([1, 0])]))
 
       graph.step()
 
@@ -94,20 +93,20 @@ describe('Operators - in-memory', () => {
     })
 
     test('map with negative multiplicities', () => {
-      const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
-      const [input, writer] = graphBuilder.newInput<number>()
-
+      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const input = graph.newInput<number>()
       let messages: Message<number>[] = []
 
-      const output = input
-        .map((x) => x + 1)
-        .output((message) => {
+      input.pipe(
+        map((x) => x + 1),
+        output((message) => {
           messages.push(message)
         })
+      )
 
-      const graph = graphBuilder.finalize()
+      graph.finalize()
 
-      writer.sendData(
+      input.sendData(
         v([1, 0]),
         new MultiSet([
           [1, -1],
@@ -115,7 +114,7 @@ describe('Operators - in-memory', () => {
           [3, 1],
         ]),
       )
-      writer.sendFrontier(new Antichain([v([1, 0])]))
+      input.sendFrontier(new Antichain([v([1, 0])]))
 
       graph.step()
 

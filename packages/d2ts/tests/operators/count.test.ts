@@ -1,8 +1,9 @@
 import { describe, test, expect } from 'vitest'
-import { GraphBuilder } from '../../src/builder'
+import { D2 } from '../../src/pipe'
 import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
 import { DataMessage, MessageType } from '../../src/types'
+import { count, output } from '../../src/operators'
 import Database from 'better-sqlite3'
 
 describe('Operators - in-memory', () => {
@@ -20,20 +21,22 @@ describe('Operators - sqlite', () => {
 
 function testCount(newDb?: () => InstanceType<typeof Database>) {
   test('basic count operation', () => {
-    const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]), newDb?.())
-    const [input, writer] = graphBuilder.newInput<[number, string]>()
-
+    const graph = new D2({ initialFrontier: v([0, 0]) })
+    const input = graph.newInput<[number, string]>()
     let messages: DataMessage<[number, number]>[] = []
 
-    const output = input.count().output((message) => {
-      if (message.type === MessageType.DATA) {
-        messages.push(message.data)
-      }
-    })
+    input.pipe(
+      count(),
+      output((message) => {
+        if (message.type === MessageType.DATA) {
+          messages.push(message.data)
+        }
+      })
+    )
 
-    const graph = graphBuilder.finalize()
+    graph.finalize()
 
-    writer.sendData(
+    input.sendData(
       v([1, 0]),
       new MultiSet([
         [[1, 'a'], 2],
@@ -44,8 +47,8 @@ function testCount(newDb?: () => InstanceType<typeof Database>) {
         [[3, 'y'], -1],
       ]),
     )
-    writer.sendData(v([1, 0]), new MultiSet([[[3, 'z'], 1]]))
-    writer.sendFrontier(new Antichain([v([2, 1])]))
+    input.sendData(v([1, 0]), new MultiSet([[[3, 'z'], 1]]))
+    input.sendFrontier(new Antichain([v([2, 1])]))
 
     graph.step()
 
@@ -61,27 +64,29 @@ function testCount(newDb?: () => InstanceType<typeof Database>) {
   })
 
   test('count with all negative multiplicities', () => {
-    const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]), newDb?.())
-    const [input, writer] = graphBuilder.newInput<[number, string]>()
-
+    const graph = new D2({ initialFrontier: v([0, 0]) })
+    const input = graph.newInput<[number, string]>()
     let messages: DataMessage<[number, number]>[] = []
 
-    const output = input.count().output((message) => {
-      if (message.type === MessageType.DATA) {
-        messages.push(message.data)
-      }
-    })
+    input.pipe(
+      count(),
+      output((message) => {
+        if (message.type === MessageType.DATA) {
+          messages.push(message.data)
+        }
+      })
+    )
 
-    const graph = graphBuilder.finalize()
+    graph.finalize()
 
-    writer.sendData(
+    input.sendData(
       v([1, 0]),
       new MultiSet([
         [[1, 'a'], -1],
         [[1, 'b'], -2],
       ]),
     )
-    writer.sendFrontier(new Antichain([v([2, 0])]))
+    input.sendFrontier(new Antichain([v([2, 0])]))
 
     graph.step()
 
@@ -91,34 +96,36 @@ function testCount(newDb?: () => InstanceType<typeof Database>) {
   })
 
   test('count with multiple versions', () => {
-    const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]), newDb?.())
-    const [input, writer] = graphBuilder.newInput<[string, string]>()
-
+    const graph = new D2({ initialFrontier: v([0, 0]) })
+    const input = graph.newInput<[string, string]>()
     let messages: DataMessage<[string, number]>[] = []
 
-    const output = input.count().output((message) => {
-      if (message.type === MessageType.DATA) {
-        messages.push(message.data)
-      }
-    })
+    input.pipe(
+      count(),
+      output((message) => {
+        if (message.type === MessageType.DATA) {
+          messages.push(message.data)
+        }
+      })
+    )
 
-    const graph = graphBuilder.finalize()
+    graph.finalize()
 
-    writer.sendData(
+    input.sendData(
       v([1, 0]),
       new MultiSet([
         [['one', 'a'], 1],
         [['one', 'b'], 1],
       ]),
     )
-    writer.sendData(
+    input.sendData(
       v([2, 0]),
       new MultiSet([
         [['one', 'c'], 1],
         [['two', 'a'], 1],
       ]),
     )
-    writer.sendFrontier(new Antichain([v([3, 0])]))
+    input.sendFrontier(new Antichain([v([3, 0])]))
 
     graph.step()
 

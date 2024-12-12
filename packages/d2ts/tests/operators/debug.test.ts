@@ -1,21 +1,22 @@
 import { describe, test, expect, vi } from 'vitest'
-import { GraphBuilder } from '../../src/builder'
+import { D2 } from '../../src/pipe'
 import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
+import { debug } from '../../src/operators'
 
 describe('Operators - in-memory', () => {
   describe('Debug operation', () => {
     test('basic debug operation', () => {
-      const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
-      const [input, writer] = graphBuilder.newInput<number>()
+      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const input = graph.newInput<number>()
 
-      const output = input.debug('test-multiple')
+      input.pipe(debug('test-multiple'))
 
-      const graph = graphBuilder.finalize()
+      graph.finalize()
 
-      writer.sendData(v([1, 0]), new MultiSet([[1, 1]]))
-      writer.sendData(v([1, 0]), new MultiSet([[2, -1]]))
-      writer.sendFrontier(new Antichain([v([1, 0])]))
+      input.sendData(v([1, 0]), new MultiSet([[1, 1]]))
+      input.sendData(v([1, 0]), new MultiSet([[2, -1]]))
+      input.sendFrontier(new Antichain([v([1, 0])]))
 
       const consoleSpy = vi.spyOn(console, 'log')
       graph.step()
@@ -33,16 +34,16 @@ describe('Operators - in-memory', () => {
     })
 
     test('debug with multiple messages', () => {
-      const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
-      const [input, writer] = graphBuilder.newInput<number>()
+      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const input = graph.newInput<number>()
 
-      const output = input.debug('test-multiple')
+      input.pipe(debug('test-multiple'))
 
-      const graph = graphBuilder.finalize()
+      graph.finalize()
 
-      writer.sendData(v([1, 0]), new MultiSet([[1, 1]]))
-      writer.sendData(v([1, 0]), new MultiSet([[2, -1]]))
-      writer.sendFrontier(new Antichain([v([1, 0])]))
+      input.sendData(v([1, 0]), new MultiSet([[1, 1]]))
+      input.sendData(v([1, 0]), new MultiSet([[2, -1]]))
+      input.sendFrontier(new Antichain([v([1, 0])]))
 
       const consoleSpy = vi.spyOn(console, 'log')
       graph.step()
@@ -60,21 +61,21 @@ describe('Operators - in-memory', () => {
     })
 
     test('debug with indentation', () => {
-      const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
-      const [input, writer] = graphBuilder.newInput<[string, number]>()
+      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const input = graph.newInput<[string, number]>()
 
-      const output = input.debug('test-indent', true)
+      input.pipe(debug('test-indent', true))
 
-      const graph = graphBuilder.finalize()
+      graph.finalize()
 
-      writer.sendData(
+      input.sendData(
         v([1, 0]),
         new MultiSet([
           [['key1', 1], 1],
           [['key2', 2], 1],
         ]),
       )
-      writer.sendFrontier(new Antichain([v([1, 0])]))
+      input.sendFrontier(new Antichain([v([1, 0])]))
 
       const consoleSpy = vi.spyOn(console, 'log')
       graph.step()
