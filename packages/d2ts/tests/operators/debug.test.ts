@@ -4,7 +4,7 @@ import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
 import { debug } from '../../src/operators'
 
-describe('Operators - in-memory', () => {
+describe('Operators', () => {
   describe('Debug operation', () => {
     test('basic debug operation', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })

@@ -4,22 +4,14 @@ import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
 import { DataMessage, MessageType } from '../../src/types'
 import { distinct, output } from '../../src/operators'
-import Database from 'better-sqlite3'
 
-describe('Operators - in-memory', () => {
+describe('Operators', () => {
   describe('Distinct operation', () => {
     testDistinct()
   })
 })
 
-describe('Operators - sqlite', () => {
-  const newDb = () => new Database(':memory:')
-  describe('Distinct operation', () => {
-    testDistinct(newDb)
-  })
-})
-
-function testDistinct(newDb?: () => InstanceType<typeof Database>) {
+function testDistinct() {
   test('basic distinct operation', () => {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const input = graph.newInput<[number, string]>()

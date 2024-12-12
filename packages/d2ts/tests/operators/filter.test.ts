@@ -5,7 +5,7 @@ import { filter, map, output } from '../../src/operators'
 import { Message, MessageType } from '../../src/types'
 import { v, Antichain } from '../../src/order'
 
-describe('Operators - in-memory', () => {
+describe('Operators', () => {
   describe('Filter operation', () => {
     test('basic filter operation', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })

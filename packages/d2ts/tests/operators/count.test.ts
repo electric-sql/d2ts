@@ -4,22 +4,14 @@ import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
 import { DataMessage, MessageType } from '../../src/types'
 import { count, output } from '../../src/operators'
-import Database from 'better-sqlite3'
 
-describe('Operators - in-memory', () => {
+describe('Operators', () => {
   describe('Count operation', () => {
     testCount()
   })
 })
 
-describe('Operators - sqlite', () => {
-  const newDb = () => new Database(':memory:')
-  describe('Count operation', () => {
-    testCount(newDb)
-  })
-})
-
-function testCount(newDb?: () => InstanceType<typeof Database>) {
+function testCount() {
   test('basic count operation', () => {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const input = graph.newInput<[number, string]>()

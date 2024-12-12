@@ -4,22 +4,14 @@ import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
 import { DataMessage, MessageType } from '../../src/types'
 import { consolidate, output } from '../../src/operators'
-import Database from 'better-sqlite3'
 
-describe('Operators - in-memory', () => {
+describe('Operators', () => {
   describe('Consolidate operation', () => {
     testConsolidate()
   })
 })
 
-describe('Operators - sqlite', () => {
-  const newDb = () => new Database(':memory:')
-  describe('Consolidate operation', () => {
-    testConsolidate(newDb)
-  })
-})
-
-function testConsolidate(newDb?: () => InstanceType<typeof Database>) {
+function testConsolidate() {
   test('basic consolidate operation', () => {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const input = graph.newInput<number>()

@@ -5,7 +5,7 @@ import { Antichain, v } from '../../src/order'
 import { Message, MessageType } from '../../src/types'
 import { map, output } from '../../src/operators'
 
-describe('Operators - in-memory', () => {
+describe('Operators', () => {
   describe('Map operation', () => {
     test('basic map operation', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })

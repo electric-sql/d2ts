@@ -5,7 +5,7 @@ import { Antichain, v } from '../../src/order'
 import { DataMessage, MessageType } from '../../src/types'
 import { map, negate, output } from '../../src/operators'
 
-describe('Operators - in-memory', () => {
+describe('Operators', () => {
   describe('Negate operation', () => {
     test('basic negate operation', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })

@@ -4,22 +4,14 @@ import { MultiSet } from '../../src/multiset'
 import { Antichain, v } from '../../src/order'
 import { DataMessage, MessageType } from '../../src/types'
 import { join, output } from '../../src/operators'
-import Database from 'better-sqlite3'
 
-describe('Operators - in-memory', () => {
+describe('Operators', () => {
   describe('Join operation', () => {
     testJoin()
   })
 })
 
-describe('Operators - sqlite', () => {
-  const newDb = () => new Database(':memory:')
-  describe('Join operation', () => {
-    testJoin(newDb)
-  })
-})
-
-function testJoin(newDb?: () => InstanceType<typeof Database>) {
+function testJoin() {
   test('basic join operation', () => {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const inputA = graph.newInput<[number, string]>()

@@ -5,7 +5,7 @@ import { Antichain, v } from '../../src/order'
 import { DataMessage, Message, MessageType } from '../../src/types'
 import { concat, output } from '../../src/operators'
 
-describe('Operators - in-memory', () => {
+describe('Operators', () => {
   describe('Concat operation', () => {
     test('basic concat operation', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
