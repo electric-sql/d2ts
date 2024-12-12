@@ -18,42 +18,67 @@ const generateData = (size: number) => {
   return { users, posts }
 }
 
-// Test data
-const { users, posts } = generateData(1000)
+// Test data - generate 1000 items but split into initial and incremental sets
+const totalSize = 1000
+const initialSize = 900
+const { users: allUsers, posts: allPosts } = generateData(totalSize)
 
-// Convert arrays to MultiSets with key-value pairs
-const usersSet = new MultiSet(
-  users.map((user) => [[user.id, user] as [number, (typeof users)[0]], 1]),
+const initialUsers = allUsers.slice(0, initialSize)
+const incrementalUsers = allUsers.slice(initialSize)
+const initialPosts = allPosts.slice(0, initialSize * 2)
+const incrementalPosts = allPosts.slice(initialSize * 2)
+
+// Convert initial arrays to MultiSets
+const initialUsersSet = new MultiSet(
+  initialUsers.map((user) => [[user.id, user] as [number, (typeof allUsers)[0]], 1]),
 )
-const postsSet = new MultiSet(
-  posts.map((post) => [[post.userId, post] as [number, (typeof posts)[0]], 1]),
+const initialPostsSet = new MultiSet(
+  initialPosts.map((post) => [[post.userId, post] as [number, (typeof allPosts)[0]], 1]),
 )
 
 // Benchmark suite for joins
-const joinSuite = new Benchmark.Suite('Joins')
+const joinSuite = new Benchmark.Suite('Incremental Joins')
 
-// Naive implementation
+// Naive implementation with incremental updates
 const naiveJoin = () => {
-  return users.flatMap((user) =>
-    posts
+  // Initial join with 900 items
+  let result = initialUsers.flatMap((user) =>
+    initialPosts
       .filter((post) => post.userId === user.id)
       .map((post) => ({ userName: user.name, postTitle: post.title })),
   )
+
+  // Add one item at a time and recompute
+  let currentUsers = [...initialUsers]
+  let currentPosts = [...initialPosts]
+
+  for (let i = 0; i < incrementalUsers.length; i++) {
+    currentUsers.push(incrementalUsers[i])
+    currentPosts.push(incrementalPosts[i * 2])
+    currentPosts.push(incrementalPosts[i * 2 + 1])
+
+    result = currentUsers.flatMap((user) =>
+      currentPosts
+        .filter((post) => post.userId === user.id)
+        .map((post) => ({ userName: user.name, postTitle: post.title })),
+    )
+  }
+
+  return result
 }
 
-// D2TS implementation
+// D2TS implementation with incremental updates
 const joinWithD2TS = () => {
   const graph = new D2({ initialFrontier: v([0]) })
-  const usersStream = graph.newInput<[number, (typeof users)[0]]>()
-  const postsStream = graph.newInput<[number, (typeof posts)[0]]>()
+  const usersStream = graph.newInput<[number, (typeof allUsers)[0]]>()
+  const postsStream = graph.newInput<[number, (typeof allPosts)[0]]>()
 
-  // Create join operation using pipe style
   const joined = usersStream.pipe(
     join(postsStream),
     map(
       ([_key, [user, post]]: [
         number,
-        [(typeof users)[0], (typeof posts)[0]],
+        [(typeof allUsers)[0], (typeof allPosts)[0]],
       ]) => ({
         userName: user.name,
         postTitle: post.title,
@@ -63,10 +88,31 @@ const joinWithD2TS = () => {
 
   graph.finalize()
 
-  // Send data to the streams
-  usersStream.sendData(v([1]), usersSet)
-  postsStream.sendData(v([1]), postsSet)
+  // Send initial data
+  usersStream.sendData(v([1]), initialUsersSet)
+  postsStream.sendData(v([1]), initialPostsSet)
   graph.step()
+
+  // Incrementally add remaining items
+  for (let i = 0; i < incrementalUsers.length; i++) {
+    const user = incrementalUsers[i]
+    const post1 = incrementalPosts[i * 2]
+    const post2 = incrementalPosts[i * 2 + 1]
+
+    usersStream.sendData(
+      v([i + 2]),
+      new MultiSet([[[user.id, user] as [number, (typeof allUsers)[0]], 1]]),
+    )
+    postsStream.sendData(
+      v([i + 2]),
+      new MultiSet([
+        [[post1.userId, post1] as [number, (typeof allPosts)[0]], 1],
+        [[post2.userId, post2] as [number, (typeof allPosts)[0]], 1],
+      ]),
+    )
+    graph.step()
+  }
+
   return joined
 }
 
@@ -87,28 +133,44 @@ joinSuite
   .run()
 
 // Benchmark suite for filtering
-const filterSuite = new Benchmark.Suite('Filtering')
+const filterSuite = new Benchmark.Suite('Incremental Filtering')
 
 // Naive implementation
 const naiveFilter = () => {
-  return users.filter((user) => user.age > 30)
+  let result = initialUsers.filter((user) => user.age > 30)
+  
+  let currentUsers = [...initialUsers]
+  for (const user of incrementalUsers) {
+    currentUsers.push(user)
+    result = currentUsers.filter((user) => user.age > 30)
+  }
+  return result
 }
 
 // D2TS implementation
 const filterWithD2TS = () => {
   const graph = new D2({ initialFrontier: v([0]) })
-  const stream = graph.newInput<[number, (typeof users)[0]]>()
+  const stream = graph.newInput<[number, (typeof allUsers)[0]]>()
 
-  // Create filter operation using pipe style
   const filtered = stream.pipe(
-    filter(([_key, user]: [number, (typeof users)[0]]) => user.age > 30),
+    filter(([_key, user]: [number, (typeof allUsers)[0]]) => user.age > 30),
   )
 
   graph.finalize()
 
-  // Send data to the stream
-  stream.sendData(v([1]), usersSet)
+  // Send initial data
+  stream.sendData(v([1]), initialUsersSet)
   graph.step()
+
+  // Incrementally add remaining items
+  for (let i = 0; i < incrementalUsers.length; i++) {
+    const user = incrementalUsers[i]
+    stream.sendData(
+      v([i + 2]),
+      new MultiSet([[[user.id, user] as [number, (typeof allUsers)[0]], 1]]),
+    )
+    graph.step()
+  }
 
   return filtered
 }
@@ -129,23 +191,29 @@ filterSuite
   .run()
 
 // Benchmark suite for mapping
-const mapSuite = new Benchmark.Suite('Mapping')
+const mapSuite = new Benchmark.Suite('Incremental Mapping')
 
 // Naive implementation
 const naiveMap = () => {
-  const mapped = users.map((user) => ({ name: user.name.toUpperCase() }))
-  // console.log(mapped.length)
-  // console.log(mapped[0])
-  return mapped
+  // Initial mapping with 900 items
+  let result = initialUsers.map((user) => ({ name: user.name.toUpperCase() }))
+  
+  // Add one item at a time and recompute
+  let currentUsers = [...initialUsers]
+  for (const user of incrementalUsers) {
+    currentUsers.push(user)
+    result = currentUsers.map((user) => ({ name: user.name.toUpperCase() }))
+  }
+  return result
 }
 
 // D2TS implementation
 const mapWithD2TS = () => {
   const graph = new D2({ initialFrontier: v([0]) })
-  const stream = graph.newInput<[number, (typeof users)[0]]>()
+  const stream = graph.newInput<[number, (typeof allUsers)[0]]>()
 
   const output = stream.pipe(
-    map(([id, user]: [number, (typeof users)[0]]) => [
+    map(([id, user]: [number, (typeof allUsers)[0]]) => [
       id,
       { name: user.name.toUpperCase() },
     ]),
@@ -153,14 +221,22 @@ const mapWithD2TS = () => {
 
   graph.finalize()
 
-  // Send data to the stream
-  stream.sendData(v([1]), usersSet)
+  // Send initial data
+  stream.sendData(v([1]), initialUsersSet)
   graph.step()
+
+  // Incrementally add remaining items
+  for (let i = 0; i < incrementalUsers.length; i++) {
+    const user = incrementalUsers[i]
+    stream.sendData(
+      v([i + 2]),
+      new MultiSet([[[user.id, user] as [number, (typeof allUsers)[0]], 1]]),
+    )
+    graph.step()
+  }
 
   return output
 }
-
-mapWithD2TS()
 
 mapSuite
   .add('Naive Map', () => {
