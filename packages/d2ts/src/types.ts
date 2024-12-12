@@ -1,6 +1,8 @@
 import type { Version, Antichain } from './order'
-import type { MultiSet } from './multiset'
+import type { MultiSet, MultiSetArray } from './multiset'
 import type { DifferenceStreamWriter, DifferenceStreamReader } from './graph'
+
+export type KeyValue<K, V> = [K, V]
 
 export const MessageType = {
   DATA: 1,
@@ -32,6 +34,20 @@ export interface IOperator<_T> {
   frontiers(): [Antichain[], Antichain]
 }
 
+export interface IDifferenceStreamReader<T> {
+  drain(): Message<T>[]
+  isEmpty(): boolean
+  probeFrontierLessThan(frontier: Antichain): boolean
+}
+
+export interface IDifferenceStreamWriter<T> {
+  sendData(
+    version: Version | number | number[],
+    collection: MultiSet<T> | MultiSetArray<T>,
+  ): void
+  sendFrontier(frontier: Antichain | Version | number | number[]): void
+  newReader(): IDifferenceStreamReader<T>
+}
 
 export interface ID2 {
   getNextOperatorId(): number

@@ -1,4 +1,11 @@
-import { DataMessage, Message, MessageType } from './types'
+import {
+  DataMessage,
+  IStreamBuilder,
+  Message,
+  MessageType,
+  PipedOperator,
+  KeyValue,
+} from './types'
 import { MultiSet } from './multiset'
 import {
   DifferenceStreamReader,
@@ -9,6 +16,7 @@ import {
 import { Index } from './version-index'
 import { Version, Antichain } from './order'
 import { DefaultMap } from './utils'
+import { StreamBuilder } from './pipe'
 
 /**
  * Base class for operators that process a single input stream
@@ -51,7 +59,7 @@ export class MapOperator<T, U> extends LinearUnaryOperator<T, U> {
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<U>,
     f: (data: T) => U,
-    initialFrontier: Antichain,
+    initialFrontier: Antichain
   ) {
     super(id, inputA, output, initialFrontier)
     this.#f = f
@@ -59,6 +67,29 @@ export class MapOperator<T, U> extends LinearUnaryOperator<T, U> {
 
   inner(collection: MultiSet<T>): MultiSet<U> {
     return collection.map(this.#f)
+  }
+}
+
+/**
+ * Applies a function to each element in the input stream
+ * @param f - The function to apply to each element
+ */
+export function map<T, O>(f: (data: T) => O): PipedOperator<T, O> {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<O> => {
+    const output = new StreamBuilder<O>(
+      stream.graph,
+      new DifferenceStreamWriter<O>()
+    )
+    const operator = new MapOperator<T, O>(
+      stream.graph.getNextOperatorId(),
+      stream.connectReader(),
+      output.writer,
+      f,
+      stream.graph.frontier()
+    )
+    stream.graph.addOperator(operator)
+    stream.graph.addStream(output.connectReader())
+    return output
   }
 }
 
@@ -73,7 +104,7 @@ export class FilterOperator<T> extends LinearUnaryOperator<T, T> {
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     f: (data: T) => boolean,
-    initialFrontier: Antichain,
+    initialFrontier: Antichain
   ) {
     super(id, inputA, output, initialFrontier)
     this.#f = f
@@ -85,11 +116,55 @@ export class FilterOperator<T> extends LinearUnaryOperator<T, T> {
 }
 
 /**
+ * Filters elements from the input stream
+ * @param f - The predicate to filter elements
+ */
+export function filter<T>(f: (data: T) => boolean): PipedOperator<T, T> {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
+    const output = new StreamBuilder<T>(
+      stream.graph,
+      new DifferenceStreamWriter<T>()
+    )
+    const operator = new FilterOperator<T>(
+      stream.graph.getNextOperatorId(),
+      stream.connectReader(),
+      output.writer,
+      f,
+      stream.graph.frontier()
+    )
+    stream.graph.addOperator(operator)
+    stream.graph.addStream(output.connectReader())
+    return output
+  }
+}
+
+/**
  * Operator that negates the multiplicities in the input stream
  */
 export class NegateOperator<T> extends LinearUnaryOperator<T, T> {
   inner(collection: MultiSet<T>): MultiSet<T> {
     return collection.negate()
+  }
+}
+
+/**
+ * Negates the multiplicities in the input stream
+ */
+export function negate<T>(): PipedOperator<T, T> {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
+    const output = new StreamBuilder<T>(
+      stream.graph,
+      new DifferenceStreamWriter<T>()
+    )
+    const operator = new NegateOperator<T>(
+      stream.graph.getNextOperatorId(),
+      stream.connectReader(),
+      output.writer,
+      stream.graph.frontier()
+    )
+    stream.graph.addOperator(operator)
+    stream.graph.addStream(output.connectReader())
+    return output
   }
 }
 
@@ -136,6 +211,34 @@ export class ConcatOperator<T, T2> extends BinaryOperator<T | T2> {
 }
 
 /**
+ * Concatenates two input streams
+ * @param other - The other stream to concatenate
+ */
+export function concat<T, T2>(
+  other: IStreamBuilder<T2>
+): PipedOperator<T, T | T2> {
+  return (stream: IStreamBuilder<T | T2>): IStreamBuilder<T | T2> => {
+    if (stream.graph !== other.graph) {
+      throw new Error('Cannot concat streams from different graphs')
+    }
+    const output = new StreamBuilder<T | T2>(
+      stream.graph,
+      new DifferenceStreamWriter<T | T2>()
+    )
+    const operator = new ConcatOperator<T, T2>(
+      stream.graph.getNextOperatorId(),
+      stream.connectReader(),
+      other.connectReader(),
+      output.writer,
+      stream.graph.frontier()
+    )
+    stream.graph.addOperator(operator)
+    stream.graph.addStream(output.connectReader())
+    return output
+  }
+}
+
+/**
  * Operator that logs debug information about the stream
  */
 export class DebugOperator<T> extends UnaryOperator<T> {
@@ -148,7 +251,7 @@ export class DebugOperator<T> extends UnaryOperator<T> {
     output: DifferenceStreamWriter<T>,
     name: string,
     initialFrontier: Antichain,
-    indent: boolean = false,
+    indent: boolean = false
   ) {
     super(id, inputA, output, initialFrontier)
     this.#name = name
@@ -160,7 +263,11 @@ export class DebugOperator<T> extends UnaryOperator<T> {
       if (message.type === MessageType.DATA) {
         const { version, collection } = message.data as DataMessage<T>
         console.log(
-          `debug ${this.#name} data: version: ${version.toString()} collection: ${collection.toString(this.#indent)}`,
+          `debug ${
+            this.#name
+          } data: version: ${version.toString()} collection: ${collection.toString(
+            this.#indent
+          )}`
         )
         this.output.sendData(version, collection)
       } else if (message.type === MessageType.FRONTIER) {
@@ -170,7 +277,7 @@ export class DebugOperator<T> extends UnaryOperator<T> {
         }
         this.setInputFrontier(frontier)
         console.log(
-          `debug ${this.#name} notification: frontier ${frontier.toString()}`,
+          `debug ${this.#name} notification: frontier ${frontier.toString()}`
         )
 
         if (!this.outputFrontier.lessEqual(this.inputFrontier())) {
@@ -186,6 +293,34 @@ export class DebugOperator<T> extends UnaryOperator<T> {
 }
 
 /**
+ * Logs debug information about the stream using console.log
+ * @param name - The name to prefix debug messages with
+ * @param indent - Whether to indent the debug output
+ */
+export function debug<T>(
+  name: string,
+  indent: boolean = false
+): PipedOperator<T, T> {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
+    const output = new StreamBuilder<T>(
+      stream.graph,
+      new DifferenceStreamWriter<T>()
+    )
+    const operator = new DebugOperator<T>(
+      stream.graph.getNextOperatorId(),
+      stream.connectReader(),
+      output.writer,
+      name,
+      stream.graph.frontier(),
+      indent
+    )
+    stream.graph.addOperator(operator)
+    stream.graph.addStream(output.connectReader())
+    return output
+  }
+}
+
+/**
  * Operator that outputs the messages in the stream
  */
 export class OutputOperator<T> extends UnaryOperator<T> {
@@ -196,7 +331,7 @@ export class OutputOperator<T> extends UnaryOperator<T> {
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     fn: (data: Message<T>) => void,
-    initialFrontier: Antichain,
+    initialFrontier: Antichain
   ) {
     super(id, inputA, output, initialFrontier)
     this.#fn = fn
@@ -227,6 +362,29 @@ export class OutputOperator<T> extends UnaryOperator<T> {
 }
 
 /**
+ * Outputs the messages in the stream
+ * @param fn - The function to call with each message
+ */
+export function output<T>(fn: (data: Message<T>) => void): PipedOperator<T, T> {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
+    const output = new StreamBuilder<T>(
+      stream.graph,
+      new DifferenceStreamWriter<T>()
+    )
+    const operator = new OutputOperator<T>(
+      stream.graph.getNextOperatorId(),
+      stream.connectReader(),
+      output.writer,
+      fn,
+      stream.graph.frontier()
+    )
+    stream.graph.addOperator(operator)
+    stream.graph.addStream(output.connectReader())
+    return output
+  }
+}
+
+/**
  * Operator that consolidates collections at each version
  */
 export class ConsolidateOperator<T> extends UnaryOperator<T> {
@@ -251,7 +409,7 @@ export class ConsolidateOperator<T> extends UnaryOperator<T> {
 
     // Find versions that are complete (not covered by input frontier)
     const finishedVersions = Array.from(this.#collections.entries()).filter(
-      ([version]) => !this.inputFrontier().lessEqualVersion(version),
+      ([version]) => !this.inputFrontier().lessEqualVersion(version)
     )
 
     // Process and remove finished versions
@@ -272,11 +430,44 @@ export class ConsolidateOperator<T> extends UnaryOperator<T> {
 }
 
 /**
+ * Consolidates the elements in the stream
+ */
+export function consolidate<T>(): PipedOperator<T, T> {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
+    const output = new StreamBuilder<T>(
+      stream.graph,
+      new DifferenceStreamWriter<T>()
+    )
+    const operator = new ConsolidateOperator<T>(
+      stream.graph.getNextOperatorId(),
+      stream.connectReader(),
+      output.writer,
+      stream.graph.frontier()
+    )
+    stream.graph.addOperator(operator)
+    stream.graph.addStream(output.connectReader())
+    return output
+  }
+}
+
+/**
  * Operator that joins two input streams
  */
-export class JoinOperator<K, V1, V2> extends BinaryOperator<[K, unknown]> {
+export class JoinOperator<K, V1, V2> extends BinaryOperator<
+  [K, V1] | [K, V2] | [K, [V1, V2]]
+> {
   #indexA = new Index<K, V1>()
   #indexB = new Index<K, V2>()
+
+  constructor(
+    id: number,
+    inputA: DifferenceStreamReader<[K, V1]>,
+    inputB: DifferenceStreamReader<[K, V2]>,
+    output: DifferenceStreamWriter<[K, [V1, V2]]>,
+    initialFrontier: Antichain
+  ) {
+    super(id, inputA, inputB, output, initialFrontier)
+  }
 
   run(): void {
     const deltaA = new Index<K, V1>()
@@ -359,6 +550,39 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<[K, unknown]> {
 }
 
 /**
+ * Joins two input streams
+ * @param other - The other stream to join with
+ */
+export function join<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>
+): PipedOperator<T, KeyValue<K, [V1, V2]>> {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, [V1, V2]>> => {
+    if (stream.graph !== other.graph) {
+      throw new Error('Cannot join streams from different graphs')
+    }
+    const output = new StreamBuilder<KeyValue<K, [V1, V2]>>(
+      stream.graph,
+      new DifferenceStreamWriter<KeyValue<K, [V1, V2]>>()
+    )
+    const operator = new JoinOperator<K, V1, V2>(
+      stream.graph.getNextOperatorId(),
+      stream.connectReader() as DifferenceStreamReader<KeyValue<K, V1>>,
+      other.connectReader() as DifferenceStreamReader<KeyValue<K, V2>>,
+      output.writer,
+      stream.graph.frontier()
+    )
+    stream.graph.addOperator(operator)
+    stream.graph.addStream(output.connectReader())
+    return output
+  }
+}
+
+/**
  * Base operator for reduction operations
  */
 export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
@@ -372,7 +596,7 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
     inputA: DifferenceStreamReader<[K, V1]>,
     output: DifferenceStreamWriter<[K, V2]>,
     f: (values: [V1, number][]) => [V2, number][],
-    initialFrontier: Antichain,
+    initialFrontier: Antichain
   ) {
     super(id, inputA, output, initialFrontier)
     this.#f = f
@@ -471,6 +695,33 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
 }
 
 /**
+ * Reduces the elements in the stream by key
+ */
+export function reduce<
+  K extends T extends KeyValue<infer K, infer _V> ? K : never,
+  V1 extends T extends KeyValue<K, infer V> ? V : never,
+  R,
+  T
+>(f: (values: [V1, number][]) => [R, number][]) {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, R>> => {
+    const output = new StreamBuilder<KeyValue<K, R>>(
+      stream.graph,
+      new DifferenceStreamWriter<KeyValue<K, R>>()
+    )
+    const operator = new ReduceOperator<K, V1, R>(
+      stream.graph.getNextOperatorId(),
+      stream.connectReader() as DifferenceStreamReader<KeyValue<K, V1>>,
+      output.writer,
+      f,
+      stream.graph.frontier()
+    )
+    stream.graph.addOperator(operator)
+    stream.graph.addStream(output.connectReader())
+    return output
+  }
+}
+
+/**
  * Operator that counts elements by key
  */
 export class CountOperator<K, V> extends ReduceOperator<K, V, number> {
@@ -478,7 +729,7 @@ export class CountOperator<K, V> extends ReduceOperator<K, V, number> {
     id: number,
     inputA: DifferenceStreamReader<[K, V]>,
     output: DifferenceStreamWriter<[K, number]>,
-    initialFrontier: Antichain,
+    initialFrontier: Antichain
   ) {
     const countInner = (vals: [V, number][]): [number, number][] => {
       let count = 0
@@ -493,6 +744,31 @@ export class CountOperator<K, V> extends ReduceOperator<K, V, number> {
 }
 
 /**
+ * Counts the number of elements by key
+ */
+export function count<
+  K extends T extends KeyValue<infer K, infer _V> ? K : never,
+  V extends T extends KeyValue<K, infer V> ? V : never,
+  T
+>() {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, number>> => {
+    const output = new StreamBuilder<KeyValue<K, number>>(
+      stream.graph,
+      new DifferenceStreamWriter<KeyValue<K, number>>()
+    )
+    const operator = new CountOperator<K, V>(
+      stream.graph.getNextOperatorId(),
+      stream.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
+      output.writer,
+      stream.graph.frontier()
+    )
+    stream.graph.addOperator(operator)
+    stream.graph.addStream(output.connectReader())
+    return output
+  }
+}
+
+/**
  * Operator that removes duplicates by key
  */
 export class DistinctOperator<K, V> extends ReduceOperator<K, V, V> {
@@ -500,7 +776,7 @@ export class DistinctOperator<K, V> extends ReduceOperator<K, V, V> {
     id: number,
     inputA: DifferenceStreamReader<[K, V]>,
     output: DifferenceStreamWriter<[K, V]>,
-    initialFrontier: Antichain,
+    initialFrontier: Antichain
   ) {
     const distinctInner = (vals: [V, number][]): [V, number][] => {
       const consolidated = new Map<string, number>()
@@ -516,6 +792,31 @@ export class DistinctOperator<K, V> extends ReduceOperator<K, V, V> {
     }
 
     super(id, inputA, output, distinctInner, initialFrontier)
+  }
+}
+
+/**
+ * Removes duplicates by key
+ */
+export function distinct<
+  K extends T extends KeyValue<infer K, infer _V> ? K : never,
+  V extends T extends KeyValue<K, infer V> ? V : never,
+  T
+>() {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, V>> => {
+    const output = new StreamBuilder<KeyValue<K, V>>(
+      stream.graph,
+      new DifferenceStreamWriter<KeyValue<K, V>>()
+    )
+    const operator = new DistinctOperator<K, V>(
+      stream.graph.getNextOperatorId(),
+      stream.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
+      output.writer,
+      stream.graph.frontier()
+    )
+    stream.graph.addOperator(operator)
+    stream.graph.addStream(output.connectReader())
+    return output
   }
 }
 
@@ -601,7 +902,7 @@ export class FeedbackOperator<T> extends UnaryOperator<T> {
     inputA: DifferenceStreamReader<T>,
     step: number,
     output: DifferenceStreamWriter<T>,
-    initialFrontier: Antichain,
+    initialFrontier: Antichain
   ) {
     super(id, inputA, output, initialFrontier)
     this.#step = step

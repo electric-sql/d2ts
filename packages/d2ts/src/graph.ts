@@ -11,6 +11,8 @@ import {
   IOperator,
   DataMessage,
   FrontierMessage,
+  IDifferenceStreamReader,
+  IDifferenceStreamWriter,
 } from './types'
 
 /**
@@ -20,7 +22,7 @@ import {
  * updates are either integers (in the one dimensional case) or Antichains (in the general
  * case).
  */
-export class DifferenceStreamReader<T> {
+export class DifferenceStreamReader<T> implements IDifferenceStreamReader<T> {
   #queue: Message<T>[]
 
   constructor(queue: Message<T>[]) {
@@ -54,7 +56,7 @@ export class DifferenceStreamReader<T> {
  * A write handle to a dataflow edge that is allowed to publish data and send
  * frontier updates.
  */
-export class DifferenceStreamWriter<T> {
+export class DifferenceStreamWriter<T> implements IDifferenceStreamWriter<T> {
   #queues: Message<T>[][] = []
   frontier: Antichain | null = null
 
