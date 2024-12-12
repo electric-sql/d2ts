@@ -38,38 +38,37 @@ npm install {TODO}
 Here's a simple example that demonstrates the core concepts:
 
 ```typescript
-import { GraphBuilder } from 'differential-dataflow-ts'
+import { D2 } from 'differential-dataflow-ts'
+import { map, filter, debug } from 'differential-dataflow-ts/operators'
 import { MultiSet } from 'differential-dataflow-ts/multiset'
-import { Antichain, v } from 'differential-dataflow-ts/order'
+import { v } from 'differential-dataflow-ts/order'
 
-// Create a new graph builder with initial frontier
-const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]))
+// Create a new D2 graph with initial frontier
+const graph = new D2({ initialFrontier: v([0, 0]) })
 
 // Create an input stream
-const [input, writer] = graphBuilder.newInput<number>()
+const input = graph.newInput<number>()
 
 // Build a simple pipeline that:
 // 1. Takes numbers as input
 // 2. Adds 5 to each number
 // 3. Filters to keep only even numbers
-const output = input
-  .map((x) => x + 5)
-  .filter((x) => x % 2 === 0)
-  .debug('output')
+const output = input.pipe(
+  map(x => x + 5),
+  filter(x => x % 2 === 0),
+  debug('output')
+)
 
 // Finalize the graph
-const graph = graphBuilder.finalize()
+graph.finalize()
 
 // Send some data
-writer.sendData(
-  v([0, 0]),
-  new MultiSet([
-    [1, 1],
-    [2, 1],
-    [3, 1],
-  ]),
-)
-writer.sendFrontier(new Antichain([v([0, 1])]))
+input.sendData(v([0, 0]), new MultiSet([
+  [1, 1],
+  [2, 1],
+  [3, 1]
+]))
+input.sendFrontier(v([0, 1]))
 
 // Process the data
 graph.step()
@@ -81,14 +80,16 @@ graph.step()
 
 ### Using SQLite Backend
 
-For persistence and larger datasets, you can use the SQLite backend:
+For persistence and larger datasets, a number of operators are provided that persist to SQLite:
 
-```typescript
-import Database from 'better-sqlite3'
-const db = new Database('myapp.sqlite')
-const graphBuilder = new GraphBuilder(new Antichain([v([0, 0])]), db)
-// ... rest of the code remains the same
-```
+- `consolidate()`: Consolidates data into a single version
+- `count()`: Counts the number of elements in a collection
+- `distinct()`: Removes duplicates from a collection
+- `join()`: Joins two collections
+- `map()`: Transforms elements
+- `reduce()`: Aggregates values by key
+
+Each take a SQLite database as the final argument.
 
 ### Key Concepts
 
@@ -119,7 +120,7 @@ The implementation follows the structure outlined in the Materialize blog post, 
 
    - Base operator classes in `src/operators.ts`
    - SQLite variants in `src/operators-sqlite.ts`
-   - Graph construction in `src/builder.ts`
+   - Graph construction in `src/pipe.ts`
 
 3. Graph execution:
    - Dataflow graph management in `src/graph.ts`
