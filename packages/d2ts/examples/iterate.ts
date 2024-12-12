@@ -1,57 +1,61 @@
-import { DifferenceStreamBuilder, GraphBuilder } from '../src/builder.js'
+import { D2 } from '../src/index.js'
 import { MultiSet } from '../src/multiset.js'
 import { Antichain, v } from '../src/order.js'
+import {
+  iterate,
+  debug,
+  map,
+  consolidate,
+  distinct,
+  filter,
+  concat,
+} from '../src/operators.js'
 
-const graphBuilder = new GraphBuilder(new Antichain([v(0)]))
+const graph = new D2({ initialFrontier: new Antichain([v(0)]) })
 
-const [input_a, writer_a] = graphBuilder.newInput<number>()
+const input = graph.newInput<number>()
 
-const geometricSeries = (
-  stream: DifferenceStreamBuilder<number>
-): DifferenceStreamBuilder<number> => {
-  return (
-    stream
-      // .debug('stream')
-      .map((x) => x * 2)
-      .concat(stream)
-      .filter((x) => x <= 50)
-      // .debug('filter')
-      .map((x) => [x, []])
-      // .debug('map1')
-      .distinct()
-      // .debug('distinct')
-      .map((x) => x[0])
-      // .debug('map2')
-      .consolidate() as DifferenceStreamBuilder<number>
+const output = input
+  .pipe(
+    iterate((stream) =>
+      stream.pipe(
+        map((x) => x * 2),
+        concat(stream),
+        filter((x) => x <= 50),
+        map((x) => [x, []]),
+        distinct(),
+        map((x) => x[0]),
+        consolidate(),
+      ),
+    ),
+    debug('iterate'),
   )
-  // .debug('consolidate') as DifferenceStreamBuilder<number>
-}
+  .connectReader()
 
-const output = input_a.iterate(geometricSeries).debug('iterate').connectReader()
-const graph = graphBuilder.finalize()
+graph.finalize()
 
-writer_a.sendData(v(0), new MultiSet([[1, 1]]))
-writer_a.sendFrontier(new Antichain([v(1)]))
+input.sendData(v(0), new MultiSet([[1, 1]]))
+input.sendFrontier(new Antichain([v(1)]))
 
 while (output.probeFrontierLessThan(new Antichain([v(1)]))) {
   graph.step()
 }
 
-writer_a.sendData(
+input.sendData(
   v(1),
   new MultiSet([
     [16, 1],
     [3, 1],
-  ])
+  ]),
 )
-writer_a.sendFrontier(new Antichain([v(2)]))
+input.sendFrontier(new Antichain([v(2)]))
 
 while (output.probeFrontierLessThan(new Antichain([v(2)]))) {
   graph.step()
 }
 
-writer_a.sendData(v(2), new MultiSet([[3, -1]]))
-writer_a.sendFrontier(new Antichain([v(3)]))
+input.sendData(v(2), new MultiSet([[3, -1]]))
+input.sendFrontier(new Antichain([v(3)]))
 
 while (output.probeFrontierLessThan(new Antichain([v(3)]))) {
   graph.step()

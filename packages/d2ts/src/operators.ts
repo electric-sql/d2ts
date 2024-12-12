@@ -19,6 +19,15 @@ import { DefaultMap } from './utils.js'
 import { StreamBuilder } from './d2.js'
 
 /**
+ * Creates a new stream by piping the input stream through a series of operators
+ */
+export function pipe<T>(...operators: PipedOperator<any, any>[]) {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
+    return stream.pipe(...operators)
+  }
+}
+
+/**
  * Base class for operators that process a single input stream
  */
 abstract class LinearUnaryOperator<T, U> extends UnaryOperator<T | U> {
@@ -991,5 +1000,75 @@ export class FeedbackOperator<T> extends UnaryOperator<T> {
       this.outputFrontier = outputFrontier
       this.output.sendFrontier(this.outputFrontier)
     }
+  }
+}
+
+function ingress<T>() {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
+    const output = new StreamBuilder<T>(
+      stream.graph,
+      new DifferenceStreamWriter(),
+    )
+    const operator = new IngressOperator<T>(
+      stream.graph.getNextOperatorId(),
+      stream.connectReader(),
+      output.writer,
+      stream.graph.frontier(),
+    )
+    stream.graph.addOperator(operator)
+    stream.graph.addStream(output.connectReader())
+    return output
+  }
+}
+
+function egress<T>() {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
+    const output = new StreamBuilder<T>(
+      stream.graph,
+      new DifferenceStreamWriter(),
+    )
+    const operator = new EgressOperator<T>(
+      stream.graph.getNextOperatorId(),
+      stream.connectReader(),
+      output.writer,
+      stream.graph.frontier(),
+    )
+    stream.graph.addOperator(operator)
+    stream.graph.addStream(output.connectReader())
+    return output
+  }
+}
+
+/**
+ * Iterates over the stream
+ */
+export function iterate<T>(
+  f: (stream: IStreamBuilder<T>) => IStreamBuilder<T>,
+) {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
+    // Enter scope
+    const newFrontier = stream.graph.frontier().extend()
+    stream.graph.pushFrontier(newFrontier)
+
+    const feedbackStream = new StreamBuilder<T>(
+      stream.graph,
+      new DifferenceStreamWriter(),
+    )
+    const entered = stream.pipe(ingress(), concat(feedbackStream))
+    const result = f(entered)
+    const feedbackOperator = new FeedbackOperator<T>(
+      stream.graph.getNextOperatorId(),
+      result.connectReader() as DifferenceStreamReader<T>,
+      1,
+      feedbackStream.writer,
+      stream.graph.frontier(),
+    )
+    stream.graph.addStream(feedbackStream.connectReader())
+    stream.graph.addOperator(feedbackOperator)
+
+    // Exit scope
+    stream.graph.popFrontier()
+
+    return result.pipe(egress())
   }
 }
