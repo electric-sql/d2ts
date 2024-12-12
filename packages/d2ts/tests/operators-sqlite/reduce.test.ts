@@ -6,6 +6,8 @@ import { DataMessage, MessageType } from '../../src/types'
 import { reduce } from '../../src/operators-sqlite'
 import { output } from '../../src/operators'
 import Database from 'better-sqlite3'
+import fs from 'fs'
+import path from 'path'
 
 describe('SQLite Operators', () => {
   describe('Reduce operation', () => {
@@ -109,4 +111,115 @@ describe('SQLite Operators', () => {
       ])
     })
   })
-}) 
+
+  describe('Reduce operation with persistence', () => {
+    const dbPath = path.join(__dirname, 'test.db')
+    let db: Database.Database
+
+    beforeEach(() => {
+      if (fs.existsSync(dbPath)) {
+        fs.unlinkSync(dbPath)
+      }
+      db = new Database(dbPath)
+    })
+
+    afterEach(() => {
+      db.close()
+      if (fs.existsSync(dbPath)) {
+        fs.unlinkSync(dbPath)
+      }
+    })
+
+    test('persists and recovers state', () => {
+      // First graph instance - initial processing
+      let messages: DataMessage<[string, number]>[] = []
+      let graph = new D2({ initialFrontier: v([0, 0]) })
+      const input = graph.newInput<[string, number]>()
+
+      input.pipe(
+        reduce((vals) => {
+          let sum = 0
+          for (const [val, diff] of vals) {
+            sum += val * diff
+          }
+          return [[sum, 1]]
+        }, db),
+        output((message) => {
+          if (message.type === MessageType.DATA) {
+            messages.push(message.data)
+          }
+        })
+      )
+
+      graph.finalize()
+
+      // Send initial data
+      input.sendData(
+        v([1, 0]),
+        new MultiSet([
+          [['a', 1], 2],
+          [['a', 2], 1],
+          [['b', 3], 1],
+        ])
+      )
+      input.sendFrontier(new Antichain([v([2, 0])]))
+
+      graph.step()
+
+      // Verify initial results
+      expect(messages.map((m) => m.collection.getInner())).toEqual([
+        [
+          [['a', 4], 1],
+          [['b', 3], 1],
+        ],
+      ])
+
+      // Close first graph instance and database
+      db.close()
+
+      // Create new graph instance with same database
+      messages = []
+      db = new Database(dbPath)
+      graph = new D2({ initialFrontier: v([1, 0]) })
+      const newInput = graph.newInput<[string, number]>()
+
+      newInput.pipe(
+        reduce((vals) => {
+          let sum = 0
+          for (const [val, diff] of vals) {
+            sum += val * diff
+          }
+          return [[sum, 1]]
+        }, db),
+        output((message) => {
+          if (message.type === MessageType.DATA) {
+            messages.push(message.data)
+          }
+        })
+      )
+
+      graph.finalize()
+
+      // Send new data
+      newInput.sendData(
+        v([2, 0]),
+        new MultiSet([
+          [['a', 3], 1],
+          [['c', 5], 1],
+        ])
+      )
+      newInput.sendFrontier(new Antichain([v([3, 0])]))
+
+      graph.step()
+
+      // Verify that new results work with persisted state
+      expect(messages.map((m) => m.collection.getInner())).toEqual([
+        [
+          [['a', 7], 1],
+          [['a', 4], -1],
+          [['c', 5], 1],
+        ],
+      ])
+    })
+  })
+})

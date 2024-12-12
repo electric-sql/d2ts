@@ -6,6 +6,8 @@ import { DataMessage, MessageType } from '../../src/types'
 import { count } from '../../src/operators-sqlite'
 import { output } from '../../src/operators'
 import Database from 'better-sqlite3'
+import fs from 'fs'
+import path from 'path'
 
 describe('SQLite Operators', () => {
   describe('Count operation', () => {
@@ -106,6 +108,113 @@ describe('SQLite Operators', () => {
           [['two', 1], 1],
         ],
       ])
+    })
+  })
+
+  describe('Count operation with persistence', () => {
+    const dbPath = path.join(__dirname, 'test.db')
+    let db: Database.Database
+
+    beforeEach(() => {
+      if (fs.existsSync(dbPath)) {
+        fs.unlinkSync(dbPath)
+      }
+      db = new Database(dbPath)
+    })
+
+    afterEach(() => {
+      db.close()
+      if (fs.existsSync(dbPath)) {
+        fs.unlinkSync(dbPath)
+      }
+    })
+
+    test('persists and recovers state', () => {
+      // First graph instance - initial processing
+      let messages: DataMessage<[string, number]>[] = []
+      let graph = new D2({ initialFrontier: v([0, 0]) })
+      const input = graph.newInput<[string, string]>()
+
+      input.pipe(
+        count(db),
+        output((message) => {
+          if (message.type === MessageType.DATA) {
+            messages.push(message.data)
+          }
+        })
+      )
+
+      graph.finalize()
+
+      // Send initial data
+      input.sendData(
+        v([1, 0]),
+        new MultiSet([
+          [['key1', 'a'], 1],
+          [['key1', 'b'], 1],
+          [['key2', 'x'], 2],
+        ])
+      )
+      input.sendFrontier(new Antichain([v([2, 0])]))
+
+      graph.step()
+
+      // Verify initial results
+      expect(messages.map((m) => m.collection.getInner())).toEqual([
+        [
+          [['key1', 2], 1],
+          [['key2', 2], 1],
+        ],
+      ])
+
+      // Close first graph instance and database
+      db.close()
+
+      // Create new graph instance with same database
+      messages = []
+      db = new Database(dbPath)
+      graph = new D2({ initialFrontier: v([1, 0]) })
+      const newInput = graph.newInput<[string, string]>()
+
+      newInput.pipe(
+        count(db),
+        output((message) => {
+          if (message.type === MessageType.DATA) {
+            messages.push(message.data)
+          }
+        })
+      )
+
+      graph.finalize()
+
+      // Send new data
+      newInput.sendData(
+        v([2, 0]),
+        new MultiSet([
+          [['key1', 'c'], 1],
+          [['key3', 'y'], 1],
+        ])
+      )
+      newInput.sendFrontier(new Antichain([v([3, 0])]))
+
+      graph.step()
+
+      // Verify that new results work with persisted state
+      expect(messages.map((m) => m.collection.getInner())).toEqual([
+        [
+          [['key1', 3], 1],
+          [['key1', 2], -1],
+          [['key3', 1], 1],
+        ],
+      ])
+
+      // Query the database directly to verify persistence
+      const tables = db.prepare(`
+        SELECT name FROM sqlite_master 
+        WHERE type='table' AND name LIKE 'reduce_%'
+      `).all()
+      
+      expect(tables.length).toBeGreaterThan(0)
     })
   })
 }) 
