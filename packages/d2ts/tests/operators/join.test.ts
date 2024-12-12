@@ -24,7 +24,7 @@ function testJoin() {
         if (message.type === MessageType.DATA) {
           messages.push(message.data)
         }
-      })
+      }),
     )
 
     graph.finalize()
