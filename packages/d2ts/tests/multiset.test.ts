@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { MultiSet } from '../src/multiset'
+import { MultiSet } from '../src/multiset.js'
 
 describe('MultiSet', () => {
   describe('basic operations', () => {

@@ -1,22 +1,22 @@
 import { describe, test, expect } from 'vitest'
-import { D2 } from '../../src/pipe'
-import { MultiSet } from '../../src/multiset'
-import { Antichain, v } from '../../src/order'
-import { Message, MessageType } from '../../src/types'
-import { map, output } from '../../src/operators'
+import { D2 } from '../../src/d2.js'
+import { MultiSet } from '../../src/multiset.js'
+import { Antichain, v } from '../../src/order.js'
+import { Message, MessageType } from '../../src/types.js'
+import { map, output } from '../../src/operators.js'
 
 describe('Operators', () => {
   describe('Map operation', () => {
     test('basic map operation', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const input = graph.newInput<number>()
-      let messages: Message<number>[] = []
+      const messages: Message<number>[] = []
 
       input.pipe(
         map((x) => x + 5),
         output((message) => {
           messages.push(message)
-        })
+        }),
       )
 
       graph.finalize()
@@ -52,14 +52,14 @@ describe('Operators', () => {
     test('map with multiple transformations', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const input = graph.newInput<number>()
-      let messages: Message<number>[] = []
+      const messages: Message<number>[] = []
 
       input.pipe(
         map((x) => x * 2),
         map((x) => x + 1),
         output((message) => {
           messages.push(message)
-        })
+        }),
       )
 
       graph.finalize()
@@ -95,13 +95,13 @@ describe('Operators', () => {
     test('map with negative multiplicities', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const input = graph.newInput<number>()
-      let messages: Message<number>[] = []
+      const messages: Message<number>[] = []
 
       input.pipe(
         map((x) => x + 1),
         output((message) => {
           messages.push(message)
-        })
+        }),
       )
 
       graph.finalize()

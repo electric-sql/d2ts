@@ -1,8 +1,8 @@
 import { describe, expect, beforeEach, test } from 'vitest'
-import { DifferenceStreamReader, DifferenceStreamWriter } from '../src/graph'
-import { MessageType } from '../src/types'
-import { v, Antichain } from '../src/order'
-import { MultiSet } from '../src/multiset'
+import { DifferenceStreamReader, DifferenceStreamWriter } from '../src/graph.js'
+import { MessageType } from '../src/types.js'
+import { v, Antichain } from '../src/order.js'
+import { MultiSet } from '../src/multiset.js'
 
 describe('DifferenceStreamReader and DifferenceStreamWriter', () => {
   let writer: DifferenceStreamWriter<number>

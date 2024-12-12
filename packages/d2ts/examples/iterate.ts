@@ -1,6 +1,6 @@
-import { DifferenceStreamBuilder, GraphBuilder } from '../src/builder'
-import { MultiSet } from '../src/multiset'
-import { Antichain, v } from '../src/order'
+import { DifferenceStreamBuilder, GraphBuilder } from '../src/builder.js'
+import { MultiSet } from '../src/multiset.js'
+import { Antichain, v } from '../src/order.js'
 
 const graphBuilder = new GraphBuilder(new Antichain([v(0)]))
 

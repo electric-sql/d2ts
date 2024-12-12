@@ -3,8 +3,8 @@
  */
 
 import type Database from 'better-sqlite3'
-import { MultiSet, MultiSetArray } from './multiset'
-import { Version, Antichain, v } from './order'
+import { MultiSet, MultiSetArray } from './multiset.js'
+import { Version, Antichain, v } from './order.js'
 import {
   Message,
   MessageType,
@@ -13,7 +13,7 @@ import {
   FrontierMessage,
   IDifferenceStreamReader,
   IDifferenceStreamWriter,
-} from './types'
+} from './types.js'
 
 /**
  * A read handle to a dataflow edge that receives data and frontier updates from a writer.

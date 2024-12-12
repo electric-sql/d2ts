@@ -1,9 +1,9 @@
 import { describe, test, expect } from 'vitest'
-import { D2 } from '../../src/pipe'
-import { MultiSet } from '../../src/multiset'
-import { Antichain, v } from '../../src/order'
-import { DataMessage, MessageType } from '../../src/types'
-import { join, output } from '../../src/operators'
+import { D2 } from '../../src/d2.js'
+import { MultiSet } from '../../src/multiset.js'
+import { Antichain, v } from '../../src/order.js'
+import { DataMessage, MessageType } from '../../src/types.js'
+import { join, output } from '../../src/operators.js'
 
 describe('Operators', () => {
   describe('Join operation', () => {
@@ -16,7 +16,7 @@ function testJoin() {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
-    let messages: DataMessage<[number, [string, string]]>[] = []
+    const messages: DataMessage<[number, [string, string]]>[] = []
 
     inputA.pipe(
       join(inputB),
@@ -37,7 +37,7 @@ function testJoin() {
       ]),
     )
     inputA.sendFrontier(new Antichain([v([1, 0])]))
-    
+
     inputB.sendData(
       v([1, 0]),
       new MultiSet([
@@ -64,7 +64,7 @@ function testJoin() {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
-    let messages: DataMessage<[number, [string, string]]>[] = []
+    const messages: DataMessage<[number, [string, string]]>[] = []
 
     inputA.pipe(
       join(inputB),
@@ -72,7 +72,7 @@ function testJoin() {
         if (message.type === MessageType.DATA) {
           messages.push(message.data)
         }
-      })
+      }),
     )
 
     graph.finalize()
@@ -113,7 +113,7 @@ function testJoin() {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
-    let messages: DataMessage<[number, [string, string]]>[] = []
+    const messages: DataMessage<[number, [string, string]]>[] = []
 
     inputA.pipe(
       join(inputB),
@@ -121,7 +121,7 @@ function testJoin() {
         if (message.type === MessageType.DATA) {
           messages.push(message.data)
         }
-      })
+      }),
     )
 
     graph.finalize()

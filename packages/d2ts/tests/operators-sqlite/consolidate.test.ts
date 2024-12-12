@@ -1,13 +1,15 @@
 import { describe, test, expect, beforeEach, afterEach } from 'vitest'
-import { D2 } from '../../src/pipe'
-import { MultiSet } from '../../src/multiset'
-import { Antichain, v } from '../../src/order'
-import { DataMessage, MessageType } from '../../src/types'
-import { consolidate } from '../../src/operators-sqlite'
-import { output } from '../../src/operators'
+import { D2 } from '../../src/d2.js'
+import { MultiSet } from '../../src/multiset.js'
+import { Antichain, v } from '../../src/order.js'
+import { DataMessage, MessageType } from '../../src/types.js'
+import { consolidate } from '../../src/operators-sqlite.js'
+import { output } from '../../src/operators.js'
 import Database from 'better-sqlite3'
 import fs from 'fs'
 import path from 'path'
+
+const DB_FILENAME = 'test-consolidate.db'
 
 describe('SQLite Operators', () => {
   describe('Consolidate operation', () => {
@@ -24,7 +26,7 @@ describe('SQLite Operators', () => {
     test('basic consolidate operation', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const input = graph.newInput<number>()
-      let messages: DataMessage<number>[] = []
+      const messages: DataMessage<number>[] = []
 
       input.pipe(
         consolidate(db),
@@ -32,7 +34,7 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -42,21 +44,21 @@ describe('SQLite Operators', () => {
         new MultiSet([
           [1, 1],
           [2, 1],
-        ])
+        ]),
       )
       input.sendData(
         v([1, 0]),
         new MultiSet([
           [3, 1],
           [4, 1],
-        ])
+        ]),
       )
       input.sendData(
         v([1, 0]),
         new MultiSet([
           [3, 2],
           [2, -1],
-        ])
+        ]),
       )
       input.sendFrontier(new Antichain([v([1, 1])]))
 
@@ -76,7 +78,7 @@ describe('SQLite Operators', () => {
     test('consolidate with multiple versions', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const input = graph.newInput<number>()
-      let messages: DataMessage<number>[] = []
+      const messages: DataMessage<number>[] = []
 
       input.pipe(
         consolidate(db),
@@ -84,7 +86,7 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -94,14 +96,14 @@ describe('SQLite Operators', () => {
         new MultiSet([
           [1, 1],
           [2, 1],
-        ])
+        ]),
       )
       input.sendData(
         v([2, 0]),
         new MultiSet([
           [2, 1],
           [3, 1],
-        ])
+        ]),
       )
       input.sendFrontier(new Antichain([v([3, 0])]))
 
@@ -123,7 +125,7 @@ describe('SQLite Operators', () => {
   })
 
   describe('Consolidate operation with persistence', () => {
-    const dbPath = path.join(__dirname, 'test.db')
+    const dbPath = path.join(import.meta.dirname, DB_FILENAME)
     let db: Database.Database
 
     beforeEach(() => {
@@ -152,7 +154,7 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -163,7 +165,7 @@ describe('SQLite Operators', () => {
         new MultiSet([
           [1, 1],
           [2, 2],
-        ])
+        ]),
       )
 
       graph.step()
@@ -183,7 +185,7 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -194,7 +196,7 @@ describe('SQLite Operators', () => {
         new MultiSet([
           [2, 1],
           [3, 3],
-        ])
+        ]),
       )
       newInput.sendFrontier(new Antichain([v([2, 0])]))
 

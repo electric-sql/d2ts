@@ -1,9 +1,9 @@
 import { describe, test, expect } from 'vitest'
-import { D2 } from '../../src/pipe'
-import { MultiSet } from '../../src/multiset'
-import { Antichain, v } from '../../src/order'
-import { DataMessage, MessageType } from '../../src/types'
-import { distinct, output } from '../../src/operators'
+import { D2 } from '../../src/d2.js'
+import { MultiSet } from '../../src/multiset.js'
+import { Antichain, v } from '../../src/order.js'
+import { DataMessage, MessageType } from '../../src/types.js'
+import { distinct, output } from '../../src/operators.js'
 
 describe('Operators', () => {
   describe('Distinct operation', () => {
@@ -15,7 +15,7 @@ function testDistinct() {
   test('basic distinct operation', () => {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const input = graph.newInput<[number, string]>()
-    let messages: DataMessage<[number, string]>[] = []
+    const messages: DataMessage<[number, string]>[] = []
 
     input.pipe(
       distinct(),
@@ -23,7 +23,7 @@ function testDistinct() {
         if (message.type === MessageType.DATA) {
           messages.push(message.data)
         }
-      })
+      }),
     )
 
     graph.finalize()
@@ -54,7 +54,7 @@ function testDistinct() {
   test('distinct with updates', () => {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const input = graph.newInput<[number, string]>()
-    let messages: DataMessage<[number, string]>[] = []
+    const messages: DataMessage<[number, string]>[] = []
 
     input.pipe(
       distinct(),
@@ -62,7 +62,7 @@ function testDistinct() {
         if (message.type === MessageType.DATA) {
           messages.push(message.data)
         }
-      })
+      }),
     )
 
     graph.finalize()
@@ -102,7 +102,7 @@ function testDistinct() {
   test('distinct with multiple versions of same key', () => {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const input = graph.newInput<[string, number]>()
-    let messages: DataMessage<[string, number]>[] = []
+    const messages: DataMessage<[string, number]>[] = []
 
     input.pipe(
       distinct(),
@@ -110,7 +110,7 @@ function testDistinct() {
         if (message.type === MessageType.DATA) {
           messages.push(message.data)
         }
-      })
+      }),
     )
 
     graph.finalize()

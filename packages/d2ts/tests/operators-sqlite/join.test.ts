@@ -1,13 +1,15 @@
 import { describe, test, expect, beforeEach, afterEach } from 'vitest'
-import { D2 } from '../../src/pipe'
-import { MultiSet } from '../../src/multiset'
-import { Antichain, v } from '../../src/order'
-import { DataMessage, MessageType } from '../../src/types'
-import { join } from '../../src/operators-sqlite'
-import { output } from '../../src/operators'
+import { D2 } from '../../src/d2.js'
+import { MultiSet } from '../../src/multiset.js'
+import { Antichain, v } from '../../src/order.js'
+import { DataMessage, MessageType } from '../../src/types.js'
+import { join } from '../../src/operators-sqlite.js'
+import { output } from '../../src/operators.js'
 import Database from 'better-sqlite3'
 import fs from 'fs'
 import path from 'path'
+
+const DB_FILENAME = 'test-join.db'
 
 describe('SQLite Operators', () => {
   describe('Join operation', () => {
@@ -25,7 +27,7 @@ describe('SQLite Operators', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const inputA = graph.newInput<[number, string]>()
       const inputB = graph.newInput<[number, string]>()
-      let messages: DataMessage<[number, [string, string]]>[] = []
+      const messages: DataMessage<[number, [string, string]]>[] = []
 
       inputA.pipe(
         join(inputB, db),
@@ -33,7 +35,7 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -43,17 +45,17 @@ describe('SQLite Operators', () => {
         new MultiSet([
           [[1, 'a'], 1],
           [[2, 'b'], 1],
-        ])
+        ]),
       )
       inputA.sendFrontier(new Antichain([v([1, 0])]))
-      
+
       inputB.sendData(
         v([1, 0]),
         new MultiSet([
           [[1, 'x'], 1],
           [[2, 'y'], 1],
           [[3, 'z'], 1],
-        ])
+        ]),
       )
       inputB.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -73,7 +75,7 @@ describe('SQLite Operators', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const inputA = graph.newInput<[number, string]>()
       const inputB = graph.newInput<[number, string]>()
-      let messages: DataMessage<[number, [string, string]]>[] = []
+      const messages: DataMessage<[number, [string, string]]>[] = []
 
       inputA.pipe(
         join(inputB, db),
@@ -81,7 +83,7 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -91,7 +93,7 @@ describe('SQLite Operators', () => {
         new MultiSet([
           [[1, 'a'], 1],
           [[2, 'b'], 1],
-        ])
+        ]),
       )
       inputA.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -102,7 +104,7 @@ describe('SQLite Operators', () => {
         new MultiSet([
           [[1, 'x'], 1],
           [[2, 'y'], 1],
-        ])
+        ]),
       )
       inputB.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -120,7 +122,7 @@ describe('SQLite Operators', () => {
   })
 
   describe('Join operation with persistence', () => {
-    const dbPath = path.join(__dirname, 'test.db')
+    const dbPath = path.join(import.meta.dirname, DB_FILENAME)
     let db: Database.Database
 
     beforeEach(() => {
@@ -151,7 +153,7 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -162,16 +164,16 @@ describe('SQLite Operators', () => {
         new MultiSet([
           [[1, 'a'], 1],
           [[2, 'b'], 1],
-        ])
+        ]),
       )
       inputA.sendFrontier(new Antichain([v([1, 0])]))
-      
+
       inputB.sendData(
         v([1, 0]),
         new MultiSet([
           [[1, 'x'], 1],
           [[2, 'y'], 1],
-        ])
+        ]),
       )
       inputB.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -201,18 +203,13 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
 
       // Send new data
-      newInputA.sendData(
-        v([2, 0]),
-        new MultiSet([
-          [[2, 'c'], 1],
-        ])
-      )
+      newInputA.sendData(v([2, 0]), new MultiSet([[[2, 'c'], 1]]))
       newInputA.sendFrontier(new Antichain([v([2, 0])]))
       newInputB.sendFrontier(new Antichain([v([2, 0])]))
 

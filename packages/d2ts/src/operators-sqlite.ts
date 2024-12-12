@@ -1,21 +1,21 @@
-import { StreamBuilder } from './pipe'
+import { StreamBuilder } from './d2.js'
 import {
   DataMessage,
   MessageType,
   IStreamBuilder,
   PipedOperator,
   KeyValue,
-} from './types'
-import { MultiSet } from './multiset'
+} from './types.js'
+import { MultiSet } from './multiset.js'
 import {
   DifferenceStreamReader,
   DifferenceStreamWriter,
   UnaryOperator,
   BinaryOperator,
-} from './graph'
-import { Version, Antichain } from './order'
+} from './graph.js'
+import { Version, Antichain } from './order.js'
 import Database from 'better-sqlite3'
-import { SQLIndex } from './version-index-sqlite'
+import { SQLIndex } from './version-index-sqlite.js'
 
 interface CollectionRow {
   version: string
@@ -49,7 +49,7 @@ export class ConsolidateOperatorSQLite<T> extends UnaryOperator<T> {
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     initialFrontier: Antichain,
-    db: Database.Database
+    db: Database.Database,
   ) {
     super(id, inputA, output, initialFrontier)
 
@@ -68,19 +68,19 @@ export class ConsolidateOperatorSQLite<T> extends UnaryOperator<T> {
     // Prepare statements
     this.#preparedStatements = {
       insert: db.prepare(
-        `INSERT INTO collections_${this.id} (version, collection) VALUES (@version, @collection)`
+        `INSERT INTO collections_${this.id} (version, collection) VALUES (@version, @collection)`,
       ),
       update: db.prepare(
-        `UPDATE collections_${this.id} SET collection = @collection WHERE version = @version`
+        `UPDATE collections_${this.id} SET collection = @collection WHERE version = @version`,
       ),
       get: db.prepare(
-        `SELECT collection FROM collections_${this.id} WHERE version = ?`
+        `SELECT collection FROM collections_${this.id} WHERE version = ?`,
       ),
       delete: db.prepare(
-        `DELETE FROM collections_${this.id} WHERE version = ?`
+        `DELETE FROM collections_${this.id} WHERE version = ?`,
       ),
       getAllVersions: db.prepare(
-        `SELECT version, collection FROM collections_${this.id}`
+        `SELECT version, collection FROM collections_${this.id}`,
       ),
     }
   }
@@ -155,14 +155,14 @@ export function consolidate<T>(db: Database.Database): PipedOperator<T, T> {
   return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
     const output = new StreamBuilder<T>(
       stream.graph,
-      new DifferenceStreamWriter<T>()
+      new DifferenceStreamWriter<T>(),
     )
     const operator = new ConsolidateOperatorSQLite<T>(
       stream.graph.getNextOperatorId(),
       stream.connectReader(),
       output.writer,
       stream.graph.frontier(),
-      db
+      db,
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())
@@ -183,7 +183,7 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
     inputB: DifferenceStreamReader<[K, V2]>,
     output: DifferenceStreamWriter<[K, [V1, V2]]>,
     initialFrontier: Antichain,
-    db: Database.Database
+    db: Database.Database,
   ) {
     super(id, inputA, inputB, output, initialFrontier)
     this.#db = db
@@ -291,7 +291,7 @@ export function join<
   K,
   V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
   V2,
-  T
+  T,
 >(other: IStreamBuilder<KeyValue<K, V2>>, db: Database.Database) {
   return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, [V1, V2]>> => {
     if (stream.graph !== other.graph) {
@@ -299,7 +299,7 @@ export function join<
     }
     const output = new StreamBuilder<KeyValue<K, [V1, V2]>>(
       stream.graph,
-      new DifferenceStreamWriter<KeyValue<K, [V1, V2]>>()
+      new DifferenceStreamWriter<KeyValue<K, [V1, V2]>>(),
     )
     const operator = new JoinOperatorSQLite<K, V1, V2>(
       stream.graph.getNextOperatorId(),
@@ -307,7 +307,7 @@ export function join<
       other.connectReader() as DifferenceStreamReader<KeyValue<K, V2>>,
       output.writer,
       stream.graph.frontier(),
-      db
+      db,
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())
@@ -338,7 +338,7 @@ export class ReduceOperatorSQLite<K, V1, V2> extends UnaryOperator<
     output: DifferenceStreamWriter<[K, V2]>,
     f: (values: [V1, number][]) => [V2, number][],
     initialFrontier: Antichain,
-    db: Database.Database
+    db: Database.Database,
   ) {
     super(id, inputA, output, initialFrontier)
     this.#f = f
@@ -399,7 +399,7 @@ export class ReduceOperatorSQLite<K, V1, V2> extends UnaryOperator<
           // Add key to todo list for this version
           this.#preparedStatements.insertKeyTodo.run(
             version.toJSON(),
-            JSON.stringify(key)
+            JSON.stringify(key),
           )
 
           // Add key to all join versions
@@ -407,7 +407,7 @@ export class ReduceOperatorSQLite<K, V1, V2> extends UnaryOperator<
             const joinVersion = version.join(v2)
             this.#preparedStatements.insertKeyTodo.run(
               joinVersion.toJSON(),
-              JSON.stringify(key)
+              JSON.stringify(key),
             )
           }
         }
@@ -505,12 +505,12 @@ export function reduce<
   K extends T extends KeyValue<infer K, infer _V> ? K : never,
   V1 extends T extends KeyValue<K, infer V> ? V : never,
   R,
-  T
+  T,
 >(f: (values: [V1, number][]) => [R, number][], db: Database.Database) {
   return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, R>> => {
     const output = new StreamBuilder<KeyValue<K, R>>(
       stream.graph,
-      new DifferenceStreamWriter<KeyValue<K, R>>()
+      new DifferenceStreamWriter<KeyValue<K, R>>(),
     )
     const operator = new ReduceOperatorSQLite<K, V1, R>(
       stream.graph.getNextOperatorId(),
@@ -518,7 +518,7 @@ export function reduce<
       output.writer,
       f,
       stream.graph.frontier(),
-      db
+      db,
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())
@@ -536,7 +536,7 @@ export class CountOperatorSQLite<K, V> extends ReduceOperatorSQLite<
     inputA: DifferenceStreamReader<[K, V]>,
     output: DifferenceStreamWriter<[K, number]>,
     initialFrontier: Antichain,
-    db: Database.Database
+    db: Database.Database,
   ) {
     const countInner = (vals: [V, number][]): [number, number][] => {
       let count = 0
@@ -558,19 +558,19 @@ export class CountOperatorSQLite<K, V> extends ReduceOperatorSQLite<
 export function count<
   K extends T extends KeyValue<infer K, infer _V> ? K : never,
   V extends T extends KeyValue<K, infer V> ? V : never,
-  T
+  T,
 >(db: Database.Database) {
   return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, number>> => {
     const output = new StreamBuilder<KeyValue<K, number>>(
       stream.graph,
-      new DifferenceStreamWriter<KeyValue<K, number>>()
+      new DifferenceStreamWriter<KeyValue<K, number>>(),
     )
     const operator = new CountOperatorSQLite<K, V>(
       stream.graph.getNextOperatorId(),
       stream.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
       output.writer,
       stream.graph.frontier(),
-      db
+      db,
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())
@@ -588,7 +588,7 @@ export class DistinctOperatorSQLite<K, V> extends ReduceOperatorSQLite<
     inputA: DifferenceStreamReader<[K, V]>,
     output: DifferenceStreamWriter<[K, V]>,
     initialFrontier: Antichain,
-    db: Database.Database
+    db: Database.Database,
   ) {
     const distinctInner = (vals: [V, number][]): [V, number][] => {
       const consolidated = new Map<string, number>()
@@ -615,19 +615,19 @@ export class DistinctOperatorSQLite<K, V> extends ReduceOperatorSQLite<
 export function distinct<
   K extends T extends KeyValue<infer K, infer _V> ? K : never,
   V extends T extends KeyValue<K, infer V> ? V : never,
-  T
+  T,
 >(db: Database.Database) {
   return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, V>> => {
     const output = new StreamBuilder<KeyValue<K, V>>(
       stream.graph,
-      new DifferenceStreamWriter<KeyValue<K, V>>()
+      new DifferenceStreamWriter<KeyValue<K, V>>(),
     )
     const operator = new DistinctOperatorSQLite<K, V>(
       stream.graph.getNextOperatorId(),
       stream.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
       output.writer,
       stream.graph.frontier(),
-      db
+      db,
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())

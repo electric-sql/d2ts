@@ -1,10 +1,10 @@
 import { describe, test, expect, beforeEach, afterEach } from 'vitest'
-import { D2 } from '../../src/pipe'
-import { MultiSet } from '../../src/multiset'
-import { Antichain, v } from '../../src/order'
-import { DataMessage, MessageType } from '../../src/types'
-import { reduce } from '../../src/operators-sqlite'
-import { output } from '../../src/operators'
+import { D2 } from '../../src/d2.js'
+import { MultiSet } from '../../src/multiset.js'
+import { Antichain, v } from '../../src/order.js'
+import { DataMessage, MessageType } from '../../src/types.js'
+import { reduce } from '../../src/operators-sqlite.js'
+import { output } from '../../src/operators.js'
 import Database from 'better-sqlite3'
 import fs from 'fs'
 import path from 'path'
@@ -24,7 +24,7 @@ describe('SQLite Operators', () => {
     test('basic reduce operation', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const input = graph.newInput<[string, number]>()
-      let messages: DataMessage<[string, number]>[] = []
+      const messages: DataMessage<[string, number]>[] = []
 
       input.pipe(
         reduce((vals) => {
@@ -38,7 +38,7 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -50,7 +50,7 @@ describe('SQLite Operators', () => {
           [['a', 2], 1],
           [['a', 3], 1],
           [['b', 4], 1],
-        ])
+        ]),
       )
       input.sendData(v([1, 0]), new MultiSet([[['b', 5], 1]]))
       input.sendFrontier(new Antichain([v([2, 0])]))
@@ -70,7 +70,7 @@ describe('SQLite Operators', () => {
     test('reduce with negative multiplicities', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const input = graph.newInput<[string, number]>()
-      let messages: DataMessage<[string, number]>[] = []
+      const messages: DataMessage<[string, number]>[] = []
 
       input.pipe(
         reduce((vals) => {
@@ -84,7 +84,7 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -95,7 +95,7 @@ describe('SQLite Operators', () => {
           [['a', 1], -1],
           [['a', 2], 2],
           [['b', 3], -2],
-        ])
+        ]),
       )
       input.sendFrontier(new Antichain([v([2, 0])]))
 
@@ -113,7 +113,7 @@ describe('SQLite Operators', () => {
   })
 
   describe('Reduce operation with persistence', () => {
-    const dbPath = path.join(__dirname, 'test.db')
+    const dbPath = path.join(import.meta.dirname, 'test.db')
     let db: Database.Database
 
     beforeEach(() => {
@@ -148,7 +148,7 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -160,7 +160,7 @@ describe('SQLite Operators', () => {
           [['a', 1], 2],
           [['a', 2], 1],
           [['b', 3], 1],
-        ])
+        ]),
       )
       input.sendFrontier(new Antichain([v([2, 0])]))
 
@@ -195,7 +195,7 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -206,7 +206,7 @@ describe('SQLite Operators', () => {
         new MultiSet([
           [['a', 3], 1],
           [['c', 5], 1],
-        ])
+        ]),
       )
       newInput.sendFrontier(new Antichain([v([3, 0])]))
 

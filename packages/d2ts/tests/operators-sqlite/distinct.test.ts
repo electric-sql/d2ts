@@ -1,13 +1,15 @@
 import { describe, test, expect, beforeEach, afterEach } from 'vitest'
-import { D2 } from '../../src/pipe'
-import { MultiSet } from '../../src/multiset'
-import { Antichain, v } from '../../src/order'
-import { DataMessage, MessageType } from '../../src/types'
-import { distinct } from '../../src/operators-sqlite'
-import { output } from '../../src/operators'
+import { D2 } from '../../src/d2.js'
+import { MultiSet } from '../../src/multiset.js'
+import { Antichain, v } from '../../src/order.js'
+import { DataMessage, MessageType } from '../../src/types.js'
+import { distinct } from '../../src/operators-sqlite.js'
+import { output } from '../../src/operators.js'
 import Database from 'better-sqlite3'
 import fs from 'fs'
 import path from 'path'
+
+const DB_FILENAME = 'test-distinct.db'
 
 describe('SQLite Operators', () => {
   describe('Distinct operation', () => {
@@ -24,7 +26,7 @@ describe('SQLite Operators', () => {
     test('basic distinct operation', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const input = graph.newInput<[number, string]>()
-      let messages: DataMessage<[number, string]>[] = []
+      const messages: DataMessage<[number, string]>[] = []
 
       input.pipe(
         distinct(db),
@@ -32,7 +34,7 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -43,7 +45,7 @@ describe('SQLite Operators', () => {
           [[1, 'a'], 2],
           [[2, 'b'], 1],
           [[2, 'c'], 2],
-        ])
+        ]),
       )
       input.sendFrontier(new Antichain([v([1, 1])]))
 
@@ -63,7 +65,7 @@ describe('SQLite Operators', () => {
     test('distinct with updates', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const input = graph.newInput<[number, string]>()
-      let messages: DataMessage<[number, string]>[] = []
+      const messages: DataMessage<[number, string]>[] = []
 
       input.pipe(
         distinct(db),
@@ -71,7 +73,7 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -81,14 +83,14 @@ describe('SQLite Operators', () => {
         new MultiSet([
           [[1, 'a'], 1],
           [[1, 'b'], 1],
-        ])
+        ]),
       )
       input.sendData(
         v([2, 0]),
         new MultiSet([
           [[1, 'b'], -1],
           [[1, 'c'], 1],
-        ])
+        ]),
       )
       input.sendFrontier(new Antichain([v([3, 0])]))
 
@@ -110,7 +112,7 @@ describe('SQLite Operators', () => {
   })
 
   describe('Distinct operation with persistence', () => {
-    const dbPath = path.join(__dirname, 'test.db')
+    const dbPath = path.join(import.meta.dirname, DB_FILENAME)
     let db: Database.Database
 
     beforeEach(() => {
@@ -139,7 +141,7 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -151,7 +153,7 @@ describe('SQLite Operators', () => {
           [['key1', 'a'], 2],
           [['key1', 'b'], 1],
           [['key2', 'x'], 3],
-        ])
+        ]),
       )
       input.sendFrontier(new Antichain([v([2, 0])]))
 
@@ -181,7 +183,7 @@ describe('SQLite Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -193,7 +195,7 @@ describe('SQLite Operators', () => {
           [['key1', 'b'], -1],
           [['key1', 'c'], 2],
           [['key3', 'y'], 1],
-        ])
+        ]),
       )
       newInput.sendFrontier(new Antichain([v([3, 0])]))
 
@@ -209,11 +211,15 @@ describe('SQLite Operators', () => {
       ])
 
       // Query the database directly to verify persistence
-      const tables = db.prepare(`
+      const tables = db
+        .prepare(
+          `
         SELECT name FROM sqlite_master 
         WHERE type='table' AND name LIKE 'reduce_%'
-      `).all()
-      
+      `,
+        )
+        .all()
+
       expect(tables.length).toBeGreaterThan(0)
     })
   })

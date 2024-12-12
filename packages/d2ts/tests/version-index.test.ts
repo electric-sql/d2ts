@@ -1,11 +1,12 @@
 import { describe, test, expect, beforeEach, afterEach } from 'vitest'
-import { v, Antichain } from '../src/order'
-import { Index } from '../src/version-index'
-import { SQLIndex } from '../src/version-index-sqlite'
+import { v, Antichain } from '../src/order.js'
+import { Index } from '../src/version-index.js'
+import { SQLIndex } from '../src/version-index-sqlite.js'
 import Database from 'better-sqlite3'
 import fs from 'fs'
 
 const SAVE_DB = true
+const DB_FILENAME = 'test-version-index.db'
 
 // Test factory that runs the same tests for both implementations
 function createIndexTests<
@@ -25,10 +26,10 @@ function createIndexTests<
         createIndex = (_name: string) => new Index() as T
       } else {
         if (SAVE_DB) {
-          if (fs.existsSync('./test.db')) {
-            fs.unlinkSync('./test.db')
+          if (fs.existsSync(DB_FILENAME)) {
+            fs.unlinkSync(DB_FILENAME)
           }
-          db = new Database('./test.db')
+          db = new Database(DB_FILENAME)
         } else {
           db = new Database(':memory:')
         }

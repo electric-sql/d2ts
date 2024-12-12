@@ -1,9 +1,9 @@
 import { describe, test, expect } from 'vitest'
-import { D2 } from '../../src/pipe'
-import { MultiSet } from '../../src/multiset'
-import { Antichain, v } from '../../src/order'
-import { DataMessage, MessageType } from '../../src/types'
-import { count, output } from '../../src/operators'
+import { D2 } from '../../src/d2.js'
+import { MultiSet } from '../../src/multiset.js'
+import { Antichain, v } from '../../src/order.js'
+import { DataMessage, MessageType } from '../../src/types.js'
+import { count, output } from '../../src/operators.js'
 
 describe('Operators', () => {
   describe('Count operation', () => {
@@ -15,7 +15,7 @@ function testCount() {
   test('basic count operation', () => {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const input = graph.newInput<[number, string]>()
-    let messages: DataMessage<[number, number]>[] = []
+    const messages: DataMessage<[number, number]>[] = []
 
     input.pipe(
       count(),
@@ -23,7 +23,7 @@ function testCount() {
         if (message.type === MessageType.DATA) {
           messages.push(message.data)
         }
-      })
+      }),
     )
 
     graph.finalize()
@@ -58,7 +58,7 @@ function testCount() {
   test('count with all negative multiplicities', () => {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const input = graph.newInput<[number, string]>()
-    let messages: DataMessage<[number, number]>[] = []
+    const messages: DataMessage<[number, number]>[] = []
 
     input.pipe(
       count(),
@@ -66,7 +66,7 @@ function testCount() {
         if (message.type === MessageType.DATA) {
           messages.push(message.data)
         }
-      })
+      }),
     )
 
     graph.finalize()
@@ -90,7 +90,7 @@ function testCount() {
   test('count with multiple versions', () => {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const input = graph.newInput<[string, string]>()
-    let messages: DataMessage<[string, number]>[] = []
+    const messages: DataMessage<[string, number]>[] = []
 
     input.pipe(
       count(),
@@ -98,7 +98,7 @@ function testCount() {
         if (message.type === MessageType.DATA) {
           messages.push(message.data)
         }
-      })
+      }),
     )
 
     graph.finalize()

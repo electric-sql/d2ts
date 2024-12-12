@@ -4,9 +4,9 @@ import {
   DifferenceStreamWriter,
   Graph,
   UnaryOperator,
-} from './graph'
-import { Antichain } from './order'
-import { Message } from './types'
+} from './graph.js'
+import { Antichain } from './order.js'
+import { Message } from './types.js'
 import {
   ConcatOperator,
   ConsolidateOperator,
@@ -22,15 +22,15 @@ import {
   NegateOperator,
   OutputOperator,
   ReduceOperator,
-} from './operators'
-import Database from 'better-sqlite3'
+} from './operators.js'
 import {
   ConsolidateOperatorSQLite,
   JoinOperatorSQLite,
   ReduceOperatorSQLite,
   CountOperatorSQLite,
   DistinctOperatorSQLite,
-} from './operators-sqlite'
+} from './operators-sqlite.js'
+import type Database from 'better-sqlite3'
 
 type KeyValue<K, V> = [K, V]
 

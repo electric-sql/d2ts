@@ -1,6 +1,6 @@
-import { D2 } from '../src/pipe'
-import { map, join, distinct, debug } from '../src/operators'
-import { v } from '../src/order'
+import { D2 } from '../src/index.js'
+import { map, join, distinct, debug } from '../src/operators.js'
+import { v } from '../src/order.js'
 import { parseArgs } from 'node:util'
 
 type Issue = {

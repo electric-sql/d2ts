@@ -1,9 +1,9 @@
 import { describe, test, expect } from 'vitest'
-import { D2 } from '../../src/pipe'
-import { MultiSet } from '../../src/multiset'
-import { Antichain, v } from '../../src/order'
-import { DataMessage, MessageType } from '../../src/types'
-import { consolidate, output } from '../../src/operators'
+import { D2 } from '../../src/d2.js'
+import { MultiSet } from '../../src/multiset.js'
+import { Antichain, v } from '../../src/order.js'
+import { DataMessage, MessageType } from '../../src/types.js'
+import { consolidate, output } from '../../src/operators.js'
 
 describe('Operators', () => {
   describe('Consolidate operation', () => {
@@ -15,7 +15,7 @@ function testConsolidate() {
   test('basic consolidate operation', () => {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const input = graph.newInput<number>()
-    let messages: DataMessage<number>[] = []
+    const messages: DataMessage<number>[] = []
 
     input.pipe(
       consolidate(),
@@ -23,7 +23,7 @@ function testConsolidate() {
         if (message.type === MessageType.DATA) {
           messages.push(message.data)
         }
-      })
+      }),
     )
 
     graph.finalize()
@@ -67,7 +67,7 @@ function testConsolidate() {
   test('consolidate with all removed', () => {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const input = graph.newInput<number>()
-    let messages: DataMessage<number>[] = []
+    const messages: DataMessage<number>[] = []
 
     input.pipe(
       consolidate(),
@@ -75,7 +75,7 @@ function testConsolidate() {
         if (message.type === MessageType.DATA) {
           messages.push(message.data)
         }
-      })
+      }),
     )
 
     graph.finalize()
@@ -106,7 +106,7 @@ function testConsolidate() {
   test('consolidate with multiple versions', () => {
     const graph = new D2({ initialFrontier: v([0, 0]) })
     const input = graph.newInput<number>()
-    let messages: DataMessage<number>[] = []
+    const messages: DataMessage<number>[] = []
 
     input.pipe(
       consolidate(),
@@ -114,7 +114,7 @@ function testConsolidate() {
         if (message.type === MessageType.DATA) {
           messages.push(message.data)
         }
-      })
+      }),
     )
 
     graph.finalize()

@@ -1,16 +1,16 @@
 import { describe, test, expect } from 'vitest'
-import { D2 } from '../../src/pipe'
-import { MultiSet } from '../../src/multiset'
-import { Antichain, v } from '../../src/order'
-import { DataMessage, MessageType } from '../../src/types'
-import { reduce, output } from '../../src/operators'
+import { D2 } from '../../src/d2.js'
+import { MultiSet } from '../../src/multiset.js'
+import { Antichain, v } from '../../src/order.js'
+import { DataMessage, MessageType } from '../../src/types.js'
+import { reduce, output } from '../../src/operators.js'
 
 describe('Operators', () => {
   describe('Reduce operation', () => {
     test('basic reduce operation', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const input = graph.newInput<[string, number]>()
-      let messages: DataMessage<[string, number]>[] = []
+      const messages: DataMessage<[string, number]>[] = []
 
       input.pipe(
         reduce((vals) => {
@@ -24,7 +24,7 @@ describe('Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -56,7 +56,7 @@ describe('Operators', () => {
     test('reduce with negative multiplicities', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const input = graph.newInput<[string, number]>()
-      let messages: DataMessage<[string, number]>[] = []
+      const messages: DataMessage<[string, number]>[] = []
 
       input.pipe(
         reduce((vals) => {
@@ -70,7 +70,7 @@ describe('Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()

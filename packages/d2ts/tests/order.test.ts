@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { v, Version, Antichain } from '../src/order'
+import { v, Version, Antichain } from '../src/order.js'
 
 describe('Version', () => {
   it('should handle version comparisons', () => {

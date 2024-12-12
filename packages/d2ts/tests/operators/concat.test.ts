@@ -1,9 +1,9 @@
 import { describe, test, expect } from 'vitest'
-import { D2 } from '../../src/pipe'
-import { MultiSet } from '../../src/multiset'
-import { Antichain, v } from '../../src/order'
-import { DataMessage, Message, MessageType } from '../../src/types'
-import { concat, output } from '../../src/operators'
+import { D2 } from '../../src/d2.js'
+import { MultiSet } from '../../src/multiset.js'
+import { Antichain, v } from '../../src/order.js'
+import { DataMessage, Message, MessageType } from '../../src/types.js'
+import { concat, output } from '../../src/operators.js'
 
 describe('Operators', () => {
   describe('Concat operation', () => {
@@ -11,7 +11,7 @@ describe('Operators', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const inputA = graph.newInput<number>()
       const inputB = graph.newInput<number>()
-      let messages: DataMessage<number>[] = []
+      const messages: DataMessage<number>[] = []
 
       inputA.pipe(
         concat(inputB),
@@ -19,7 +19,7 @@ describe('Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -32,7 +32,7 @@ describe('Operators', () => {
         ]),
       )
       inputA.sendFrontier(new Antichain([v([1, 0])]))
-      
+
       inputB.sendData(
         v([1, 0]),
         new MultiSet([
@@ -62,7 +62,7 @@ describe('Operators', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const inputA = graph.newInput<number>()
       const inputB = graph.newInput<number>()
-      let messages: DataMessage<number>[] = []
+      const messages: DataMessage<number>[] = []
 
       inputA.pipe(
         concat(inputB),
@@ -70,7 +70,7 @@ describe('Operators', () => {
           if (message.type === MessageType.DATA) {
             messages.push(message.data)
           }
-        })
+        }),
       )
 
       graph.finalize()
@@ -116,13 +116,13 @@ describe('Operators', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const inputA = graph.newInput<number>()
       const inputB = graph.newInput<number>()
-      let messages: Message<number>[] = []
+      const messages: Message<number>[] = []
 
       inputA.pipe(
         concat(inputB),
         output((message) => {
           messages.push(message)
-        })
+        }),
       )
 
       graph.finalize()

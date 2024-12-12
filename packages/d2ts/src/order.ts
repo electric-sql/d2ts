@@ -1,4 +1,4 @@
-import { WeakRefMap } from './utils'
+import { WeakRefMap } from './utils.js'
 
 const versionCache = new WeakRefMap<string, Version>()
 
@@ -145,7 +145,9 @@ export class Antichain {
     }
   }
 
-  static create(value: Antichain | Version[] | Version | number | number[]): Antichain {
+  static create(
+    value: Antichain | Version[] | Version | number | number[],
+  ): Antichain {
     if (value instanceof Antichain) {
       return value
     } else if (Array.isArray(value)) {
@@ -271,7 +273,6 @@ export class Antichain {
     )
   }
 }
-
 
 export class Frontier extends Antichain {
   constructor(...elements: Version[]) {

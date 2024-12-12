@@ -1,5 +1,5 @@
-import { D2 } from '../src/pipe'
-import { map, filter, debug } from '../src/operators'
+import { D2 } from '../src/index.js'
+import { map, filter, debug } from '../src/operators.js'
 
 // Create a new D2 graph with an initial frontier of 0
 // This is the lower bound of the version space

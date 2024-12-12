@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { DefaultMap, WeakRefMap } from '../src/utils'
+import { DefaultMap, WeakRefMap } from '../src/utils.js'
 
 describe('DefaultMap', () => {
   it('should return default value for missing keys', () => {

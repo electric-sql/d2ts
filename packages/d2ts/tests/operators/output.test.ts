@@ -1,21 +1,21 @@
 import { describe, test, expect } from 'vitest'
-import { D2 } from '../../src/pipe'
-import { MultiSet } from '../../src/multiset'
-import { Antichain, v } from '../../src/order'
-import { Message, MessageType } from '../../src/types'
-import { output } from '../../src/operators'
+import { D2 } from '../../src/d2.js'
+import { MultiSet } from '../../src/multiset.js'
+import { Antichain, v } from '../../src/order.js'
+import { Message, MessageType } from '../../src/types.js'
+import { output } from '../../src/operators.js'
 
 describe('Operators', () => {
   describe('Output operation', () => {
     test('basic output operation', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const input = graph.newInput<number>()
-      let messages: Message<number>[] = []
+      const messages: Message<number>[] = []
 
       input.pipe(
         output((message) => {
           messages.push(message)
-        })
+        }),
       )
 
       graph.finalize()
@@ -37,12 +37,12 @@ describe('Operators', () => {
     test('output with multiple versions', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const input = graph.newInput<number>()
-      let messages: Message<number>[] = []
+      const messages: Message<number>[] = []
 
       input.pipe(
         output((message) => {
           messages.push(message)
-        })
+        }),
       )
 
       graph.finalize()
@@ -69,12 +69,12 @@ describe('Operators', () => {
     test('output with empty collection', () => {
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const input = graph.newInput<number>()
-      let messages: Message<number>[] = []
+      const messages: Message<number>[] = []
 
       input.pipe(
         output((message) => {
           messages.push(message)
-        })
+        }),
       )
 
       graph.finalize()

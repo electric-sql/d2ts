@@ -1,6 +1,6 @@
-import { Version, Antichain } from './order'
-import { MultiSet } from './multiset'
-import { DefaultMap } from './utils'
+import { Version, Antichain } from './order.js'
+import { MultiSet } from './multiset.js'
+import { DefaultMap } from './utils.js'
 
 type VersionMap<T> = DefaultMap<Version, T[]>
 type IndexMap<K, V> = DefaultMap<K, VersionMap<[V, number]>>

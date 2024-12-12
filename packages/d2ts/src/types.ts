@@ -1,6 +1,6 @@
-import type { Version, Antichain } from './order'
-import type { MultiSet, MultiSetArray } from './multiset'
-import type { DifferenceStreamWriter, DifferenceStreamReader } from './graph'
+import type { Version, Antichain } from './order.js'
+import type { MultiSet, MultiSetArray } from './multiset.js'
+import type { DifferenceStreamWriter, DifferenceStreamReader } from './graph.js'
 
 export type KeyValue<K, V> = [K, V]
 
@@ -110,8 +110,10 @@ export interface IStreamBuilder<T> {
   pipe<T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, O>(o1: PipedOperator<T, T2>, o2: PipedOperator<T2, T3>, o3: PipedOperator<T3, T4>, o4: PipedOperator<T4, T5>, o5: PipedOperator<T5, T6>, o6: PipedOperator<T6, T7>, o7: PipedOperator<T7, T8>, o8: PipedOperator<T8, T9>, o9: PipedOperator<T9, T10>, o10: PipedOperator<T10, T11>, o11: PipedOperator<T11, T12>, o12: PipedOperator<T12, T13>, o13: PipedOperator<T13, T14>, o14: PipedOperator<T14, T15>, o15: PipedOperator<T15, T16>, o16: PipedOperator<T16, T17>, o17: PipedOperator<T17, T18>, o18: PipedOperator<T18, T19>, o19: PipedOperator<T19, O>): IStreamBuilder<O>
   // prettier-ignore
   pipe<T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, O>(o1: PipedOperator<T, T2>, o2: PipedOperator<T2, T3>, o3: PipedOperator<T3, T4>, o4: PipedOperator<T4, T5>, o5: PipedOperator<T5, T6>, o6: PipedOperator<T6, T7>, o7: PipedOperator<T7, T8>, o8: PipedOperator<T8, T9>, o9: PipedOperator<T9, T10>, o10: PipedOperator<T10, T11>, o11: PipedOperator<T11, T12>, o12: PipedOperator<T12, T13>, o13: PipedOperator<T13, T14>, o14: PipedOperator<T14, T15>, o15: PipedOperator<T15, T16>, o16: PipedOperator<T16, T17>, o17: PipedOperator<T17, T18>, o18: PipedOperator<T18, T19>, o19: PipedOperator<T19, T20>, o20: PipedOperator<T20, O>): IStreamBuilder<O>
-  
+
   pipe<O>(...operators: PipedOperator<any, any>[]): IStreamBuilder<O>
 }
 
-export type PipedOperator<I, O> = (stream: IStreamBuilder<I>) => IStreamBuilder<O>
+export type PipedOperator<I, O> = (
+  stream: IStreamBuilder<I>,
+) => IStreamBuilder<O>

@@ -1,9 +1,13 @@
-import { BinaryOperator, DifferenceStreamWriter, UnaryOperator } from './graph'
-import { DifferenceStreamReader } from './graph'
-import { MultiSetArray } from './multiset'
-import { MultiSet } from './multiset'
-import { Antichain, Version } from './order'
-import { PipedOperator, IStreamBuilder, ID2 } from './types'
+import {
+  BinaryOperator,
+  DifferenceStreamWriter,
+  UnaryOperator,
+} from './graph.js'
+import { DifferenceStreamReader } from './graph.js'
+import { MultiSetArray } from './multiset.js'
+import { MultiSet } from './multiset.js'
+import { Antichain, Version } from './order.js'
+import { PipedOperator, IStreamBuilder, ID2 } from './types.js'
 
 export type D2Options = {
   initialFrontier: Antichain | Version | number | number[]
@@ -153,7 +157,7 @@ export class StreamBuilder<T> implements IStreamBuilder<T> {
 export class RootStreamBuilder<T> extends StreamBuilder<T> {
   sendData(
     version: Version | number | number[],
-    collection: MultiSet<T> | MultiSetArray<T>
+    collection: MultiSet<T> | MultiSetArray<T>,
   ): void {
     this.writer.sendData(version, collection)
   }

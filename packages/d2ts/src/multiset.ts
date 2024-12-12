@@ -1,4 +1,4 @@
-import { DefaultMap } from './utils'
+import { DefaultMap } from './utils.js'
 
 export type MultiSetArray<T> = [T, number][]
 export type KeyedData<T> = [key: string, value: T]
@@ -272,13 +272,11 @@ export class MultiSet<T> {
    */
   iterate(f: (collection: MultiSet<T>) => MultiSet<T>): MultiSet<T> {
     let curr = new MultiSet(this.#inner)
+    let result = f(curr)
 
-    while (true) {
-      const result = f(curr)
-      if (JSON.stringify(result.#inner) === JSON.stringify(curr.#inner)) {
-        break
-      }
+    while (JSON.stringify(result.#inner) !== JSON.stringify(curr.#inner)) {
       curr = result
+      result = f(curr)
     }
 
     return curr

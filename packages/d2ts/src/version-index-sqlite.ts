@@ -1,5 +1,5 @@
-import { Version, Antichain, v } from './order'
-import { MultiSet } from './multiset'
+import { Version, Antichain, v } from './order.js'
+import { MultiSet } from './multiset.js'
 import Database from 'better-sqlite3'
 
 interface IndexRow {
@@ -298,7 +298,9 @@ export class SQLIndex<K, V> {
     this.#validate(requestedVersion)
     const rows = this.#preparedStatements.getAllForKey.all(
       JSON.stringify(key),
-      { requestedVersion: requestedVersion.toJSON() },
+      {
+        requestedVersion: requestedVersion.toJSON(),
+      },
     )
 
     const result = rows
@@ -480,7 +482,9 @@ export class SQLIndex<K, V> {
         if (!newVersionId) {
           newVersionId = this.#preparedStatements.insertVersion.get(
             newVersionJson,
-          ) as { id: number }
+          ) as {
+            id: number
+          }
         }
 
         // Move data to new version, handling conflicts by adding multiplicities

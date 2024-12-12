@@ -1,5 +1,5 @@
-import { D2 } from '../src/pipe'
-import { map, filter, negate, concat, join, count } from '../src/operators'
+import { D2 } from '../src/index.js'
+import { map, filter, negate, concat, join, count } from '../src/operators.js'
 
 function one() {
   console.log('=== one: map/filter/negate/concat ===')
