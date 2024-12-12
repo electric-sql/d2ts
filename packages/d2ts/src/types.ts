@@ -1,5 +1,6 @@
-import { Version, Antichain } from './order'
-import { MultiSet } from './multiset'
+import type { Version, Antichain } from './order'
+import type { MultiSet } from './multiset'
+import type { DifferenceStreamWriter, DifferenceStreamReader } from './graph'
 
 export const MessageType = {
   DATA: 1,
@@ -30,3 +31,25 @@ export interface IOperator<_T> {
   hasPendingWork(): boolean
   frontiers(): [Antichain[], Antichain]
 }
+
+
+export interface ID2 {
+  getNextOperatorId(): number
+  newInput<T>(): IStreamBuilder<T>
+  addOperator(operator: IOperator<any>): void
+  addStream(stream: DifferenceStreamReader<any>): void
+  frontier(): Antichain
+  pushFrontier(newFrontier: Antichain): void
+  popFrontier(): void
+  finalize(): void
+  step(): void
+}
+
+export interface IStreamBuilder<T> {
+  writer: DifferenceStreamWriter<T>
+  connectReader(): DifferenceStreamReader<T>
+  graph: ID2
+  pipe<O>(o1: PipedOperator<T, O>): IStreamBuilder<O>
+}
+
+export type PipedOperator<I, O> = (stream: IStreamBuilder<I>) => IStreamBuilder<O>

@@ -145,6 +145,24 @@ export class Antichain {
     }
   }
 
+  static create(value: Antichain | Version[] | Version | number | number[]): Antichain {
+    if (value instanceof Antichain) {
+      return value
+    } else if (Array.isArray(value)) {
+      if (value.every((v) => v instanceof Version)) {
+        return new Antichain(value)
+      } else {
+        return new Antichain(value.map((n) => v(n)))
+      }
+    } else if (value instanceof Version) {
+      return new Antichain([value])
+    } else if (typeof value === 'number') {
+      return new Antichain([v(value)])
+    } else {
+      throw new Error('Invalid value for Antichain')
+    }
+  }
+
   toString(): string {
     return `Antichain(${JSON.stringify(this.#inner.map((v) => v.getInner()))})`
   }
@@ -251,5 +269,12 @@ export class Antichain {
     return new Antichain(
       JSON.parse(json).map((version: number[]) => v(version)),
     )
+  }
+}
+
+
+export class Frontier extends Antichain {
+  constructor(...elements: Version[]) {
+    super(elements)
   }
 }

@@ -88,13 +88,7 @@ export class DifferenceStreamWriter<T> {
   }
 
   sendFrontier(frontier: Antichain | Version | number | number[]): void {
-    if (typeof frontier === 'number') {
-      frontier = new Antichain([v(frontier)])
-    } else if (Array.isArray(frontier)) {
-      frontier = new Antichain([v(frontier)])
-    } else if (frontier instanceof Version) {
-      frontier = new Antichain([frontier])
-    }
+    frontier = Antichain.create(frontier)
 
     if (this.frontier && !this.frontier.lessEqual(frontier)) {
       throw new Error('Invalid frontier')
