@@ -1,6 +1,6 @@
 import { MultiSet } from '../src/multiset'
 import { D2 } from '../src/index.js'
-import { map, filter, reduce, debug, consolidate, output } from '../src/operators.js'
+import { map, filter, reduce, debug, consolidate, output } from '../src/operators/index.js'
 import { v } from '../src/order.js'
 import { MessageType } from '../src/types.js'
 
