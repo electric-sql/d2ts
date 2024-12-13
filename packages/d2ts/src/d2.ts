@@ -4,8 +4,7 @@ import {
   UnaryOperator,
 } from './graph.js'
 import { DifferenceStreamReader } from './graph.js'
-import { MultiSetArray } from './multiset.js'
-import { MultiSet } from './multiset.js'
+import { MultiSetArray, MultiSet } from './multiset.js'
 import { Antichain, Version } from './order.js'
 import { PipedOperator, IStreamBuilder, ID2 } from './types.js'
 
