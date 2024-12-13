@@ -14,14 +14,18 @@ Differential dataflow is a powerful data-parallel programming framework that ena
 ## Key Features
 
 - **Incremental Processing**: Efficiently process changes to input data without recomputing everything
-- **Rich Operators**: Supports common operations like:
-  - `map()`: Transform elements
-  - `filter()`: Filter elements based on predicates
-  - `join()`: Join two collections
-  - `reduce()`: Aggregate values by key
+- **Rich Operators**: Supports common operations with a pipeline API:
+  - `concat()`: Concatenate two streams
+  - `consolidate()`: Consolidates the elements in the stream
   - `count()`: Count elements by key
   - `distinct()`: Remove duplicates
+  - `filter()`: Filter elements based on predicates
   - `iterate()`: Perform iterative computations
+  - `join()`: Join two collections
+  - `map()`: Transform elements
+  - `reduce()`: Aggregate values by key
+  - `output()`: Output the results of the stream
+  - `pipe()`: Build a pipeline of operators
 - **SQLite Integration**: Optional SQLite backend for managing operator state
 - **Type Safety**: Full TypeScript type safety and inference
 
@@ -71,7 +75,7 @@ input.sendData(v([0, 0]), new MultiSet([
 input.sendFrontier(v([0, 1]))
 
 // Process the data
-graph.step()
+graph.run()
 
 // Output will show:
 // 6 (from 1 + 5)
@@ -107,7 +111,7 @@ See the `examples/` directory for more complex scenarios including:
 
 ## Implementation Details
 
-The implementation follows the structure outlined in the Materialize blog post, with some TypeScript-specific adaptations:
+The implementation is based on the the one outlined in the [Materialize blog post](https://materialize.com/blog/differential-from-scratch/), with some TypeScript-specific adaptations, along with using a pipeline rather than builder api pattern.
 
 1. Core data structures:
 
@@ -118,12 +122,11 @@ The implementation follows the structure outlined in the Materialize blog post, 
 
 2. Operators:
 
-   - Base operator classes in `src/operators.ts`
-   - SQLite variants in `src/operators-sqlite.ts`
-   - Graph construction in `src/pipe.ts`
+   - Base operator classes in `src/operators/`
+   - SQLite variants in `src/sqlite/operators/`
 
 3. Graph execution:
-   - Dataflow graph management in `src/graph.ts`
+   - Dataflow graph management in `src/graph.ts` and `src/D2.ts`
    - Message passing between operators
    - Frontier tracking and advancement
 
