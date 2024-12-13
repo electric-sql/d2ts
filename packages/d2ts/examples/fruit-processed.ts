@@ -1,6 +1,6 @@
 import { MultiSet } from '../src/multiset'
 import { D2 } from '../src/index.js'
-import { map, filter, reduce, debug, consolidate, output } from '../src/operators/index.js'
+import { map, reduce, consolidate, output } from '../src/operators/index.js'
 import { v } from '../src/order.js'
 import { MessageType } from '../src/types.js'
 
@@ -30,7 +30,7 @@ function showProcessed() {
   console.log(JSON.stringify(obj, null, 2))
 }
 
-const statusTotals = input.pipe(
+input.pipe(
   // debug('Raw Input'),
   map((order) => [`${order.name}-${order.status}`, order.quantity] as [string, number]),
   // debug('After Map'),
@@ -66,7 +66,7 @@ const statusTotals = input.pipe(
 )
 
 // Track total processed quantities regardless of status
-const processedTotals = input.pipe(
+input.pipe(
   // debug('Raw Input'),
   map((order) => [order.name, order.quantity] as [string, number]),
   // debug('After Map'),
