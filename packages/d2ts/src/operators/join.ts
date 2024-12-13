@@ -1,5 +1,15 @@
-import { IStreamBuilder, PipedOperator, DataMessage, MessageType, KeyValue } from '../types.js'
-import { DifferenceStreamReader, DifferenceStreamWriter, BinaryOperator } from '../graph.js'
+import {
+  IStreamBuilder,
+  PipedOperator,
+  DataMessage,
+  MessageType,
+  KeyValue,
+} from '../types.js'
+import {
+  DifferenceStreamReader,
+  DifferenceStreamWriter,
+  BinaryOperator,
+} from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { MultiSet } from '../multiset.js'
 import { Antichain, Version } from '../order.js'
@@ -135,4 +145,4 @@ export function join<
     stream.graph.addStream(output.connectReader())
     return output
   }
-} 
+}

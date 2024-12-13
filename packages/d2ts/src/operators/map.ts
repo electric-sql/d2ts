@@ -48,4 +48,4 @@ export function map<T, O>(f: (data: T) => O): PipedOperator<T, O> {
     stream.graph.addStream(output.connectReader())
     return output
   }
-} 
+}

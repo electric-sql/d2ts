@@ -73,4 +73,4 @@ export function concat<T, T2>(
     stream.graph.addStream(output.connectReader())
     return output
   }
-} 
+}

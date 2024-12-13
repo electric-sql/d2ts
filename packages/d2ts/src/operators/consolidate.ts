@@ -1,4 +1,9 @@
-import { IStreamBuilder, PipedOperator, DataMessage, MessageType } from '../types.js'
+import {
+  IStreamBuilder,
+  PipedOperator,
+  DataMessage,
+  MessageType,
+} from '../types.js'
 import { DifferenceStreamWriter, UnaryOperator } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { MultiSet } from '../multiset.js'
@@ -69,4 +74,4 @@ export function consolidate<T>(): PipedOperator<T, T> {
     stream.graph.addStream(output.connectReader())
     return output
   }
-} 
+}

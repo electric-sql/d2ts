@@ -1,2 +1,2 @@
 export * from './version-index.js'
-export * from './operators.js'
+export * from './operators/index.js'

@@ -32,4 +32,4 @@ export function negate<T>(): PipedOperator<T, T> {
     stream.graph.addStream(output.connectReader())
     return output
   }
-} 
+}

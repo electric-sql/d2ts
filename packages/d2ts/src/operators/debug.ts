@@ -1,5 +1,14 @@
-import { IStreamBuilder, PipedOperator, DataMessage, MessageType } from '../types.js'
-import { DifferenceStreamReader, DifferenceStreamWriter, UnaryOperator } from '../graph.js'
+import {
+  IStreamBuilder,
+  PipedOperator,
+  DataMessage,
+  MessageType,
+} from '../types.js'
+import {
+  DifferenceStreamReader,
+  DifferenceStreamWriter,
+  UnaryOperator,
+} from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { Antichain } from '../order.js'
 
@@ -83,4 +92,4 @@ export function debug<T>(
     stream.graph.addStream(output.connectReader())
     return output
   }
-} 
+}

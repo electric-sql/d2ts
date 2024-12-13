@@ -48,4 +48,4 @@ export function filter<T>(f: (data: T) => boolean): PipedOperator<T, T> {
     stream.graph.addStream(output.connectReader())
     return output
   }
-} 
+}

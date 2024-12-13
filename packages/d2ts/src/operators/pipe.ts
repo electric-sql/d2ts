@@ -19,4 +19,4 @@ export function pipe<T>(...operators: PipedOperator<any, any>[]) {
   return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
     return stream.pipe(...operators)
   }
-} 
+}

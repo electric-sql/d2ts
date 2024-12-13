@@ -31,4 +31,4 @@ export abstract class LinearUnaryOperator<T, U> extends UnaryOperator<T | U> {
       this.output.sendFrontier(this.outputFrontier)
     }
   }
-} 
+}

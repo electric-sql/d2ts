@@ -1,21 +1,40 @@
-import { IStreamBuilder, DataMessage, MessageType, KeyValue } from '../types.js'
+import { StreamBuilder } from '../../d2.js'
+import {
+  DataMessage,
+  MessageType,
+  IStreamBuilder,
+  KeyValue,
+} from '../../types.js'
+import { MultiSet } from '../../multiset.js'
 import {
   DifferenceStreamReader,
   DifferenceStreamWriter,
   UnaryOperator,
-} from '../graph.js'
-import { StreamBuilder } from '../d2.js'
-import { MultiSet } from '../multiset.js'
-import { Antichain, Version } from '../order.js'
-import { Index } from '../version-index.js'
+} from '../../graph.js'
+import { Version, Antichain } from '../../order.js'
+import Database from 'better-sqlite3'
+import { SQLIndex } from '../version-index.js'
+
+interface KeysTodoRow {
+  version: string
+  key: string
+}
 
 /**
- * Base operator for reduction operations
+ * SQLite version of the ReduceOperator
  */
-export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
-  #index = new Index<K, V1>()
-  #indexOut = new Index<K, V2>()
-  #keysTodo = new Map<Version, Set<K>>()
+export class ReduceOperatorSQLite<K, V1, V2> extends UnaryOperator<
+  [K, V1 | V2]
+> {
+  #index: SQLIndex<K, V1>
+  #indexOut: SQLIndex<K, V2>
+  #preparedStatements: {
+    insertKeyTodo: Database.Statement<[string, string]>
+    getKeysTodo: Database.Statement<[], KeysTodoRow>
+    deleteKeysTodo: Database.Statement<[string]>
+    createKeysTodoTable: Database.Statement
+    dropKeysTodoTable: Database.Statement
+  }
   #f: (values: [V1, number][]) => [V2, number][]
 
   constructor(
@@ -24,9 +43,54 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
     output: DifferenceStreamWriter<[K, V2]>,
     f: (values: [V1, number][]) => [V2, number][],
     initialFrontier: Antichain,
+    db: Database.Database,
   ) {
     super(id, inputA, output, initialFrontier)
     this.#f = f
+
+    // Initialize indexes
+    this.#index = new SQLIndex<K, V1>(db, `reduce_index_${id}`)
+    this.#indexOut = new SQLIndex<K, V2>(db, `reduce_index_out_${id}`)
+
+    // Create tables
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS reduce_keys_todo_${id} (
+        version TEXT NOT NULL,
+        key TEXT NOT NULL,
+        PRIMARY KEY (version, key)
+      )
+    `)
+
+    // Create indexes for better performance
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS reduce_keys_todo_${id}_version_idx 
+      ON reduce_keys_todo_${id}(version)
+    `)
+
+    // Prepare statements
+    this.#preparedStatements = {
+      createKeysTodoTable: db.prepare(`
+        CREATE TABLE IF NOT EXISTS reduce_keys_todo_${id} (
+          version TEXT NOT NULL,
+          key TEXT NOT NULL,
+          PRIMARY KEY (version, key)
+        )
+      `),
+      dropKeysTodoTable: db.prepare(`
+        DROP TABLE IF EXISTS reduce_keys_todo_${id}
+      `),
+      insertKeyTodo: db.prepare(`
+        INSERT OR IGNORE INTO reduce_keys_todo_${id} (version, key)
+        VALUES (?, ?)
+      `),
+      getKeysTodo: db.prepare(`
+        SELECT version, key FROM reduce_keys_todo_${id}
+      `),
+      deleteKeysTodo: db.prepare(`
+        DELETE FROM reduce_keys_todo_${id}
+        WHERE version = ?
+      `),
+    }
   }
 
   run(): void {
@@ -37,22 +101,19 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
           const [key, value] = item
           this.#index.addValue(key, version, [value, multiplicity])
 
-          let todoSet = this.#keysTodo.get(version)
-          if (!todoSet) {
-            todoSet = new Set<K>()
-            this.#keysTodo.set(version, todoSet)
-          }
-          todoSet.add(key)
+          // Add key to todo list for this version
+          this.#preparedStatements.insertKeyTodo.run(
+            version.toJSON(),
+            JSON.stringify(key),
+          )
 
           // Add key to all join versions
           for (const v2 of this.#index.versions(key)) {
             const joinVersion = version.join(v2)
-            let joinTodoSet = this.#keysTodo.get(joinVersion)
-            if (!joinTodoSet) {
-              joinTodoSet = new Set<K>()
-              this.#keysTodo.set(joinVersion, joinTodoSet)
-            }
-            joinTodoSet.add(key)
+            this.#preparedStatements.insertKeyTodo.run(
+              joinVersion.toJSON(),
+              JSON.stringify(key),
+            )
           }
         }
       } else if (message.type === MessageType.FRONTIER) {
@@ -65,11 +126,23 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
     }
 
     // Find versions that are complete
-    const finishedVersions = Array.from(this.#keysTodo.entries())
+    const finishedVersionsRows = this.#preparedStatements.getKeysTodo
+      .all()
+      .map((row) => ({
+        version: Version.fromJSON(row.version),
+        key: JSON.parse(row.key) as K,
+      }))
+
+    // Group by version
+    const finishedVersionsMap = new Map<Version, K[]>()
+    for (const { version, key } of finishedVersionsRows) {
+      const keys = finishedVersionsMap.get(version) || []
+      keys.push(key)
+      finishedVersionsMap.set(version, keys)
+    }
+    const finishedVersions = Array.from(finishedVersionsMap.entries())
       .filter(([version]) => !this.inputFrontier().lessEqualVersion(version))
-      .sort(([a], [b]) => {
-        return a.lessEqual(b) ? -1 : 1
-      })
+      .sort((a, b) => (a[0].lessEqual(b[0]) ? -1 : 1))
 
     for (const [version, keys] of finishedVersions) {
       const result: [[K, V2], number][] = []
@@ -106,7 +179,7 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
       if (result.length > 0) {
         this.output.sendData(version, new MultiSet(result))
       }
-      this.#keysTodo.delete(version)
+      this.#preparedStatements.deleteKeysTodo.run(version.toJSON())
     }
 
     if (!this.outputFrontier.lessEqual(this.inputFrontier())) {
@@ -119,28 +192,38 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1 | V2]> {
       this.#indexOut.compact(this.outputFrontier)
     }
   }
+
+  destroy(): void {
+    this.#index.destroy()
+    this.#indexOut.destroy()
+    this.#preparedStatements.dropKeysTodoTable.run()
+  }
 }
 
 /**
  * Reduces the elements in the stream by key
+ * Persists state to SQLite
+ * @param f - The reduction function
+ * @param db - The SQLite database
  */
 export function reduce<
   K extends T extends KeyValue<infer K, infer _V> ? K : never,
   V1 extends T extends KeyValue<K, infer V> ? V : never,
   R,
   T,
->(f: (values: [V1, number][]) => [R, number][]) {
+>(f: (values: [V1, number][]) => [R, number][], db: Database.Database) {
   return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, R>> => {
     const output = new StreamBuilder<KeyValue<K, R>>(
       stream.graph,
       new DifferenceStreamWriter<KeyValue<K, R>>(),
     )
-    const operator = new ReduceOperator<K, V1, R>(
+    const operator = new ReduceOperatorSQLite<K, V1, R>(
       stream.graph.getNextOperatorId(),
       stream.connectReader() as DifferenceStreamReader<KeyValue<K, V1>>,
       output.writer,
       f,
       stream.graph.frontier(),
+      db,
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())

@@ -1,5 +1,9 @@
 import { IStreamBuilder, DataMessage, MessageType } from '../types.js'
-import { DifferenceStreamReader, DifferenceStreamWriter, UnaryOperator } from '../graph.js'
+import {
+  DifferenceStreamReader,
+  DifferenceStreamWriter,
+  UnaryOperator,
+} from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { Antichain, Version } from '../order.js'
 import { DefaultMap } from '../utils.js'
@@ -247,4 +251,4 @@ export function iterate<T>(
 
     return result.pipe(egress())
   }
-} 
+}
