@@ -6,6 +6,7 @@ import { DataMessage, MessageType } from '../../src/types.js'
 import { consolidate } from '../../src/sqlite/operators/consolidate.js'
 import { output } from '../../src/operators/index.js'
 import Database from 'better-sqlite3'
+import { BetterSQLite3Wrapper } from '../../src/sqlite/database.js'
 import fs from 'fs'
 import path from 'path'
 
@@ -13,10 +14,11 @@ const DB_FILENAME = 'test-consolidate.db'
 
 describe('SQLite Operators', () => {
   describe('Consolidate operation', () => {
-    let db: Database.Database
+    let db: BetterSQLite3Wrapper
 
     beforeEach(() => {
-      db = new Database(':memory:')
+      const sqlite = new Database(':memory:')
+      db = new BetterSQLite3Wrapper(sqlite)
     })
 
     afterEach(() => {
@@ -126,13 +128,14 @@ describe('SQLite Operators', () => {
 
   describe('Consolidate operation with persistence', () => {
     const dbPath = path.join(import.meta.dirname, DB_FILENAME)
-    let db: Database.Database
+    let db: BetterSQLite3Wrapper
 
     beforeEach(() => {
       if (fs.existsSync(dbPath)) {
         fs.unlinkSync(dbPath)
       }
-      db = new Database(dbPath)
+      const sqlite = new Database(dbPath)
+      db = new BetterSQLite3Wrapper(sqlite)
     })
 
     afterEach(() => {
@@ -175,7 +178,7 @@ describe('SQLite Operators', () => {
 
       // Create new graph instance with same database
       messages = []
-      db = new Database(dbPath)
+      db = new BetterSQLite3Wrapper(new Database(dbPath))
       graph = new D2({ initialFrontier: v([1, 0]) })
       const newInput = graph.newInput<number>()
 

@@ -12,7 +12,7 @@ import {
   UnaryOperator,
 } from '../../graph.js'
 import { Version, Antichain } from '../../order.js'
-import Database from 'better-sqlite3'
+import { SQLiteDb, SQLiteStatement } from '../database.js'
 
 interface CollectionRow {
   version: string
@@ -29,11 +29,11 @@ interface CollectionParams {
  */
 export class ConsolidateOperatorSQLite<T> extends UnaryOperator<T> {
   #preparedStatements: {
-    insert: Database.Statement<CollectionParams>
-    update: Database.Statement<CollectionParams>
-    get: Database.Statement<string, CollectionRow>
-    delete: Database.Statement<string>
-    getAllVersions: Database.Statement<[], CollectionRow>
+    insert: SQLiteStatement<CollectionParams>
+    update: SQLiteStatement<CollectionParams>
+    get: SQLiteStatement<[string], CollectionRow>
+    delete: SQLiteStatement<[string]>
+    getAllVersions: SQLiteStatement<[], CollectionRow>
   }
 
   constructor(
@@ -41,7 +41,7 @@ export class ConsolidateOperatorSQLite<T> extends UnaryOperator<T> {
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
     initialFrontier: Antichain,
-    db: Database.Database,
+    db: SQLiteDb,
   ) {
     super(id, inputA, output, initialFrontier)
 
@@ -143,7 +143,7 @@ export class ConsolidateOperatorSQLite<T> extends UnaryOperator<T> {
  * Persists state to SQLite
  * @param db - The SQLite database
  */
-export function consolidate<T>(db: Database.Database): PipedOperator<T, T> {
+export function consolidate<T>(db: SQLiteDb): PipedOperator<T, T> {
   return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
     const output = new StreamBuilder<T>(
       stream.graph,

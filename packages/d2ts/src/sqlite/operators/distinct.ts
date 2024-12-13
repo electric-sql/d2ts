@@ -2,7 +2,7 @@ import { StreamBuilder } from '../../d2.js'
 import { IStreamBuilder, KeyValue } from '../../types.js'
 import { DifferenceStreamReader, DifferenceStreamWriter } from '../../graph.js'
 import { Antichain } from '../../order.js'
-import Database from 'better-sqlite3'
+import { SQLiteDb } from '../database.js'
 import { ReduceOperatorSQLite } from './reduce.js'
 
 export class DistinctOperatorSQLite<K, V> extends ReduceOperatorSQLite<
@@ -15,7 +15,7 @@ export class DistinctOperatorSQLite<K, V> extends ReduceOperatorSQLite<
     inputA: DifferenceStreamReader<[K, V]>,
     output: DifferenceStreamWriter<[K, V]>,
     initialFrontier: Antichain,
-    db: Database.Database,
+    db: SQLiteDb,
   ) {
     const distinctInner = (vals: [V, number][]): [V, number][] => {
       const consolidated = new Map<string, number>()
@@ -43,7 +43,7 @@ export function distinct<
   K extends T extends KeyValue<infer K, infer _V> ? K : never,
   V extends T extends KeyValue<K, infer V> ? V : never,
   T,
->(db: Database.Database) {
+>(db: SQLiteDb) {
   return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, V>> => {
     const output = new StreamBuilder<KeyValue<K, V>>(
       stream.graph,

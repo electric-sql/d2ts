@@ -4,6 +4,7 @@ import { Index } from '../src/version-index.js'
 import { SQLIndex } from '../src/sqlite/version-index.js'
 import Database from 'better-sqlite3'
 import fs from 'fs'
+import { BetterSQLite3Wrapper } from '../src/sqlite/database.js'
 
 const SAVE_DB = true
 const DB_FILENAME = 'test-version-index.db'
@@ -18,7 +19,7 @@ function createIndexTests<
   describe(name, () => {
     let index: T
     let createIndex: (name: string) => T
-    let db: InstanceType<typeof Database> | null = null
+    let db: BetterSQLite3Wrapper | null = null
 
     beforeEach(() => {
       if (name === 'in-memory') {
@@ -29,9 +30,11 @@ function createIndexTests<
           if (fs.existsSync(DB_FILENAME)) {
             fs.unlinkSync(DB_FILENAME)
           }
-          db = new Database(DB_FILENAME)
+          const sqlite = new Database(DB_FILENAME)
+          db = new BetterSQLite3Wrapper(sqlite)
         } else {
-          db = new Database(':memory:')
+          const sqlite = new Database(':memory:')
+          db = new BetterSQLite3Wrapper(sqlite)
         }
         createIndex = (name: string) => new SQLIndex(db!, name) as T
       }
@@ -380,7 +383,6 @@ function createIndexTests<
     // Clean up resources if needed (especially for SQLite)
     afterEach(async () => {
       if ('close' in index) {
-        // @ts-expect-error
         await (index as SQLIndex<string, number>).close()
         db?.close()
       }

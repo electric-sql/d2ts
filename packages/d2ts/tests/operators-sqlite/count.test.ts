@@ -8,15 +8,17 @@ import { output } from '../../src/operators/index.js'
 import Database from 'better-sqlite3'
 import fs from 'fs'
 import path from 'path'
+import { BetterSQLite3Wrapper } from '../../src/sqlite/database.js'
 
 const DB_FILENAME = 'test-count.db'
 
 describe('SQLite Operators', () => {
   describe('Count operation', () => {
-    let db: Database.Database
+    let db: BetterSQLite3Wrapper
 
     beforeEach(() => {
-      db = new Database(':memory:')
+      const sqlite = new Database(':memory:')
+      db = new BetterSQLite3Wrapper(sqlite)
     })
 
     afterEach(() => {
@@ -115,13 +117,14 @@ describe('SQLite Operators', () => {
 
   describe('Count operation with persistence', () => {
     const dbPath = path.join(import.meta.dirname, DB_FILENAME)
-    let db: Database.Database
+    let db: BetterSQLite3Wrapper
 
     beforeEach(() => {
       if (fs.existsSync(dbPath)) {
         fs.unlinkSync(dbPath)
       }
-      db = new Database(dbPath)
+      const sqlite = new Database(dbPath)
+      db = new BetterSQLite3Wrapper(sqlite)
     })
 
     afterEach(() => {
@@ -174,7 +177,7 @@ describe('SQLite Operators', () => {
 
       // Create new graph instance with same database
       messages = []
-      db = new Database(dbPath)
+      db = new BetterSQLite3Wrapper(new Database(dbPath))
       graph = new D2({ initialFrontier: v([1, 0]) })
       const newInput = graph.newInput<[string, string]>()
 

@@ -12,7 +12,7 @@ import {
   BinaryOperator,
 } from '../../graph.js'
 import { Version, Antichain } from '../../order.js'
-import Database from 'better-sqlite3'
+import { SQLiteDb } from '../database.js'
 import { SQLIndex } from '../version-index.js'
 
 export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
@@ -20,7 +20,7 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
 > {
   #indexA: SQLIndex<K, V1>
   #indexB: SQLIndex<K, V2>
-  #db: Database.Database
+  #db: SQLiteDb
 
   constructor(
     id: number,
@@ -28,7 +28,7 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
     inputB: DifferenceStreamReader<[K, V2]>,
     output: DifferenceStreamWriter<[K, [V1, V2]]>,
     initialFrontier: Antichain,
-    db: Database.Database,
+    db: SQLiteDb,
   ) {
     super(id, inputA, inputB, output, initialFrontier)
     this.#db = db
@@ -117,7 +117,7 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
         this.output.sendFrontier(this.outputFrontier)
         this.#indexA.compact(this.outputFrontier)
         this.#indexB.compact(this.outputFrontier)
-      }
+    }
     } finally {
       // Clean up temporary indexes
       deltaA.destroy()
@@ -137,7 +137,7 @@ export function join<
   V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
   V2,
   T,
->(other: IStreamBuilder<KeyValue<K, V2>>, db: Database.Database) {
+>(other: IStreamBuilder<KeyValue<K, V2>>, db: SQLiteDb) {
   return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, [V1, V2]>> => {
     if (stream.graph !== other.graph) {
       throw new Error('Cannot join streams from different graphs')

@@ -12,7 +12,7 @@ import {
   UnaryOperator,
 } from '../../graph.js'
 import { Version, Antichain } from '../../order.js'
-import Database from 'better-sqlite3'
+import { SQLiteDb, SQLiteStatement } from '../database.js'
 import { SQLIndex } from '../version-index.js'
 
 interface KeysTodoRow {
@@ -29,11 +29,11 @@ export class ReduceOperatorSQLite<K, V1, V2> extends UnaryOperator<
   #index: SQLIndex<K, V1>
   #indexOut: SQLIndex<K, V2>
   #preparedStatements: {
-    insertKeyTodo: Database.Statement<[string, string]>
-    getKeysTodo: Database.Statement<[], KeysTodoRow>
-    deleteKeysTodo: Database.Statement<[string]>
-    createKeysTodoTable: Database.Statement
-    dropKeysTodoTable: Database.Statement
+    insertKeyTodo: SQLiteStatement<[string, string]>
+    getKeysTodo: SQLiteStatement<[], KeysTodoRow>
+    deleteKeysTodo: SQLiteStatement<[string]>
+    createKeysTodoTable: SQLiteStatement
+    dropKeysTodoTable: SQLiteStatement
   }
   #f: (values: [V1, number][]) => [V2, number][]
 
@@ -43,7 +43,7 @@ export class ReduceOperatorSQLite<K, V1, V2> extends UnaryOperator<
     output: DifferenceStreamWriter<[K, V2]>,
     f: (values: [V1, number][]) => [V2, number][],
     initialFrontier: Antichain,
-    db: Database.Database,
+    db: SQLiteDb,
   ) {
     super(id, inputA, output, initialFrontier)
     this.#f = f
@@ -211,7 +211,7 @@ export function reduce<
   V1 extends T extends KeyValue<K, infer V> ? V : never,
   R,
   T,
->(f: (values: [V1, number][]) => [R, number][], db: Database.Database) {
+>(f: (values: [V1, number][]) => [R, number][], db: SQLiteDb) {
   return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, R>> => {
     const output = new StreamBuilder<KeyValue<K, R>>(
       stream.graph,

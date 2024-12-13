@@ -1,6 +1,6 @@
 import { Version, Antichain, v } from '../order.js'
 import { MultiSet } from '../multiset.js'
-import Database from 'better-sqlite3'
+import { SQLiteDb, SQLiteStatement } from './database.js'
 
 interface IndexRow {
   key: string
@@ -33,37 +33,37 @@ interface JoinResult {
 }
 
 export class SQLIndex<K, V> {
-  #db: Database.Database
+  #db: SQLiteDb
   #tableName: string
   #versionTableName: string
   #isTemp: boolean
   #preparedStatements: {
-    insert: Database.Statement<InsertParams>
-    get: Database.Statement<GetParams, IndexRow>
-    getVersions: Database.Statement<[string], { version: string }>
-    getAllForKey: Database.Statement<[string, GetAllForKeyParams], IndexRow>
-    delete: Database.Statement<[string]>
-    deleteAll: Database.Statement
-    deleteAllVersions: Database.Statement
-    getForCompaction: Database.Statement<[string], IndexRow>
-    consolidateVersions: Database.Statement<[string, string]>
-    insertVersion: Database.Statement<[string], { id: number }>
-    updateVersionMapping: Database.Statement<[string, string]>
-    deleteZeroMultiplicity: Database.Statement
-    getVersionId: Database.Statement<[string], { id: number }>
-    setCompactionFrontier: Database.Statement<[string]>
-    getCompactionFrontier: Database.Statement<[], { value: string }>
-    deleteMeta: Database.Statement
-    getAllKeys: Database.Statement<[], { key: string }>
-    getVersionsForKey: Database.Statement<
+    insert: SQLiteStatement<InsertParams>
+    get: SQLiteStatement<GetParams, IndexRow>
+    getVersions: SQLiteStatement<[string], { version: string }>
+    getAllForKey: SQLiteStatement<[string, GetAllForKeyParams], IndexRow>
+    delete: SQLiteStatement<[string]>
+    deleteAll: SQLiteStatement
+    deleteAllVersions: SQLiteStatement
+    getForCompaction: SQLiteStatement<[string], IndexRow>
+    consolidateVersions: SQLiteStatement<[string, string]>
+    insertVersion: SQLiteStatement<[string], { id: number }>
+    updateVersionMapping: SQLiteStatement<[string, string]>
+    deleteZeroMultiplicity: SQLiteStatement
+    getVersionId: SQLiteStatement<[string], { id: number }>
+    setCompactionFrontier: SQLiteStatement<[string]>
+    getCompactionFrontier: SQLiteStatement<[], { value: string }>
+    deleteMeta: SQLiteStatement
+    getAllKeys: SQLiteStatement<[], { key: string }>
+    getVersionsForKey: SQLiteStatement<
       [string],
       { version: string; version_id: number }
     >
-    moveDataToNewVersion: Database.Statement<[number, string, number]>
-    deleteOldVersionData: Database.Statement<[string, number]>
+    moveDataToNewVersion: SQLiteStatement<[number, string, number]>
+    deleteOldVersionData: SQLiteStatement<[string, number]>
   }
 
-  constructor(db: Database.Database, name: string, isTemp = false) {
+  constructor(db: SQLiteDb, name: string, isTemp = false) {
     this.#db = db
     this.#tableName = `index_${name}`
     this.#versionTableName = `${this.#tableName}_versions`
