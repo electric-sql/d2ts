@@ -11,39 +11,55 @@ type FruitOrder = {
   status: 'packed' | 'shipped' | 'delivered'
 }
 
-const graph = new D2({ initialFrontier: v([0, 0]) })
+const graph = new D2({ initialFrontier: v(0) })
 const input = graph.newInput<FruitOrder>()
 
 // Track quantities by status
-const finalState = new Map<string, number>();
+const materializedStatus = new Map<string, number>();
+const materializedProcessed = new Map<string, number>();
+
+function showStatus() {
+  const obj = Object.fromEntries(materializedStatus.entries())
+  console.log('Counts by Status:')
+  console.log(JSON.stringify(obj, null, 2))
+}
+
+function showProcessed() {
+  const obj = Object.fromEntries(materializedProcessed.entries())
+  console.log('Fruit Processed:')
+  console.log(JSON.stringify(obj, null, 2))
+}
 
 const statusTotals = input.pipe(
-  debug('Raw Input'),
+  // debug('Raw Input'),
   map((order) => [`${order.name}-${order.status}`, order.quantity] as [string, number]),
-  debug('After Map'),
-  reduce((values: [string, number][]) => {
-    // Group by key and sum all changes
-    const totals = new Map<string, number>();
-    for (const [key, diff] of values) {
-      const current = totals.get(key) || 0;
-      totals.set(key, current + diff);
+  // debug('After Map'),
+  reduce((values) => {
+    // The reduce function receives an array of [quantity, diff] for each key
+    // `diff` being the change in number of occurrences of the specific quantity
+    // It is not aware of the key, just that everything it is receiving is for the same key
+    // Here we want to sum the quantity for each key, so a sum of num * diff
+    let count = 0
+    for (const [num, diff] of values) {
+      count += num * diff
     }
-    // Convert back to array format and filter out zero quantities
-    return Array.from(totals)
-      .filter(([_, total]) => total !== 0)
-      .map(([key, total]) => [key, total]);
+    return [[count, 1]]
   }),
-  debug('Status Totals'),
+  // debug('Status Totals'),
   consolidate(),
   output((msg) => {
     if (msg.type === MessageType.DATA) {
       const entries = msg.data.collection.getInner();
-      console.log('Status Totals:', Object.fromEntries(entries));
-
-      // Update final state
-      for (const [key, diff] of entries) {
-        const current = finalState.get(key) || 0;
-        finalState.set(key, current + diff);
+      // The entreis are:
+      // key: {fruit-name}-{status}
+      // count: number of items in that status
+      // diff: 1 if adding a row, -1 if removing a row
+      for (const [[key, count], diff] of entries) {
+        if (diff > 0) {
+          materializedStatus.set(key, count)
+        } else if (diff < 0) {
+          materializedStatus.delete(key)
+        }
       }
     }
   })
@@ -51,31 +67,40 @@ const statusTotals = input.pipe(
 
 // Track total processed quantities regardless of status
 const processedTotals = input.pipe(
-  debug('Raw Input'),
+  // debug('Raw Input'),
   map((order) => [order.name, order.quantity] as [string, number]),
-  debug('After Map'),
-  reduce((values: [string, number][]) => {
-    // Group by key and sum all changes
-    const totals = new Map<string, number>();
-    for (const [key, diff] of values) {
-      const current = totals.get(key) || 0;
-      totals.set(key, current + diff);
+  // debug('After Map'),
+  reduce((values) => {
+    // Count the total number of each fruit processed
+    let count = 0
+    for (const [num, diff] of values) {
+      count += num * diff
     }
-    // Convert back to array format
-    return Array.from(totals).map(([key, total]) => [key, total]);
+    return [[count, 1]]
   }),
-  debug('Total Processed'),
+  // debug('Total Processed'),
   consolidate(),
   output((msg) => {
     if (msg.type === MessageType.DATA) {
       const entries = msg.data.collection.getInner();
-      console.log('Final Processed Totals:', Object.fromEntries(entries));
+      for (const [[key, count], diff] of entries) {
+        if (diff > 0) {
+          materializedProcessed.set(key, count)
+        } else if (diff < 0) {
+          materializedProcessed.delete(key)
+        }
+      }
     }
   })
 )
 
+graph.finalize()
+
+console.log('--------------------------------')
+
 // Initial packing of orders
-input.sendData(v([0, 0]), new MultiSet([
+console.log('Sending initial orders')
+input.sendData(v(0), new MultiSet([
   [{
     name: 'apple',
     quantity: 100,
@@ -90,8 +115,17 @@ input.sendData(v([0, 0]), new MultiSet([
   }, 1]
 ]))
 
-// Ship 3 orders
-input.sendData(v([0, 1]), new MultiSet([
+input.sendFrontier(v(1)) // Send a frontier to set the new minimum version
+graph.step() // Step the graph to process the data
+// Show the materialized status and processed totals:
+showStatus()
+showProcessed()
+
+console.log('--------------------------------')
+
+// Ship 2 orders
+console.log('Shipping 2 orders')
+input.sendData(v(1), new MultiSet([
   // Remove from packed status
   [{
     name: 'apple',
@@ -121,8 +155,16 @@ input.sendData(v([0, 1]), new MultiSet([
   }, 1]
 ]))
 
+input.sendFrontier(v(2))
+graph.step()
+showStatus()
+showProcessed()
+
+console.log('--------------------------------')
+
 // One order arrives
-input.sendData(v([0, 2]), new MultiSet([
+console.log('One order arrives')
+input.sendData(v(2), new MultiSet([
   // Remove from shipped status
   [{
     name: 'apple',
@@ -139,37 +181,50 @@ input.sendData(v([0, 2]), new MultiSet([
   }, 1]
 ]))
 
-// Step for each version
-input.sendFrontier(v([0, 0]))
-input.sendFrontier(v([0, 1]))
-input.sendFrontier(v([0, 2]))
-input.sendFrontier(v([0, 3]))
-graph.finalize()
+input.sendFrontier(v(3))
+graph.step()
+showStatus()
+showProcessed()
 
-// Now process all versions
-graph.step() // Process version [0, 0]
-graph.step() // Process version [0, 1]
-graph.step() // Process version [0, 2]
-graph.step() // Process version [0, 3]
+console.log('--------------------------------')
 
-// Show final state
-console.log('\nFinal State:');
-const finalStateMap = new Map();
-
-// Consolidate the final state by fruit-status
-for (const [key, value] of finalState.entries()) {
-  const [fruitStatus, quantity] = key;
-  const currentValue = finalStateMap.get(fruitStatus) || { quantity: parseInt(quantity as string), total: 0 };
-  currentValue.total += value;
-  finalStateMap.set(fruitStatus, currentValue);
+/*
+Output:
+--------------------------------
+Sending initial orders
+Counts by Status:
+{
+  "apple-packed": 100,
+  "banana-packed": 150
 }
-
-// Filter out zero values and sort
-const finalEntries = Array.from(finalStateMap)
-  .filter(([_, data]) => data.total !== 0)
-  .sort();
-
-for (const [key, data] of finalEntries) {
-  const [fruit, status] = key.split('-');
-  console.log(`${fruit} (${status}): ${data.quantity * data.total}`);
+Fruit Processed:
+{
+  "apple": 100,
+  "banana": 150
 }
+--------------------------------
+Shipping 2 orders
+Counts by Status:
+{
+  "apple-shipped": 100,
+  "banana-shipped": 150
+}
+Fruit Processed:
+{
+  "apple": 100,
+  "banana": 150
+}
+--------------------------------
+One order arrives
+Counts by Status:
+{
+  "banana-shipped": 150,
+  "apple-delivered": 100
+}
+Fruit Processed:
+{
+  "apple": 100,
+  "banana": 150
+}
+--------------------------------
+*/
