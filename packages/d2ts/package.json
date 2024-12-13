@@ -10,8 +10,8 @@
       "default": "./dist/index.js"
     },
     "./sqlite": {
-      "types": "./dist/sqlite.d.ts",
-      "default": "./dist/sqlite.js"
+      "types": "./dist/sqlite/index.d.ts",
+      "default": "./dist/sqlite/index.js"
     }
   },
   "scripts": {

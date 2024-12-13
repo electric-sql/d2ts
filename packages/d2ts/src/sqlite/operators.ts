@@ -1,21 +1,21 @@
-import { StreamBuilder } from './d2.js'
+import { StreamBuilder } from '../d2.js'
 import {
   DataMessage,
   MessageType,
   IStreamBuilder,
   PipedOperator,
   KeyValue,
-} from './types.js'
-import { MultiSet } from './multiset.js'
+} from '../types.js'
+import { MultiSet } from '../multiset.js'
 import {
   DifferenceStreamReader,
   DifferenceStreamWriter,
   UnaryOperator,
   BinaryOperator,
-} from './graph.js'
-import { Version, Antichain } from './order.js'
+} from '../graph.js'
+import { Version, Antichain } from '../order.js'
 import Database from 'better-sqlite3'
-import { SQLIndex } from './version-index-sqlite.js'
+import { SQLIndex } from './version-index.js'
 
 interface CollectionRow {
   version: string

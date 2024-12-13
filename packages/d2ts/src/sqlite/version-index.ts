@@ -1,5 +1,5 @@
-import { Version, Antichain, v } from './order.js'
-import { MultiSet } from './multiset.js'
+import { Version, Antichain, v } from '../order.js'
+import { MultiSet } from '../multiset.js'
 import Database from 'better-sqlite3'
 
 interface IndexRow {

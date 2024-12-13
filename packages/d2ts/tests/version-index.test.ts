@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from 'vitest'
 import { v, Antichain } from '../src/order.js'
 import { Index } from '../src/version-index.js'
-import { SQLIndex } from '../src/version-index-sqlite.js'
+import { SQLIndex } from '../src/sqlite/version-index.js'
 import Database from 'better-sqlite3'
 import fs from 'fs'
 
