@@ -1,5 +1,5 @@
 import { D2 } from '../src/index.js'
-import { map, filter, join, concat, distinct, debug } from '../src/operators.js'
+import { map, filter, join, concat, distinct, debug } from '../src/operators/index.js'
 import { v } from '../src/order.js'
 
 type Issue = {

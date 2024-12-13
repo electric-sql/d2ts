@@ -2,8 +2,8 @@ import { describe, test, expect } from 'vitest'
 import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import { Antichain, v } from '../../src/order.js'
-import { DataMessage, Message, MessageType } from '../../src/types.js'
-import { map, output, pipe } from '../../src/operators.js'
+import { DataMessage, MessageType } from '../../src/types.js'
+import { map, output, pipe } from '../../src/operators/index.js'
 
 describe('Operators', () => {
   describe('Pipe operation', () => {

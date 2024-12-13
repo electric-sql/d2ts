@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest'
 import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
-import { filter, map, output } from '../../src/operators.js'
+import { filter, map, output } from '../../src/operators/index.js'
 import { Message, MessageType } from '../../src/types.js'
 import { v, Antichain } from '../../src/order.js'
 

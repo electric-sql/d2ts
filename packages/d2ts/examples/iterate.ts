@@ -9,7 +9,7 @@ import {
   distinct,
   filter,
   concat,
-} from '../src/operators.js'
+} from '../src/operators/index.js'
 
 const graph = new D2({ initialFrontier: new Antichain([v(0)]) })
 

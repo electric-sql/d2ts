@@ -2,7 +2,7 @@ import { describe, test, expect, vi } from 'vitest'
 import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import { Antichain, v } from '../../src/order.js'
-import { debug } from '../../src/operators.js'
+import { debug } from '../../src/operators/index.js'
 
 describe('Operators', () => {
   describe('Debug operation', () => {

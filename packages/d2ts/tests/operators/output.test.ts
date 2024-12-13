@@ -3,7 +3,7 @@ import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import { Antichain, v } from '../../src/order.js'
 import { Message, MessageType } from '../../src/types.js'
-import { output } from '../../src/operators.js'
+import { output } from '../../src/operators/index.js'
 
 describe('Operators', () => {
   describe('Output operation', () => {
