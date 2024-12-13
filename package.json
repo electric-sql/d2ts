@@ -5,14 +5,15 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
     "bench": "pnpm --filter d2ts-benchmark bench"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
     "vitest": "^1.0.0",
     "@eslint/js": "latest",
-    "@typescript-eslint/eslint-plugin": "latest",
-    "@typescript-eslint/parser": "latest",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.0.0"
   }
