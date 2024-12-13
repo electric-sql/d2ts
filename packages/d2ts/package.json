@@ -16,9 +16,10 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "vitest",
+    "test": "vitest run",
     "lint": "eslint './src/**/*.ts' './tests/**/*.ts' --config eslint.config.mjs",
     "lint:fix": "eslint src/**/*.ts tests/**/*.ts --fix",
+    "typecheck": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json}\" \"tests/**/*.{ts,tsx,js,jsx,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json}\" \"tests/**/*.{ts,tsx,js,jsx,json}\""
   },
