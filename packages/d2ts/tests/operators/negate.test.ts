@@ -33,7 +33,7 @@ describe('Operators', () => {
       )
       input.sendFrontier(new Antichain([v([1, 0])]))
 
-      graph.step()
+      graph.run()
 
       const data = messages.map((m) => m.collection.getInner())
 
@@ -72,7 +72,7 @@ describe('Operators', () => {
       )
       input.sendFrontier(new Antichain([v([1, 0])]))
 
-      graph.step()
+      graph.run()
 
       const data = messages.map((m) => m.collection.getInner())
 
@@ -112,7 +112,7 @@ describe('Operators', () => {
       )
       input.sendFrontier(new Antichain([v([1, 0])]))
 
-      graph.step()
+      graph.run()
 
       const data = messages.map((m) => m.collection.getInner())
 

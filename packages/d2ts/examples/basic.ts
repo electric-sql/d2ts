@@ -44,5 +44,5 @@ for (let i = 1; i <= 10; i++) {
   ])
 
   // The graph will process the data and frontier updates in a single step
-  graph.step()
+  graph.run()
 }

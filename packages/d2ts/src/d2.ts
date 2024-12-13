@@ -24,19 +24,19 @@ export class D2 implements ID2 {
     this.#frontierStack = [Antichain.create(initialFrontier)]
   }
 
-  #checkFinalized(): void {
+  #checkNotFinalized(): void {
     if (this.#finalized) {
       throw new Error('Graph already finalized')
     }
   }
 
   getNextOperatorId(): number {
-    this.#checkFinalized()
+    this.#checkNotFinalized()
     return this.#nextOperatorId++
   }
 
   newInput<T>(): RootStreamBuilder<T> {
-    this.#checkFinalized()
+    this.#checkNotFinalized()
     const writer = new DifferenceStreamWriter<T>()
     // Use the root stream builder that exposes the sendData and sendFrontier methods
     const streamBuilder = new RootStreamBuilder<T>(this, writer)
@@ -45,12 +45,12 @@ export class D2 implements ID2 {
   }
 
   addOperator(operator: UnaryOperator<any> | BinaryOperator<any>): void {
-    this.#checkFinalized()
+    this.#checkNotFinalized()
     this.#operators.push(operator)
   }
 
   addStream(stream: DifferenceStreamReader<any>): void {
-    this.#checkFinalized()
+    this.#checkNotFinalized()
     this.#streams.push(stream)
   }
 
@@ -67,7 +67,7 @@ export class D2 implements ID2 {
   }
 
   finalize() {
-    this.#checkFinalized()
+    this.#checkNotFinalized()
     this.#finalized = true
   }
 
@@ -77,6 +77,16 @@ export class D2 implements ID2 {
     }
     for (const op of this.#operators) {
       op.run()
+    }
+  }
+
+  pendingWork(): boolean {
+    return this.#operators.some((op) => op.hasPendingWork())
+  }
+
+  run(): void {
+    while (this.pendingWork()) {
+      this.step()
     }
   }
 }

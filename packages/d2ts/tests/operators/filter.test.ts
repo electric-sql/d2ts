@@ -31,7 +31,7 @@ describe('Operators', () => {
       )
       input.sendFrontier(new Antichain([v([1, 0])]))
 
-      graph.step()
+      graph.run()
 
       expect(messages).toEqual([
         {
@@ -68,7 +68,7 @@ describe('Operators', () => {
       )
       input.sendFrontier(v([1, 0]))
 
-      graph.step()
+      graph.run()
 
       expect(messages).toEqual([
         {
@@ -111,7 +111,7 @@ describe('Operators', () => {
       )
       input.sendFrontier(v([1, 0]))
 
-      graph.step()
+      graph.run()
 
       expect(messages).toEqual([
         {

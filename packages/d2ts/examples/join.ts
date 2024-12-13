@@ -141,7 +141,7 @@ for (const user of users) {
 inputIssues.sendFrontier(v([2, 0]))
 inputUsers.sendFrontier(v([2, 0]))
 
-graph.step()
+graph.run()
 
 // Add a new issue
 inputIssues.sendData(v([2, 0]), [[[11, {
@@ -153,7 +153,7 @@ inputIssues.sendData(v([2, 0]), [[[11, {
 inputIssues.sendFrontier(v([3, 0]))
 inputUsers.sendFrontier(v([3, 0]))
 
-graph.step()
+graph.run()
 
 // Delete an issue
 inputIssues.sendData(v([3, 0]), [[[1, {
@@ -165,7 +165,7 @@ inputIssues.sendData(v([3, 0]), [[[1, {
 inputIssues.sendFrontier(v([4, 0]))
 inputUsers.sendFrontier(v([4, 0]))
 
-graph.step()
+graph.run()
 
 // Insert a new user and issue by the same user
 inputUsers.sendData(v([4, 0]), [[[4, {
@@ -182,7 +182,7 @@ inputIssues.sendData(v([4, 0]), [[[12, {
 inputIssues.sendFrontier(v([5, 0]))
 inputUsers.sendFrontier(v([5, 0]))
 
-graph.step()
+graph.run()
 
 // Delete a user and their issues
 inputUsers.sendData(v([5, 0]), [[[4, {
@@ -198,4 +198,4 @@ inputIssues.sendData(v([5, 0]), [[[12, {
 inputIssues.sendFrontier(v([6, 0]))
 inputUsers.sendFrontier(v([6, 0]))
 
-graph.step()
+graph.run()

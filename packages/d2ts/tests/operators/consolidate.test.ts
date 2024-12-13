@@ -51,7 +51,7 @@ function testConsolidate() {
     )
     input.sendFrontier(new Antichain([v([1, 1])]))
 
-    graph.step()
+    graph.run()
 
     const data = messages.map((m) => m.collection.getInner())
 
@@ -96,7 +96,7 @@ function testConsolidate() {
     )
     input.sendFrontier(new Antichain([v([1, 0])]))
 
-    graph.step()
+    graph.run()
 
     const data = messages.map((m) => m.collection.getInner())
 
@@ -135,7 +135,7 @@ function testConsolidate() {
     )
     input.sendFrontier(new Antichain([v([3, 0])]))
 
-    graph.step()
+    graph.run()
 
     const data = messages.map((m) => m.collection.getInner())
 

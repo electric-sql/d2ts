@@ -1,8 +1,3 @@
-/**
- * The implementation of dataflow graph edge, node, and graph objects, used to run a dataflow program.
- */
-
-import type Database from 'better-sqlite3'
 import { MultiSet, MultiSetArray } from './multiset.js'
 import { Version, Antichain, v } from './order.js'
 import {
@@ -116,7 +111,6 @@ export class DifferenceStreamWriter<T> implements IDifferenceStreamWriter<T> {
 export abstract class Operator<T> implements IOperator<T> {
   protected inputs: DifferenceStreamReader<T>[]
   protected output: DifferenceStreamWriter<T>
-  protected pendingWork = false
   protected inputFrontiers: Antichain[]
   protected outputFrontier: Antichain
 
@@ -135,7 +129,6 @@ export abstract class Operator<T> implements IOperator<T> {
   abstract run(): void
 
   hasPendingWork(): boolean {
-    if (this.pendingWork) return true
     return this.inputs.some((input) => !input.isEmpty())
   }
 

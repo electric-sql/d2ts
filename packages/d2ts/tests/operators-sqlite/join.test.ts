@@ -59,7 +59,7 @@ describe('SQLite Operators', () => {
       )
       inputB.sendFrontier(new Antichain([v([1, 0])]))
 
-      graph.step()
+      graph.run()
 
       const data = messages.map((m) => m.collection.getInner())
 
@@ -97,7 +97,7 @@ describe('SQLite Operators', () => {
       )
       inputA.sendFrontier(new Antichain([v([1, 0])]))
 
-      graph.step()
+      graph.run()
 
       inputB.sendData(
         v([1, 0]),
@@ -108,7 +108,7 @@ describe('SQLite Operators', () => {
       )
       inputB.sendFrontier(new Antichain([v([1, 0])]))
 
-      graph.step()
+      graph.run()
 
       const data = messages.map((m) => m.collection.getInner())
 
@@ -177,7 +177,7 @@ describe('SQLite Operators', () => {
       )
       inputB.sendFrontier(new Antichain([v([1, 0])]))
 
-      graph.step()
+      graph.run()
 
       // Verify initial results
       expect(messages.map((m) => m.collection.getInner())).toEqual([
@@ -213,7 +213,7 @@ describe('SQLite Operators', () => {
       newInputA.sendFrontier(new Antichain([v([2, 0])]))
       newInputB.sendFrontier(new Antichain([v([2, 0])]))
 
-      graph.step()
+      graph.run()
 
       // Verify that new results include joins with previously persisted data
       expect(messages.map((m) => m.collection.getInner())).toEqual([

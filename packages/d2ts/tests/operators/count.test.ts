@@ -42,7 +42,7 @@ function testCount() {
     input.sendData(v([1, 0]), new MultiSet([[[3, 'z'], 1]]))
     input.sendFrontier(new Antichain([v([2, 1])]))
 
-    graph.step()
+    graph.run()
 
     const data = messages.map((m) => m.collection.getInner())
 
@@ -80,7 +80,7 @@ function testCount() {
     )
     input.sendFrontier(new Antichain([v([2, 0])]))
 
-    graph.step()
+    graph.run()
 
     const data = messages.map((m) => m.collection.getInner())
 
@@ -119,7 +119,7 @@ function testCount() {
     )
     input.sendFrontier(new Antichain([v([3, 0])]))
 
-    graph.step()
+    graph.run()
 
     const data = messages.map((m) => m.collection.getInner())
 

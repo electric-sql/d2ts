@@ -23,7 +23,7 @@ describe('Operators', () => {
       input.sendData(v([1, 0]), new MultiSet([[1, 1]]))
       input.sendFrontier(new Antichain([v([1, 0])]))
 
-      graph.step()
+      graph.run()
 
       expect(messages).toEqual([
         {
@@ -51,7 +51,7 @@ describe('Operators', () => {
       input.sendData(v([2, 0]), new MultiSet([[2, 1]]))
       input.sendFrontier(new Antichain([v([2, 0])]))
 
-      graph.step()
+      graph.run()
 
       expect(messages).toEqual([
         {
@@ -82,7 +82,7 @@ describe('Operators', () => {
       input.sendData(v([1, 0]), new MultiSet([]))
       input.sendFrontier(new Antichain([v([1, 0])]))
 
-      graph.step()
+      graph.run()
 
       expect(messages).toEqual([
         {
