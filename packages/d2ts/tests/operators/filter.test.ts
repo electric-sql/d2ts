@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest'
 import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
-import { filter, map, output } from '../../src/operators.js'
+import { filter, map, output } from '../../src/operators/index.js'
 import { Message, MessageType } from '../../src/types.js'
 import { v, Antichain } from '../../src/order.js'
 
@@ -31,7 +31,7 @@ describe('Operators', () => {
       )
       input.sendFrontier(new Antichain([v([1, 0])]))
 
-      graph.step()
+      graph.run()
 
       expect(messages).toEqual([
         {
@@ -68,7 +68,7 @@ describe('Operators', () => {
       )
       input.sendFrontier(v([1, 0]))
 
-      graph.step()
+      graph.run()
 
       expect(messages).toEqual([
         {
@@ -111,7 +111,7 @@ describe('Operators', () => {
       )
       input.sendFrontier(v([1, 0]))
 
-      graph.step()
+      graph.run()
 
       expect(messages).toEqual([
         {

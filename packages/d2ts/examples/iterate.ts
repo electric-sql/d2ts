@@ -9,7 +9,7 @@ import {
   distinct,
   filter,
   concat,
-} from '../src/operators.js'
+} from '../src/operators/index.js'
 
 const graph = new D2({ initialFrontier: new Antichain([v(0)]) })
 
@@ -37,9 +37,7 @@ graph.finalize()
 input.sendData(v(0), new MultiSet([[1, 1]]))
 input.sendFrontier(new Antichain([v(1)]))
 
-while (output.probeFrontierLessThan(new Antichain([v(1)]))) {
-  graph.step()
-}
+graph.run()
 
 input.sendData(
   v(1),
@@ -50,13 +48,9 @@ input.sendData(
 )
 input.sendFrontier(new Antichain([v(2)]))
 
-while (output.probeFrontierLessThan(new Antichain([v(2)]))) {
-  graph.step()
-}
+graph.run()
 
 input.sendData(v(2), new MultiSet([[3, -1]]))
 input.sendFrontier(new Antichain([v(3)]))
 
-while (output.probeFrontierLessThan(new Antichain([v(3)]))) {
-  graph.step()
-}
+graph.run()

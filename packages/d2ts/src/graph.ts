@@ -1,8 +1,3 @@
-/**
- * The implementation of dataflow graph edge, node, and graph objects, used to run a dataflow program.
- */
-
-import type Database from 'better-sqlite3'
 import { MultiSet, MultiSetArray } from './multiset.js'
 import { Version, Antichain, v } from './order.js'
 import {
@@ -116,7 +111,6 @@ export class DifferenceStreamWriter<T> implements IDifferenceStreamWriter<T> {
 export abstract class Operator<T> implements IOperator<T> {
   protected inputs: DifferenceStreamReader<T>[]
   protected output: DifferenceStreamWriter<T>
-  protected pendingWork = false
   protected inputFrontiers: Antichain[]
   protected outputFrontier: Antichain
 
@@ -135,7 +129,6 @@ export abstract class Operator<T> implements IOperator<T> {
   abstract run(): void
 
   hasPendingWork(): boolean {
-    if (this.pendingWork) return true
     return this.inputs.some((input) => !input.isEmpty())
   }
 
@@ -208,52 +201,5 @@ export abstract class BinaryOperator<T> extends Operator<T> {
 
   setInputBFrontier(frontier: Antichain): void {
     this.inputFrontiers[1] = frontier
-  }
-}
-
-/**
- * An implementation of a dataflow graph.
- *
- * This implementation needs to keep the entire set of nodes so that they
- * may be run, and only keeps a set of read handles to all edges for debugging
- * purposes. Calling this a graph instead of a 'bag of nodes' is misleading, because
- * this object does not actually know anything about the connections between the
- * various nodes.
- */
-export class Graph {
-  streams: DifferenceStreamReader<any>[]
-  operators: Operator<any>[]
-  #db: Database.Database | undefined
-
-  constructor(
-    streams: DifferenceStreamReader<any>[],
-    operators: Operator<any>[],
-    db: Database.Database | undefined = undefined,
-  ) {
-    this.streams = streams
-    this.operators = operators
-    this.#db = db
-  }
-
-  get db(): Database.Database | undefined {
-    return this.#db
-  }
-
-  #stepInner(): void {
-    for (const op of this.operators) {
-      op.run()
-    }
-  }
-
-  step(): void {
-    // When we use SQLite, we wrap the step in a transaction to ensure that
-    // we never have a partially applied a query state to the database.
-    if (this.#db) {
-      this.#db.transaction(() => {
-        this.#stepInner()
-      })()
-    } else {
-      this.#stepInner()
-    }
   }
 }

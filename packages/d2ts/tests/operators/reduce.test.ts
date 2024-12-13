@@ -3,7 +3,7 @@ import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import { Antichain, v } from '../../src/order.js'
 import { DataMessage, MessageType } from '../../src/types.js'
-import { reduce, output } from '../../src/operators.js'
+import { reduce, output } from '../../src/operators/index.js'
 
 describe('Operators', () => {
   describe('Reduce operation', () => {
@@ -41,7 +41,7 @@ describe('Operators', () => {
       input.sendData(v([1, 0]), new MultiSet([[['b', 5], 1]]))
       input.sendFrontier(new Antichain([v([2, 0])]))
 
-      graph.step()
+      graph.run()
 
       const data = messages.map((m) => m.collection.getInner())
 
@@ -85,7 +85,7 @@ describe('Operators', () => {
       )
       input.sendFrontier(new Antichain([v([2, 0])]))
 
-      graph.step()
+      graph.run()
 
       const data = messages.map((m) => m.collection.getInner())
 

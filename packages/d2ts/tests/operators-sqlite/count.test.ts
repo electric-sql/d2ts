@@ -3,8 +3,8 @@ import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import { Antichain, v } from '../../src/order.js'
 import { DataMessage, MessageType } from '../../src/types.js'
-import { count } from '../../src/operators-sqlite.js'
-import { output } from '../../src/operators.js'
+import { count } from '../../src/sqlite/operators/count.js'
+import { output } from '../../src/operators/index.js'
 import Database from 'better-sqlite3'
 import fs from 'fs'
 import path from 'path'
@@ -53,7 +53,7 @@ describe('SQLite Operators', () => {
       input.sendData(v([1, 0]), new MultiSet([[[3, 'z'], 1]]))
       input.sendFrontier(new Antichain([v([2, 1])]))
 
-      graph.step()
+      graph.run()
 
       const data = messages.map((m) => m.collection.getInner())
 
@@ -98,7 +98,7 @@ describe('SQLite Operators', () => {
       )
       input.sendFrontier(new Antichain([v([3, 0])]))
 
-      graph.step()
+      graph.run()
 
       const data = messages.map((m) => m.collection.getInner())
 
@@ -159,7 +159,7 @@ describe('SQLite Operators', () => {
       )
       input.sendFrontier(new Antichain([v([2, 0])]))
 
-      graph.step()
+      graph.run()
 
       // Verify initial results
       expect(messages.map((m) => m.collection.getInner())).toEqual([
@@ -199,7 +199,7 @@ describe('SQLite Operators', () => {
       )
       newInput.sendFrontier(new Antichain([v([3, 0])]))
 
-      graph.step()
+      graph.run()
 
       // Verify that new results work with persisted state
       expect(messages.map((m) => m.collection.getInner())).toEqual([

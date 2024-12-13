@@ -3,7 +3,7 @@ import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import { Antichain, v } from '../../src/order.js'
 import { DataMessage, MessageType } from '../../src/types.js'
-import { join, output } from '../../src/operators.js'
+import { join, output } from '../../src/operators/index.js'
 
 describe('Operators', () => {
   describe('Join operation', () => {
@@ -48,7 +48,7 @@ function testJoin() {
     )
     inputB.sendFrontier(new Antichain([v([1, 0])]))
 
-    graph.step()
+    graph.run()
 
     const data = messages.map((m) => m.collection.getInner())
 
@@ -86,7 +86,7 @@ function testJoin() {
     )
     inputA.sendFrontier(new Antichain([v([1, 0])]))
 
-    graph.step()
+    graph.run()
 
     inputB.sendData(
       v([1, 0]),
@@ -97,7 +97,7 @@ function testJoin() {
     )
     inputB.sendFrontier(new Antichain([v([1, 0])]))
 
-    graph.step()
+    graph.run()
 
     const data = messages.map((m) => m.collection.getInner())
 
@@ -143,7 +143,7 @@ function testJoin() {
     inputA.sendFrontier(new Antichain([v([1, 0])]))
     inputB.sendFrontier(new Antichain([v([1, 0])]))
 
-    graph.step()
+    graph.run()
 
     const data = messages.map((m) => m.collection.getInner())
 

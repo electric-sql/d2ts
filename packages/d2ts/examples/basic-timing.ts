@@ -1,5 +1,5 @@
 import { D2 } from '../src/index.js'
-import { map, filter, negate, concat, join, count } from '../src/operators.js'
+import { map, filter, negate, concat, join, count } from '../src/operators/index.js'
 
 function one() {
   console.log('=== one: map/filter/negate/concat ===')
@@ -20,7 +20,7 @@ function one() {
   for (let i = 0; i < 10; i++) {
     input_a.sendFrontier(i)
     input_a.sendData(i, [[i, 1]])
-    graph.step()
+    graph.run()
   }
 }
 
@@ -52,12 +52,12 @@ function two() {
       [[2, i + 3], 2]
     ])
     input_b.sendFrontier(i)
-    graph.step()
+    graph.run()
   }
 
   input_a.sendFrontier(11)
   input_b.sendFrontier(11)
-  graph.step()
+  graph.run()
 }
 
 const run = async () => {

@@ -1,5 +1,5 @@
 import { D2 } from '../src/index.js'
-import { map, filter, join, concat, distinct, debug } from '../src/operators.js'
+import { map, filter, join, concat, distinct, debug } from '../src/operators/index.js'
 import { v } from '../src/order.js'
 
 type Issue = {
@@ -103,7 +103,7 @@ inputComments.sendData(v([1, 0]), [
 inputUsers.sendFrontier(v([2, 0]))
 inputIssues.sendFrontier(v([2, 0]))
 inputComments.sendFrontier(v([2, 0]))
-graph.step()
+graph.run()
 
 // Add a new Comment to an issue in project 1
 inputComments.sendData(v([2, 0]), [
@@ -112,7 +112,7 @@ inputComments.sendData(v([2, 0]), [
 inputUsers.sendFrontier(v([3, 0]))
 inputIssues.sendFrontier(v([3, 0]))
 inputComments.sendFrontier(v([3, 0]))
-graph.step()
+graph.run()
 
 // Add a new Comment to an issue in project 2
 inputComments.sendData(v([3, 0]), [
@@ -121,7 +121,7 @@ inputComments.sendData(v([3, 0]), [
 inputUsers.sendFrontier(v([4, 0]))
 inputIssues.sendFrontier(v([4, 0]))
 inputComments.sendFrontier(v([4, 0]))
-graph.step()
+graph.run()
 console.log('> Comment 8 should not be included in the output above')
 
 // Move issue 2 to project 1
@@ -132,7 +132,7 @@ inputIssues.sendData(v([4, 0]), [
 inputUsers.sendFrontier(v([5, 0]))
 inputIssues.sendFrontier(v([5, 0]))
 inputComments.sendFrontier(v([5, 0]))
-graph.step()
+graph.run()
 console.log('> Issue 2 and its comments should be included in the output above')
 
 // Move issue 2 back to project 2
@@ -143,7 +143,7 @@ inputIssues.sendData(v([5, 0]), [
 inputUsers.sendFrontier(v([6, 0]))
 inputIssues.sendFrontier(v([6, 0]))
 inputComments.sendFrontier(v([6, 0]))
-graph.step()
+graph.run()
 console.log('> Issue 2 and its comments should have a multiplicity of -1 in the output above')
 
 /*
