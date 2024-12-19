@@ -384,7 +384,6 @@ function createIndexTests<
     // Clean up resources if needed (especially for SQLite)
     afterEach(async () => {
       if (sqlite) {
-        console.log('Closing SQLite database')
         sqlite.close()
       }
     })
