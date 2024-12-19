@@ -19,6 +19,7 @@ function createIndexTests<
   describe(name, () => {
     let index: T
     let createIndex: (name: string) => T
+    let sqlite: Database.Database | null = null
     let db: BetterSQLite3Wrapper | null = null
 
     beforeEach(() => {
@@ -30,10 +31,10 @@ function createIndexTests<
           if (fs.existsSync(DB_FILENAME)) {
             fs.unlinkSync(DB_FILENAME)
           }
-          const sqlite = new Database(DB_FILENAME)
+          sqlite = new Database(DB_FILENAME)
           db = new BetterSQLite3Wrapper(sqlite)
         } else {
-          const sqlite = new Database(':memory:')
+          sqlite = new Database(':memory:')
           db = new BetterSQLite3Wrapper(sqlite)
         }
         createIndex = (name: string) => new SQLIndex(db!, name) as T
@@ -382,9 +383,9 @@ function createIndexTests<
 
     // Clean up resources if needed (especially for SQLite)
     afterEach(async () => {
-      if ('close' in index) {
-        await (index as SQLIndex<string, number>).close()
-        db?.close()
+      if (sqlite) {
+        console.log('Closing SQLite database')
+        sqlite.close()
       }
     })
   })

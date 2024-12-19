@@ -36,11 +36,6 @@ export interface SQLiteDb {
   prepare<Params = unknown, Result = unknown>(
     sql: string,
   ): SQLiteStatement<Params, Result>
-
-  /**
-   * Close the database connection
-   */
-  close(): void
 }
 
 /**
