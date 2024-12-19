@@ -94,7 +94,7 @@ const args = parseArgs({
 })
 
 const graph = new D2({ 
-  initialFrontier: v([0, 0]),
+  initialFrontier: 0,
 })
 
 const inputIssues = graph.newInput<[number, Issue]>()
@@ -131,71 +131,71 @@ const joinedStream = issuesStream.pipe(
 graph.finalize()
 
 for (const issue of issues) {
-  inputIssues.sendData(v([1, 0]), [[[issue.id, issue], 1]])
+  inputIssues.sendData(1, [[[issue.id, issue], 1]])
 }
 
 for (const user of users) {
-  inputUsers.sendData(v([1, 0]), [[[user.id, user], 1]])
+  inputUsers.sendData(1, [[[user.id, user], 1]])
 }
 
-inputIssues.sendFrontier(v([2, 0]))
-inputUsers.sendFrontier(v([2, 0]))
+inputIssues.sendFrontier(2)
+inputUsers.sendFrontier(2)
 
 graph.run()
 
 // Add a new issue
-inputIssues.sendData(v([2, 0]), [[[11, {
+inputIssues.sendData(2, [[[11, {
   id: 11,
   title: 'New issue',
   userId: 1,
 }], 1]])
 
-inputIssues.sendFrontier(v([3, 0]))
-inputUsers.sendFrontier(v([3, 0]))
+inputIssues.sendFrontier(3)
+inputUsers.sendFrontier(3)
 
 graph.run()
 
 // Delete an issue
-inputIssues.sendData(v([3, 0]), [[[1, {
+inputIssues.sendData(3, [[[1, {
   id: 1,
   title: 'Fix login bug',
   userId: 1,
 }], -1]])
 
-inputIssues.sendFrontier(v([4, 0]))
-inputUsers.sendFrontier(v([4, 0]))
+inputIssues.sendFrontier(4)
+inputUsers.sendFrontier(4)
 
 graph.run()
 
 // Insert a new user and issue by the same user
-inputUsers.sendData(v([4, 0]), [[[4, {
+inputUsers.sendData(4, [[[4, {
   id: 4,
   name: 'Dave Brown',
 }], 1]])
 
-inputIssues.sendData(v([4, 0]), [[[12, {
+inputIssues.sendData(4, [[[12, {
   id: 12,
   title: 'New issue 2',
   userId: 4,
 }], 1]])
 
-inputIssues.sendFrontier(v([5, 0]))
-inputUsers.sendFrontier(v([5, 0]))
+inputIssues.sendFrontier(5)
+inputUsers.sendFrontier(5)
 
 graph.run()
 
 // Delete a user and their issues
-inputUsers.sendData(v([5, 0]), [[[4, {
+inputUsers.sendData(5, [[[4, {
   id: 4,
   name: 'Dave Brown',
 }], -1]])
-inputIssues.sendData(v([5, 0]), [[[12, {
+inputIssues.sendData(5, [[[12, {
   id: 12,
   title: 'New issue 2',
   userId: 4,
 }], -1]])
 
-inputIssues.sendFrontier(v([6, 0]))
-inputUsers.sendFrontier(v([6, 0]))
+inputIssues.sendFrontier(6)
+inputUsers.sendFrontier(6)
 
 graph.run()
