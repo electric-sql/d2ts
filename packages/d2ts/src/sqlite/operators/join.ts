@@ -117,7 +117,7 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
         this.output.sendFrontier(this.outputFrontier)
         this.#indexA.compact(this.outputFrontier)
         this.#indexB.compact(this.outputFrontier)
-    }
+      }
     } finally {
       // Clean up temporary indexes
       deltaA.destroy()

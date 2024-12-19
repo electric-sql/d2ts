@@ -57,11 +57,11 @@ export class BetterSQLite3Wrapper implements SQLiteDb {
   ): SQLiteStatement<Params, Result> {
     const stmt = this.#db.prepare(sql)
     return {
-      run: (...params: Params extends any[] ? Params : [Params?]) => 
+      run: (...params: Params extends any[] ? Params : [Params?]) =>
         stmt.run(...params),
-      get: (...params: Params extends any[] ? Params : [Params?]) => 
+      get: (...params: Params extends any[] ? Params : [Params?]) =>
         stmt.get(...params) as Result | undefined,
-      all: (...params: Params extends any[] ? Params : [Params?]) => 
+      all: (...params: Params extends any[] ? Params : [Params?]) =>
         stmt.all(...params) as Result[],
     }
   }
