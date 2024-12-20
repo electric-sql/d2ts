@@ -22,7 +22,7 @@ const generateData = (size: number) => {
 }
 
 // Test data - generate 1000 items but split into initial and incremental sets
-const totalSize = 10000
+const totalSize = 50000
 const initialSize = 9000
 const incrementalRuns = totalSize - initialSize
 const { users: allUsers, posts: allPosts } = generateData(totalSize)
@@ -84,6 +84,69 @@ joinSuite.add({
         .filter((post) => post.userId === user.id)
         .map((post) => ({ userName: user.name, postTitle: post.title })),
     )
+  },
+})
+
+// Add naive indexed join benchmark
+joinSuite.add({
+  name: 'Naive Indexed Join',
+  setup: () => ({
+    currentUsers: [...initialUsers],
+    currentPosts: [...initialPosts],
+    postsByUser: new Map<number, typeof initialPosts>(),
+    result: [] as { userName: string; postTitle: string }[],
+  }),
+  firstRun: (ctx) => {
+    // Build post index
+    ctx.postsByUser.clear()
+    for (const post of ctx.currentPosts) {
+      if (!ctx.postsByUser.has(post.userId)) {
+        ctx.postsByUser.set(post.userId, [])
+      }
+      ctx.postsByUser.get(post.userId)!.push(post)
+    }
+
+    // Compute join using index
+    ctx.result = []
+    for (const user of ctx.currentUsers) {
+      const userPosts = ctx.postsByUser.get(user.id) || []
+      for (const post of userPosts) {
+        ctx.result.push({
+          userName: user.name,
+          postTitle: post.title,
+        })
+      }
+    }
+  },
+  incrementalRun: (ctx, i) => {
+    const user = incrementalUsers[i]
+    const post1 = incrementalPosts[i * 2]
+    const post2 = incrementalPosts[i * 2 + 1]
+
+    // Update data
+    ctx.currentUsers.push(user)
+    ctx.currentPosts.push(post1, post2)
+
+    // Rebuild post index from scratch
+    ctx.postsByUser.clear()
+    for (const post of ctx.currentPosts) {
+      if (!ctx.postsByUser.has(post.userId)) {
+        ctx.postsByUser.set(post.userId, [])
+      }
+      ctx.postsByUser.get(post.userId)!.push(post)
+    }
+
+    // Recompute entire join using index
+    ctx.result = []
+    for (const user of ctx.currentUsers) {
+      const userPosts = ctx.postsByUser.get(user.id) || []
+      for (const post of userPosts) {
+        ctx.result.push({
+          userName: user.name,
+          postTitle: post.title,
+        })
+      }
+    }
   },
 })
 
