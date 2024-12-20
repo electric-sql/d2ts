@@ -49,7 +49,7 @@ export class Suite {
     const result: RunResult = {
       startupTime: 0,
       firstRunTime: 0,
-      incrementalTimes: [],
+      incrementalTimes: new Array(this.incrementalRuns).fill(0),
       teardownTime: 0,
     }
 
@@ -65,11 +65,13 @@ export class Suite {
     for (let i = 0; i < this.incrementalRuns; i++) {
       start = performance.now()
       benchmark.incrementalRun(ctx, i)
-      result.incrementalTimes.push(performance.now() - start)
+      result.incrementalTimes[i] = performance.now() - start
       if (
         this.maxTimeDoingIncrementalRuns &&
         performance.now() - startedAt > this.maxTimeDoingIncrementalRuns
       ) {
+        // truncate the array to the current index
+        result.incrementalTimes = result.incrementalTimes.slice(0, i)
         break
       }
     }
