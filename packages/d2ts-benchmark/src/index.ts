@@ -197,6 +197,13 @@ joinSuite.add({
   setup: () => {
     const sqlite = new Database(':memory:')
     const db = new BetterSQLite3Wrapper(sqlite)
+
+    // Improve the sqlite performance
+    db.exec(`PRAGMA journal_mode = WAL;`)
+    db.exec(`PRAGMA synchronous = OFF;`)
+    db.exec(`PRAGMA temp_store = MEMORY;`)
+    db.exec(`PRAGMA cache_size = -100000;`) // 100MB
+
     const graph = new D2({ initialFrontier: v([0]) })
     const usersStream = graph.newInput<[number, (typeof allUsers)[0]]>()
     const postsStream = graph.newInput<[number, (typeof allPosts)[0]]>()
