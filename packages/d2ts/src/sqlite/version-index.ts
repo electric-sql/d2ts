@@ -61,7 +61,14 @@ export class SQLIndex<K, V> {
     >
     moveDataToNewVersion: SQLiteStatement<[number, string, number]>
     deleteOldVersionData: SQLiteStatement<[string, number]>
+    truncate: SQLiteStatement
+    truncateMeta: SQLiteStatement
+    truncateVersions: SQLiteStatement
   }
+
+  // Cache for frequently used queries
+  static #appendQueryCache = new Map<string, string>()
+  static #joinQueryCache = new Map<string, string>()
 
   constructor(db: SQLiteDb, name: string, isTemp = false) {
     this.#db = db
@@ -251,6 +258,18 @@ export class SQLIndex<K, V> {
         DELETE FROM ${this.#tableName}
         WHERE key = ? AND version_id = ?
       `),
+
+      truncate: this.#db.prepare(`
+        DELETE FROM ${this.#tableName}
+      `),
+
+      truncateMeta: this.#db.prepare(`
+        DELETE FROM ${this.#tableName}_meta
+      `),
+
+      truncateVersions: this.#db.prepare(`
+        DELETE FROM ${this.#versionTableName}
+      `),
     }
   }
 
@@ -356,56 +375,67 @@ export class SQLIndex<K, V> {
     `
     this.#db.prepare(copyVersionsQuery).run()
 
-    // Now copy all data from the other index into this one
-    const insertQuery = `
-      INSERT OR REPLACE INTO ${this.#tableName} (key, version_id, value, multiplicity)
-      SELECT 
-        o.key,
-        v2.id as version_id,
-        o.value,
-        COALESCE(t.multiplicity, 0) + o.multiplicity as multiplicity
-      FROM ${other.tableName} o
-      JOIN ${other.#versionTableName} v1 ON v1.id = o.version_id
-      JOIN ${this.#versionTableName} v2 ON v2.version = v1.version
-      LEFT JOIN ${this.#tableName} t 
-        ON t.key = o.key 
-        AND t.version_id = v2.id
-        AND t.value = o.value
-    `
-    this.#db.prepare(insertQuery).run()
+    // Now use the cached query for the data copy
+    const cacheKey = `${this.#tableName}_${other.tableName}`
+
+    let query = SQLIndex.#appendQueryCache.get(cacheKey)
+    if (!query) {
+      query = `
+        INSERT OR REPLACE INTO ${this.#tableName} (key, version_id, value, multiplicity)
+        SELECT 
+          o.key,
+          v2.id as version_id,
+          o.value,
+          COALESCE(t.multiplicity, 0) + o.multiplicity as multiplicity
+        FROM ${other.tableName} o
+        JOIN ${other.#versionTableName} v1 ON v1.id = o.version_id
+        JOIN ${this.#versionTableName} v2 ON v2.version = v1.version
+        LEFT JOIN ${this.#tableName} t 
+          ON t.key = o.key 
+          AND t.version_id = v2.id
+          AND t.value = o.value
+      `
+      SQLIndex.#appendQueryCache.set(cacheKey, query)
+    }
+
+    this.#db.prepare(query).run()
   }
 
   join<V2>(other: SQLIndex<K, V2>): [Version, MultiSet<[K, [V, V2]]>][] {
-    // Create the join query dynamically with the actual table names
-    const joinQuery = `
-      SELECT 
-        a.key,
-        (
-          WITH RECURSIVE numbers(i) AS (
-            SELECT 0
-            UNION ALL
-            SELECT i + 1 FROM numbers 
-            WHERE i < json_array_length(va.version) - 1
-          )
-          SELECT json_group_array(
-            MAX(
-              json_extract(va.version, '$[' || i || ']'),
-              json_extract(vb.version, '$[' || i || ']')
-            )
-          )
-          FROM numbers
-        ) as version,
-        json_array(json(a.value), json(b.value)) as joined_value,
-        a.multiplicity * b.multiplicity as multiplicity
-      FROM ${this.#tableName} a
-      JOIN ${this.#versionTableName} va ON va.id = a.version_id
-      JOIN ${other.tableName} b ON a.key = b.key
-      JOIN ${other.#versionTableName} vb ON vb.id = b.version_id
-      GROUP BY a.key, a.value, b.value
-    `
+    const cacheKey = `${this.#tableName}_${other.tableName}`
 
-    // Execute the query directly
-    const results = this.#db.prepare(joinQuery).all() as JoinResult[]
+    let query = SQLIndex.#joinQueryCache.get(cacheKey)
+    if (!query) {
+      query = `
+        SELECT 
+          a.key,
+          (
+            WITH RECURSIVE numbers(i) AS (
+              SELECT 0
+              UNION ALL
+              SELECT i + 1 FROM numbers 
+              WHERE i < json_array_length(va.version) - 1
+            )
+            SELECT json_group_array(
+              MAX(
+                json_extract(va.version, '$[' || i || ']'),
+                json_extract(vb.version, '$[' || i || ']')
+              )
+            )
+            FROM numbers
+          ) as version,
+          json_array(json(a.value), json(b.value)) as joined_value,
+          a.multiplicity * b.multiplicity as multiplicity
+        FROM ${this.#tableName} a
+        JOIN ${this.#versionTableName} va ON va.id = a.version_id
+        JOIN ${other.tableName} b ON a.key = b.key
+        JOIN ${other.#versionTableName} vb ON vb.id = b.version_id
+        GROUP BY a.key, a.value, b.value
+      `
+      SQLIndex.#joinQueryCache.set(cacheKey, query)
+    }
+
+    const results = this.#db.prepare(query).all() as JoinResult[]
 
     const versionMap = new Map<string, MultiSet<[K, [V, V2]]>>()
 
@@ -431,6 +461,9 @@ export class SQLIndex<K, V> {
     this.#preparedStatements.deleteMeta.run()
     this.#preparedStatements.deleteAll.run()
     this.#preparedStatements.deleteAllVersions.run()
+    // Clear the query caches
+    SQLIndex.#appendQueryCache.clear()
+    SQLIndex.#joinQueryCache.clear()
   }
 
   compact(compactionFrontier: Antichain, keys: K[] = []): void {
@@ -535,5 +568,16 @@ export class SQLIndex<K, V> {
       value: V
       multiplicity: number
     }[]
+  }
+
+  static clearStatementCaches(): void {
+    SQLIndex.#appendQueryCache.clear()
+    SQLIndex.#joinQueryCache.clear()
+  }
+
+  truncate(): void {
+    this.#preparedStatements.truncate.run()
+    this.#preparedStatements.truncateMeta.run()
+    this.#preparedStatements.truncateVersions.run()
   }
 }

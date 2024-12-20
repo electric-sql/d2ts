@@ -20,7 +20,8 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
 > {
   #indexA: SQLIndex<K, V1>
   #indexB: SQLIndex<K, V2>
-  #db: SQLiteDb
+  #deltaA: SQLIndex<K, V1>
+  #deltaB: SQLIndex<K, V2>
 
   constructor(
     id: number,
@@ -31,18 +32,15 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
     db: SQLiteDb,
   ) {
     super(id, inputA, inputB, output, initialFrontier)
-    this.#db = db
     this.#indexA = new SQLIndex<K, V1>(db, `join_a_${id}`)
     this.#indexB = new SQLIndex<K, V2>(db, `join_b_${id}`)
+    this.#deltaA = new SQLIndex<K, V1>(db, `join_delta_a_${id}`)
+    this.#deltaB = new SQLIndex<K, V2>(db, `join_delta_b_${id}`)
   }
 
   run(): void {
-    const db = this.#db
-    const id = this.id
-
-    // Create temporary indexes for this iteration
-    const deltaA = new SQLIndex<K, V1>(db, `join_delta_a_${id}`, true)
-    const deltaB = new SQLIndex<K, V2>(db, `join_delta_b_${id}`, true)
+    const deltaA = this.#deltaA
+    const deltaB = this.#deltaB
 
     try {
       // Process input A
@@ -120,8 +118,8 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
       }
     } finally {
       // Clean up temporary indexes
-      deltaA.destroy()
-      deltaB.destroy()
+      deltaA.truncate()
+      deltaB.truncate()
     }
   }
 }
