@@ -1,4 +1,4 @@
-import Benchmark from 'benchmark'
+import { Suite } from './base'
 import { D2, MultiSet, map, join, filter, v } from 'd2ts'
 import { join as joinSql } from 'd2ts/sqlite'
 import { BetterSQLite3Wrapper } from 'd2ts/sqlite'
@@ -22,8 +22,9 @@ const generateData = (size: number) => {
 }
 
 // Test data - generate 1000 items but split into initial and incremental sets
-const totalSize = 1000
-const initialSize = 900
+const totalSize = 10000
+const initialSize = 9000
+const incrementalRuns = totalSize - initialSize
 const { users: allUsers, posts: allPosts } = generateData(totalSize)
 
 const initialUsers = allUsers.slice(0, initialSize)
@@ -33,281 +34,244 @@ const incrementalPosts = allPosts.slice(initialSize * 2)
 
 // Convert initial arrays to MultiSets
 const initialUsersSet = new MultiSet(
-  initialUsers.map((user) => [[user.id, user] as [number, (typeof allUsers)[0]], 1]),
+  initialUsers.map((user) => [
+    [user.id, user] as [number, (typeof allUsers)[0]],
+    1,
+  ]),
 )
 const initialPostsSet = new MultiSet(
-  initialPosts.map((post) => [[post.userId, post] as [number, (typeof allPosts)[0]], 1]),
+  initialPosts.map((post) => [
+    [post.userId, post] as [number, (typeof allPosts)[0]],
+    1,
+  ]),
 )
 
-// Benchmark suite for joins
-const joinSuite = new Benchmark.Suite('Incremental Joins')
+const runOptions = {
+  warmupRuns: 2,
+  totalRuns: 5,
+  incrementalRuns,
+  maxTimeDoingIncrementalRuns: 1_000,
+}
 
-// Naive implementation with incremental updates
-const naiveJoin = () => {
-  // Initial join with 900 items
-  let result = initialUsers.flatMap((user) =>
-    initialPosts
-      .filter((post) => post.userId === user.id)
-      .map((post) => ({ userName: user.name, postTitle: post.title })),
-  )
+// Create and run the join suite
+const joinSuite = new Suite({
+  name: 'Incremental Joins',
+  ...runOptions,
+})
 
-  // Add one item at a time and recompute
-  let currentUsers = [...initialUsers]
-  let currentPosts = [...initialPosts]
-
-  for (let i = 0; i < incrementalUsers.length; i++) {
-    currentUsers.push(incrementalUsers[i])
-    currentPosts.push(incrementalPosts[i * 2])
-    currentPosts.push(incrementalPosts[i * 2 + 1])
-
-    result = currentUsers.flatMap((user) =>
-      currentPosts
+// Add naive join benchmark
+joinSuite.add({
+  name: 'Naive Join',
+  setup: () => ({
+    currentUsers: [...initialUsers],
+    currentPosts: [...initialPosts],
+    result: [] as { userName: string; postTitle: string }[],
+  }),
+  firstRun: (ctx) => {
+    ctx.result = ctx.currentUsers.flatMap((user) =>
+      ctx.currentPosts
         .filter((post) => post.userId === user.id)
         .map((post) => ({ userName: user.name, postTitle: post.title })),
     )
-  }
+  },
+  incrementalRun: (ctx, i) => {
+    ctx.currentUsers.push(incrementalUsers[i])
+    ctx.currentPosts.push(incrementalPosts[i * 2])
+    ctx.currentPosts.push(incrementalPosts[i * 2 + 1])
 
-  return result
-}
+    ctx.result = ctx.currentUsers.flatMap((user) =>
+      ctx.currentPosts
+        .filter((post) => post.userId === user.id)
+        .map((post) => ({ userName: user.name, postTitle: post.title })),
+    )
+  },
+})
 
-// D2TS implementation with incremental updates
-const joinWithD2TS = () => {
-  const graph = new D2({ initialFrontier: v([0]) })
-  const usersStream = graph.newInput<[number, (typeof allUsers)[0]]>()
-  const postsStream = graph.newInput<[number, (typeof allPosts)[0]]>()
+// Add D2TS join benchmark
+joinSuite.add({
+  name: 'D2TS Join',
+  setup: () => {
+    const graph = new D2({ initialFrontier: v([0]) })
+    const usersStream = graph.newInput<[number, (typeof allUsers)[0]]>()
+    const postsStream = graph.newInput<[number, (typeof allPosts)[0]]>()
 
-  const joined = usersStream.pipe(
-    join(postsStream),
-    map(
-      ([_key, [user, post]]: [
-        number,
-        [(typeof allUsers)[0], (typeof allPosts)[0]],
-      ]) => ({
+    const joined = usersStream.pipe(
+      join(postsStream),
+      map(([_key, [user, post]]) => ({
         userName: user.name,
         postTitle: post.title,
-      }),
-    ),
-  )
+      })),
+    )
 
-  graph.finalize()
-
-  // Send initial data
-  usersStream.sendData(v([1]), initialUsersSet)
-  postsStream.sendData(v([1]), initialPostsSet)
-  graph.step()
-
-  // Incrementally add remaining items
-  for (let i = 0; i < incrementalUsers.length; i++) {
+    graph.finalize()
+    return { graph, usersStream, postsStream, joined }
+  },
+  firstRun: (ctx) => {
+    ctx.usersStream.sendData(v([1]), initialUsersSet)
+    ctx.postsStream.sendData(v([1]), initialPostsSet)
+    ctx.graph.step()
+  },
+  incrementalRun: (ctx, i) => {
     const user = incrementalUsers[i]
     const post1 = incrementalPosts[i * 2]
     const post2 = incrementalPosts[i * 2 + 1]
 
-    usersStream.sendData(
-      v([i + 2]),
-      new MultiSet([[[user.id, user] as [number, (typeof allUsers)[0]], 1]]),
-    )
-    postsStream.sendData(
+    ctx.usersStream.sendData(v([i + 2]), new MultiSet([[[user.id, user], 1]]))
+    ctx.postsStream.sendData(
       v([i + 2]),
       new MultiSet([
-        [[post1.userId, post1] as [number, (typeof allPosts)[0]], 1],
-        [[post2.userId, post2] as [number, (typeof allPosts)[0]], 1],
+        [[post1.userId, post1], 1],
+        [[post2.userId, post2], 1],
       ]),
     )
-    graph.step()
-  }
+    ctx.graph.step()
+  },
+})
 
-  return joined
-}
+// Add SQLite join benchmark
+joinSuite.add({
+  name: 'D2TS SQLite Join',
+  setup: () => {
+    const sqlite = new Database(':memory:')
+    const db = new BetterSQLite3Wrapper(sqlite)
+    const graph = new D2({ initialFrontier: v([0]) })
+    const usersStream = graph.newInput<[number, (typeof allUsers)[0]]>()
+    const postsStream = graph.newInput<[number, (typeof allPosts)[0]]>()
 
-// SQLite-based D2TS implementation
-const joinWithD2TSAndSQLite = () => {
-  const sqlite = new Database(':memory:')
-  const db = new BetterSQLite3Wrapper(sqlite)
-  
-  const graph = new D2({ initialFrontier: v([0]) })
-  const usersStream = graph.newInput<[number, (typeof allUsers)[0]]>()
-  const postsStream = graph.newInput<[number, (typeof allPosts)[0]]>()
-
-  const joined = usersStream.pipe(
-    joinSql(postsStream, db),
-    map(
-      ([_key, [user, post]]: [
-        number,
-        [(typeof allUsers)[0], (typeof allPosts)[0]],
-      ]) => ({
+    const joined = usersStream.pipe(
+      joinSql(postsStream, db),
+      map(([_key, [user, post]]) => ({
         userName: user.name,
         postTitle: post.title,
-      }),
-    ),
-  )
+      })),
+    )
 
-  graph.finalize()
-
-  // Send initial data
-  usersStream.sendData(v([1]), initialUsersSet)
-  postsStream.sendData(v([1]), initialPostsSet)
-  graph.step()
-
-  // Incrementally add remaining items
-  for (let i = 0; i < incrementalUsers.length; i++) {
+    graph.finalize()
+    return { graph, usersStream, postsStream, joined, db, sqlite }
+  },
+  firstRun: (ctx) => {
+    ctx.usersStream.sendData(v([1]), initialUsersSet)
+    ctx.postsStream.sendData(v([1]), initialPostsSet)
+    ctx.graph.step()
+  },
+  incrementalRun: (ctx, i) => {
     const user = incrementalUsers[i]
     const post1 = incrementalPosts[i * 2]
     const post2 = incrementalPosts[i * 2 + 1]
 
-    usersStream.sendData(
-      v([i + 2]),
-      new MultiSet([[[user.id, user] as [number, (typeof allUsers)[0]], 1]]),
-    )
-    postsStream.sendData(
+    ctx.usersStream.sendData(v([i + 2]), new MultiSet([[[user.id, user], 1]]))
+    ctx.postsStream.sendData(
       v([i + 2]),
       new MultiSet([
-        [[post1.userId, post1] as [number, (typeof allPosts)[0]], 1],
-        [[post2.userId, post2] as [number, (typeof allPosts)[0]], 1],
+        [[post1.userId, post1], 1],
+        [[post2.userId, post2], 1],
       ]),
     )
-    graph.step()
-  }
+    ctx.graph.step()
+  },
+  teardown: (ctx) => {
+    ctx.db.close()
+    ctx.sqlite.close()
+  },
+})
 
-  db.close()
-  return joined
-}
+joinSuite.run()
+joinSuite.printResults()
 
-// Add tests
-joinSuite
-  .add('Naive Join', () => {
-    naiveJoin()
-  })
-  .add('D2TS Join', () => {
-    joinWithD2TS()
-  })
-  .add('D2TS SQLite Join', () => {
-    joinWithD2TSAndSQLite()
-  })
-  .on('cycle', (event: Benchmark.Event) => {
-    console.log(String(event.target))
-  })
-  .on('complete', function (this: Benchmark.Suite) {
-    console.log('Fastest is ' + this.filter('fastest').map('name'))
-  })
-  .run()
+// Create filter suite
+const filterSuite = new Suite({
+  name: 'Incremental Filtering',
+  ...runOptions,
+})
 
-// Benchmark suite for filtering
-const filterSuite = new Benchmark.Suite('Incremental Filtering')
+// Add naive filter benchmark
+filterSuite.add({
+  name: 'Naive Filter',
+  setup: () => ({
+    currentUsers: [...initialUsers],
+    result: [] as { name: string; age: number }[],
+  }),
+  firstRun: (ctx) => {
+    ctx.result = ctx.currentUsers.filter((user) => user.age > 30)
+  },
+  incrementalRun: (ctx, i) => {
+    ctx.currentUsers.push(incrementalUsers[i])
+    ctx.result = ctx.currentUsers.filter((user) => user.age > 30)
+  },
+})
 
-// Naive implementation
-const naiveFilter = () => {
-  let result = initialUsers.filter((user) => user.age > 30)
-  
-  let currentUsers = [...initialUsers]
-  for (const user of incrementalUsers) {
-    currentUsers.push(user)
-    result = currentUsers.filter((user) => user.age > 30)
-  }
-  return result
-}
-
-// D2TS implementation
-const filterWithD2TS = () => {
-  const graph = new D2({ initialFrontier: v([0]) })
-  const stream = graph.newInput<[number, (typeof allUsers)[0]]>()
-
-  const filtered = stream.pipe(
-    filter(([_key, user]: [number, (typeof allUsers)[0]]) => user.age > 30),
-  )
-
-  graph.finalize()
-
-  // Send initial data
-  stream.sendData(v([1]), initialUsersSet)
-  graph.step()
-
-  // Incrementally add remaining items
-  for (let i = 0; i < incrementalUsers.length; i++) {
+// Add D2TS filter benchmark
+filterSuite.add({
+  name: 'D2TS Filter',
+  setup: () => {
+    const graph = new D2({ initialFrontier: v([0]) })
+    const stream = graph.newInput<[number, (typeof allUsers)[0]]>()
+    const filtered = stream.pipe(filter(([_key, user]) => user.age > 30))
+    graph.finalize()
+    return { graph, stream, filtered }
+  },
+  firstRun: (ctx) => {
+    ctx.stream.sendData(v([1]), initialUsersSet)
+    ctx.graph.step()
+  },
+  incrementalRun: (ctx, i) => {
     const user = incrementalUsers[i]
-    stream.sendData(
-      v([i + 2]),
-      new MultiSet([[[user.id, user] as [number, (typeof allUsers)[0]], 1]]),
+    ctx.stream.sendData(v([i + 2]), new MultiSet([[[user.id, user], 1]]))
+    ctx.graph.step()
+  },
+})
+
+filterSuite.run()
+filterSuite.printResults()
+
+// Create map suite
+const mapSuite = new Suite({
+  name: 'Incremental Mapping',
+  ...runOptions,
+})
+
+// Add naive map benchmark
+mapSuite.add({
+  name: 'Naive Map',
+  setup: () => ({
+    currentUsers: [...initialUsers],
+    result: [] as { name: string }[],
+  }),
+  firstRun: (ctx) => {
+    ctx.result = ctx.currentUsers.map((user) => ({
+      name: user.name.toUpperCase(),
+    }))
+  },
+  incrementalRun: (ctx, i) => {
+    ctx.currentUsers.push(incrementalUsers[i])
+    ctx.result = ctx.currentUsers.map((user) => ({
+      name: user.name.toUpperCase(),
+    }))
+  },
+})
+
+// Add D2TS map benchmark
+mapSuite.add({
+  name: 'D2TS Map',
+  setup: () => {
+    const graph = new D2({ initialFrontier: v([0]) })
+    const stream = graph.newInput<[number, (typeof allUsers)[0]]>()
+    const output = stream.pipe(
+      map(([id, user]) => [id, { name: user.name.toUpperCase() }]),
     )
-    graph.step()
-  }
-
-  return filtered
-}
-
-filterSuite
-  .add('Naive Filter', () => {
-    naiveFilter()
-  })
-  .add('D2TS Filter', () => {
-    filterWithD2TS()
-  })
-  .on('cycle', (event: Benchmark.Event) => {
-    console.log(String(event.target))
-  })
-  .on('complete', function (this: Benchmark.Suite) {
-    console.log('Fastest is ' + this.filter('fastest').map('name'))
-  })
-  .run()
-
-// Benchmark suite for mapping
-const mapSuite = new Benchmark.Suite('Incremental Mapping')
-
-// Naive implementation
-const naiveMap = () => {
-  // Initial mapping with 900 items
-  let result = initialUsers.map((user) => ({ name: user.name.toUpperCase() }))
-  
-  // Add one item at a time and recompute
-  let currentUsers = [...initialUsers]
-  for (const user of incrementalUsers) {
-    currentUsers.push(user)
-    result = currentUsers.map((user) => ({ name: user.name.toUpperCase() }))
-  }
-  return result
-}
-
-// D2TS implementation
-const mapWithD2TS = () => {
-  const graph = new D2({ initialFrontier: v([0]) })
-  const stream = graph.newInput<[number, (typeof allUsers)[0]]>()
-
-  const output = stream.pipe(
-    map(([id, user]: [number, (typeof allUsers)[0]]) => [
-      id,
-      { name: user.name.toUpperCase() },
-    ]),
-  )
-
-  graph.finalize()
-
-  // Send initial data
-  stream.sendData(v([1]), initialUsersSet)
-  graph.step()
-
-  // Incrementally add remaining items
-  for (let i = 0; i < incrementalUsers.length; i++) {
+    graph.finalize()
+    return { graph, stream, output }
+  },
+  firstRun: (ctx) => {
+    ctx.stream.sendData(v([1]), initialUsersSet)
+    ctx.graph.step()
+  },
+  incrementalRun: (ctx, i) => {
     const user = incrementalUsers[i]
-    stream.sendData(
-      v([i + 2]),
-      new MultiSet([[[user.id, user] as [number, (typeof allUsers)[0]], 1]]),
-    )
-    graph.step()
-  }
+    ctx.stream.sendData(v([i + 2]), new MultiSet([[[user.id, user], 1]]))
+    ctx.graph.step()
+  },
+})
 
-  return output
-}
-
-mapSuite
-  .add('Naive Map', () => {
-    naiveMap()
-  })
-  .add('D2TS Map', () => {
-    mapWithD2TS()
-  })
-  .on('cycle', (event: Benchmark.Event) => {
-    console.log(String(event.target))
-  })
-  .on('complete', function (this: Benchmark.Suite) {
-    console.log('Fastest is ' + this.filter('fastest').map('name'))
-  })
-  .run()
+mapSuite.run()
+mapSuite.printResults()

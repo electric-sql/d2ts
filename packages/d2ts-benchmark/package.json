@@ -7,10 +7,9 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/benchmark": "^2.1.5",
     "@types/better-sqlite3": "^7.6.12",
-    "benchmark": "^2.1.4",
     "better-sqlite3": "^11.7.0",
+    "table": "^6.8.1",
     "tsx": "^4.7.0",
     "typescript": "^5.0.0"
   },
