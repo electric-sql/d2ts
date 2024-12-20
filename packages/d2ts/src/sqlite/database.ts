@@ -19,6 +19,11 @@ export interface SQLiteStatement<Params = unknown, Result = unknown> {
    * Accepts either an array of parameters or an object of named parameters
    */
   all(...params: Params extends any[] ? Params : [Params?]): Result[]
+
+  /**
+   * Finalize the prepared statement
+   */
+  finalize?: () => void
 }
 
 /**
