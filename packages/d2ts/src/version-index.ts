@@ -1,6 +1,6 @@
 import { Version, Antichain } from './order.js'
 import { MultiSet } from './multiset.js'
-import { DefaultMap } from './utils.js'
+import { DefaultMap, chunkedArrayPush } from './utils.js'
 
 type VersionMap<T> = DefaultMap<Version, T[]>
 type IndexMap<K, V> = DefaultMap<K, VersionMap<[V, number]>>
@@ -74,7 +74,7 @@ export class Index<K, V> implements IndexType<K, V> {
 
     for (const [version, values] of versions.entries()) {
       if (version.lessEqual(requestedVersion)) {
-        out.push(...values)
+        chunkedArrayPush(out, values)
       }
     }
 
@@ -122,7 +122,7 @@ export class Index<K, V> implements IndexType<K, V> {
       const thisVersions = this.get(key)
       for (const [version, data] of versions) {
         thisVersions.update(version, (values) => {
-          values.push(...data)
+          chunkedArrayPush(values, data)
           return values
         })
       }
@@ -135,26 +135,45 @@ export class Index<K, V> implements IndexType<K, V> {
       () => [],
     )
 
-    // TODO: we should pick the smaller of the two #inner to iterate over
-    for (const [key, versions] of this.#inner) {
-      if (!other.has(key)) continue
-
-      const otherVersions = other.get(key)
-
-      for (const [rawVersion1, data1] of versions) {
-        const version1 =
-          this.#compactionFrontier &&
-          this.#compactionFrontier.lessEqualVersion(rawVersion1)
-            ? rawVersion1.advanceBy(this.#compactionFrontier)
-            : rawVersion1
+    // We want to iterate over the smaller of the two indexes to reduce the
+    // number of operations we need to do.
+    if (this.#inner.size <= other.#inner.size) {
+      for (const [key, versions] of this.#inner) {
+        if (!other.has(key)) continue
+        const otherVersions = other.get(key)
+        for (const [rawVersion1, data1] of versions) {
+          const version1 =
+            this.#compactionFrontier &&
+            this.#compactionFrontier.lessEqualVersion(rawVersion1)
+              ? rawVersion1.advanceBy(this.#compactionFrontier)
+              : rawVersion1
+          for (const [version2, data2] of otherVersions) {
+            for (const [val1, mul1] of data1) {
+              for (const [val2, mul2] of data2) {
+                const resultVersion = version1.join(version2)
+                collections.update(resultVersion, (existing) => {
+                  existing.push([key, [val1, val2], mul1 * mul2])
+                  return existing
+                })
+              }
+            }
+          }
+        }
+      }
+    } else {
+      for (const [key, otherVersions] of other.entries()) {
+        if (!this.has(key)) continue
+        const versions = this.get(key)
         for (const [version2, data2] of otherVersions) {
-          for (const [val1, mul1] of data1) {
+          for (const [version1, data1] of versions) {
             for (const [val2, mul2] of data2) {
-              const resultVersion = version1.join(version2)
-              collections.update(resultVersion, (existing) => {
-                existing.push([key, [val1, val2], mul1 * mul2])
-                return existing
-              })
+              for (const [val1, mul1] of data1) {
+                const resultVersion = version1.join(version2)
+                collections.update(resultVersion, (existing) => {
+                  existing.push([key, [val1, val2], mul1 * mul2])
+                  return existing
+                })
+              }
             }
           }
         }
@@ -217,7 +236,7 @@ export class Index<K, V> implements IndexType<K, V> {
 
         const newVersion = version.advanceBy(compactionFrontier)
         versions.update(newVersion, (existing) => {
-          existing.push(...values)
+          chunkedArrayPush(existing, values)
           return existing
         })
         toConsolidate.add(newVersion)
@@ -231,10 +250,10 @@ export class Index<K, V> implements IndexType<K, V> {
           this.#inner.delete(key)
         }
       }
+      this.#modifiedKeys.delete(key)
     }
 
     this.#compactionFrontier = compactionFrontier
-    this.#modifiedKeys.clear()
   }
 
   keys(): K[] {

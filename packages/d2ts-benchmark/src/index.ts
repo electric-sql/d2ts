@@ -69,32 +69,35 @@ function run({
   })
 
   // Add naive join benchmark
-  joinSuite.add({
-    name: 'Naive Join',
-    setup: () => ({
-      currentUsers: [...initialUsers],
-      currentPosts: [...initialPosts],
-      result: [] as { userName: string; postTitle: string }[],
-    }),
-    firstRun: (ctx) => {
-      ctx.result = ctx.currentUsers.flatMap((user) =>
-        ctx.currentPosts
-          .filter((post) => post.userId === user.id)
-          .map((post) => ({ userName: user.name, postTitle: post.title })),
-      )
-    },
-    incrementalRun: (ctx, i) => {
-      ctx.currentUsers.push(incrementalUsers[i])
-      ctx.currentPosts.push(incrementalPosts[i * 2])
-      ctx.currentPosts.push(incrementalPosts[i * 2 + 1])
+  // Skip for large datasets
+  if (initialSize <= 9000) {
+    joinSuite.add({
+      name: 'Naive Join',
+      setup: () => ({
+        currentUsers: [...initialUsers],
+        currentPosts: [...initialPosts],
+        result: [] as { userName: string; postTitle: string }[],
+      }),
+      firstRun: (ctx) => {
+        ctx.result = ctx.currentUsers.flatMap((user) =>
+          ctx.currentPosts
+            .filter((post) => post.userId === user.id)
+            .map((post) => ({ userName: user.name, postTitle: post.title })),
+        )
+      },
+      incrementalRun: (ctx, i) => {
+        ctx.currentUsers.push(incrementalUsers[i])
+        ctx.currentPosts.push(incrementalPosts[i * 2])
+        ctx.currentPosts.push(incrementalPosts[i * 2 + 1])
 
-      ctx.result = ctx.currentUsers.flatMap((user) =>
-        ctx.currentPosts
-          .filter((post) => post.userId === user.id)
-          .map((post) => ({ userName: user.name, postTitle: post.title })),
-      )
-    },
-  })
+        ctx.result = ctx.currentUsers.flatMap((user) =>
+          ctx.currentPosts
+            .filter((post) => post.userId === user.id)
+            .map((post) => ({ userName: user.name, postTitle: post.title })),
+        )
+      },
+    })
+  }
 
   // Add naive indexed join benchmark
   joinSuite.add({
@@ -482,4 +485,4 @@ function run({
 run({ initialSize: 90, incrementalRuns: 1000 })
 run({ initialSize: 900, incrementalRuns: 1000 })
 run({ initialSize: 9000, incrementalRuns: 1000 })
-// run({ initialSize: 90000, incrementalRuns: 1000 })
+run({ initialSize: 90000, incrementalRuns: 1000 })
