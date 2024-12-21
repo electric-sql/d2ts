@@ -36,6 +36,7 @@ export class SQLIndex<K, V> {
   #db: SQLiteDb
   #tableName: string
   #isTemp: boolean
+  #compactionFrontierCache: Antichain | null = null
   #preparedStatements: {
     insert: SQLiteStatement<InsertParams>
     get: SQLiteStatement<GetParams, IndexRow>
@@ -221,15 +222,23 @@ export class SQLIndex<K, V> {
   }
 
   getCompactionFrontier(): Antichain | null {
+    if (this.#compactionFrontierCache !== null) {
+      return this.#compactionFrontierCache;
+    }
+
     const frontierRow = this.#preparedStatements.getCompactionFrontier.get()
     if (!frontierRow) return null
     const data = JSON.parse(frontierRow.value) as number[][]
-    return new Antichain(data.map((inner) => v(inner)))
+    const frontier = new Antichain(data.map((inner) => v(inner)))
+    
+    this.#compactionFrontierCache = frontier;
+    return frontier;
   }
 
   setCompactionFrontier(frontier: Antichain): void {
     const json = JSON.stringify(frontier.elements.map((v) => v.getInner()))
     this.#preparedStatements.setCompactionFrontier.run(json)
+    this.#compactionFrontierCache = frontier;
   }
 
   #validate(requestedVersion: Version | Antichain): boolean {
@@ -368,6 +377,7 @@ export class SQLIndex<K, V> {
     // Just clear the query caches
     SQLIndex.#appendQueryCache.clear()
     SQLIndex.#joinQueryCache.clear()
+    this.#compactionFrontierCache = null;
   }
 
   static clearStatementCaches(): void {
@@ -460,5 +470,6 @@ export class SQLIndex<K, V> {
   truncate(): void {
     this.#preparedStatements.truncate.run()
     this.#preparedStatements.truncateMeta.run()
+    this.#compactionFrontierCache = null;
   }
 }
