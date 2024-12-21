@@ -104,18 +104,45 @@ export class Index<K, V> implements IndexType<K, V> {
       () => [],
     )
 
-    for (const [key, versions] of this.#inner) {
-      if (!other.#inner.has(key)) continue
+    // We want to iterate over the smaller of the two indexes to reduce the
+    // number of operations we need to do.
+    let inner1
+    let inner2
+    let direction: 'left' | 'right'
+    if (this.#inner.size <= other.#inner.size) {
+      inner1 = this.#inner
+      inner2 = other.#inner
+      direction = 'left'
+    } else {
+      inner1 = other.#inner
+      inner2 = this.#inner
+      direction = 'right'
+    }
 
-      const otherVersions = other.#inner.get(key)
+    for (const [key, versions1] of inner1) {
+      if (!inner2.has(key)) continue
 
-      for (const [version1, data1] of versions) {
-        for (const [version2, data2] of otherVersions) {
+      const versions2 = inner2.get(key)
+
+      for (const [version1, data1] of versions1) {
+        for (const [version2, data2] of versions2) {
           for (const [val1, mul1] of data1) {
             for (const [val2, mul2] of data2) {
               const resultVersion = version1.join(version2)
               collections.update(resultVersion, (existing) => {
-                existing.push([key, [val1, val2], mul1 * mul2])
+                if (direction === 'left') {
+                  existing.push([key, [val1, val2], mul1 * mul2] as [
+                    K,
+                    [V, V2],
+                    number,
+                  ])
+                } else {
+                  existing.push([key, [val2, val1], mul1 * mul2] as [
+                    K,
+                    [V, V2],
+                    number,
+                  ])
+                }
                 return existing
               })
             }
