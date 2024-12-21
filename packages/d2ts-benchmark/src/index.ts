@@ -312,68 +312,70 @@ function run({
   })
 
   // Add SQLite join with frontier benchmark
-  // joinSuite.add({
-  //   name: 'D2TS SQLite Join with Frontier',
-  //   setup: () => {
-  //     const sqlite = new Database(':memory:')
-  //     const db = new BetterSQLite3Wrapper(sqlite)
+  joinSuite.add({
+    name: 'D2TS SQLite Join with Frontier',
+    setup: () => {
+      const sqlite = new Database(':memory:')
+      const db = new BetterSQLite3Wrapper(sqlite)
 
-  //     // Improve the sqlite performance
-  //     db.exec(`PRAGMA journal_mode = WAL;`)
-  //     db.exec(`PRAGMA synchronous = OFF;`)
-  //     db.exec(`PRAGMA temp_store = MEMORY;`)
-  //     db.exec(`PRAGMA cache_size = -100000;`) // 100MB
+      // Improve the sqlite performance
+      db.exec(`PRAGMA journal_mode = WAL;`)
+      db.exec(`PRAGMA synchronous = OFF;`)
+      db.exec(`PRAGMA temp_store = MEMORY;`)
+      db.exec(`PRAGMA cache_size = -100000;`) // 100MB
 
-  //     const graph = new D2({ initialFrontier: v([0]) })
-  //     const usersStream = graph.newInput<[number, (typeof allUsers)[0]]>()
-  //     const postsStream = graph.newInput<[number, (typeof allPosts)[0]]>()
+      const graph = new D2({ initialFrontier: v([0]) })
+      const usersStream = graph.newInput<[number, (typeof allUsers)[0]]>()
+      const postsStream = graph.newInput<[number, (typeof allPosts)[0]]>()
 
-  //     const joined = usersStream.pipe(
-  //       joinSql(postsStream, db),
-  //       map(([_key, [user, post]]) => ({
-  //         userName: user.name,
-  //         postTitle: post.title,
-  //       })),
-  //       output((_data) => {
-  //         // do nothing
-  //       }),
-  //     )
+      const joined = usersStream.pipe(
+        joinSql(postsStream, db),
+        map(([_key, [user, post]]) => ({
+          userName: user.name,
+          postTitle: post.title,
+        })),
+        output((_data) => {
+          // do nothing
+        }),
+      )
 
-  //     graph.finalize()
-  //     return { graph, usersStream, postsStream, joined, db, sqlite }
-  //   },
-  //   firstRun: (ctx) => {
-  //     ctx.usersStream.sendData(v([1]), initialUsersSet)
-  //     ctx.postsStream.sendData(v([1]), initialPostsSet)
-  //     ctx.usersStream.sendFrontier(v([2]))
-  //     ctx.postsStream.sendFrontier(v([2]))
-  //     ctx.graph.step()
-  //   },
-  //   incrementalRun: (ctx, i) => {
-  //     const user = incrementalUsers[i]
-  //     const post1 = incrementalPosts[i * 2]
-  //     const post2 = incrementalPosts[i * 2 + 1]
+      graph.finalize()
+      return { graph, usersStream, postsStream, joined, db, sqlite }
+    },
+    firstRun: (ctx) => {
+      ctx.usersStream.sendData(v([1]), initialUsersSet)
+      ctx.postsStream.sendData(v([1]), initialPostsSet)
+      ctx.usersStream.sendFrontier(v([2]))
+      ctx.postsStream.sendFrontier(v([2]))
+      ctx.graph.step()
+    },
+    incrementalRun: (ctx, i) => {
+      const user = incrementalUsers[i]
+      const post1 = incrementalPosts[i * 2]
+      const post2 = incrementalPosts[i * 2 + 1]
 
-  //     ctx.usersStream.sendData(v([i + 2]), new MultiSet([[[user.id, user], 1]]))
-  //     ctx.postsStream.sendData(
-  //       v([i + 2]),
-  //       new MultiSet([
-  //         [[post1.userId, post1], 1],
-  //         [[post2.userId, post2], 1],
-  //       ]),
-  //     )
-  //     ctx.usersStream.sendFrontier(v([i + 3]))
-  //     ctx.postsStream.sendFrontier(v([i + 3]))
-  //     ctx.graph.step()
-  //   },
-  //   teardown: (ctx) => {
-  //     ctx.db.close()
-  //     ctx.sqlite.close()
-  //   },
-  // })
+      ctx.usersStream.sendData(v([i + 2]), new MultiSet([[[user.id, user], 1]]))
+      ctx.postsStream.sendData(
+        v([i + 2]),
+        new MultiSet([
+          [[post1.userId, post1], 1],
+          [[post2.userId, post2], 1],
+        ]),
+      )
+      ctx.usersStream.sendFrontier(v([i + 3]))
+      ctx.postsStream.sendFrontier(v([i + 3]))
+      ctx.graph.step()
+    },
+    teardown: (ctx) => {
+      ctx.db.close()
+      ctx.sqlite.close()
+    },
+  })
 
   joinSuite.run()
   joinSuite.printResults()
+
+  return
 
   // Create filter suite
   const filterSuite = new Suite({

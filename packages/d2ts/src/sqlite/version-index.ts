@@ -34,36 +34,42 @@ interface JoinResult {
   other_multiplicity: number
 }
 
+interface PreparedStatements {
+  insert: SQLiteStatement<InsertParams>
+  get: SQLiteStatement<GetParams, IndexRow>
+  getVersions: SQLiteStatement<[string], { version: string }>
+  getAllForKey: SQLiteStatement<[string], IndexRow>
+  delete: SQLiteStatement<[string]>
+  deleteAll: SQLiteStatement
+  getForCompaction: SQLiteStatement<[string], IndexRow>
+  consolidateVersions: SQLiteStatement<[string, string]>
+  deleteZeroMultiplicity: SQLiteStatement
+  setCompactionFrontier: SQLiteStatement<[string]>
+  getCompactionFrontier: SQLiteStatement<[], { value: string }>
+  deleteMeta: SQLiteStatement
+  getAllKeys: SQLiteStatement<[], { key: string }>
+  getVersionsForKey: SQLiteStatement<[string], { version: string }>
+  moveDataToNewVersion: SQLiteStatement<[string, string, string]>
+  deleteOldVersionData: SQLiteStatement<[string, string]>
+  truncate: SQLiteStatement
+  truncateMeta: SQLiteStatement
+  getModifiedKeys: SQLiteStatement<[], { key: string }>
+  addModifiedKey: SQLiteStatement<[string]>
+  clearModifiedKey: SQLiteStatement<[string]>
+  clearAllModifiedKeys: SQLiteStatement
+  compactKey: SQLiteStatement<[string, string, string]>
+  deleteOldVersionsData: SQLiteStatement<[string, string]>
+  getKeysNeedingCompaction: SQLiteStatement<[], { key: string }>
+  clearModifiedKeys: SQLiteStatement<[string]>
+}
+
 export class SQLIndex<K, V> {
   #db: SQLiteDb
   #tableName: string
   #isTemp: boolean
   #compactionFrontierCache: Antichain | null = null
   #statementCache = new Map<string, SQLiteStatement>()
-  #preparedStatements: {
-    insert: SQLiteStatement<InsertParams>
-    get: SQLiteStatement<GetParams, IndexRow>
-    getVersions: SQLiteStatement<[string], { version: string }>
-    getAllForKey: SQLiteStatement<[string], IndexRow>
-    delete: SQLiteStatement<[string]>
-    deleteAll: SQLiteStatement
-    getForCompaction: SQLiteStatement<[string], IndexRow>
-    consolidateVersions: SQLiteStatement<[string, string]>
-    deleteZeroMultiplicity: SQLiteStatement
-    setCompactionFrontier: SQLiteStatement<[string]>
-    getCompactionFrontier: SQLiteStatement<[], { value: string }>
-    deleteMeta: SQLiteStatement
-    getAllKeys: SQLiteStatement<[], { key: string }>
-    getVersionsForKey: SQLiteStatement<[string], { version: string }>
-    moveDataToNewVersion: SQLiteStatement<[string, string, string]>
-    deleteOldVersionData: SQLiteStatement<[string, string]>
-    truncate: SQLiteStatement
-    truncateMeta: SQLiteStatement
-    getModifiedKeys: SQLiteStatement<[], { key: string }>
-    addModifiedKey: SQLiteStatement<[string]>
-    clearModifiedKey: SQLiteStatement<[string]>
-    clearAllModifiedKeys: SQLiteStatement
-  }
+  #preparedStatements: PreparedStatements
 
   constructor(db: SQLiteDb, name: string, isTemp = false) {
     this.#db = db
@@ -236,6 +242,51 @@ export class SQLIndex<K, V> {
 
       clearAllModifiedKeys: this.#db.prepare(`
         DELETE FROM ${this.#tableName}_modified_keys
+      `),
+
+      compactKey: this.#db.prepare(`
+        WITH moved_data AS (
+          -- Move data to new versions and sum multiplicities
+          SELECT 
+            key,
+            ? as new_version,  -- Parameter 1: New version JSON
+            value,
+            SUM(multiplicity) as multiplicity
+          FROM ${this.#tableName}
+          WHERE key = ?        -- Parameter 2: Key JSON
+          AND version IN (     -- Parameter 3: Old versions JSON array
+            SELECT value FROM json_each(?)
+          )
+          GROUP BY key, value
+        )
+        INSERT INTO ${this.#tableName} (key, version, value, multiplicity)
+        SELECT key, new_version, value, multiplicity 
+        FROM moved_data
+        WHERE multiplicity != 0
+        ON CONFLICT(key, version, value) DO UPDATE SET
+          multiplicity = multiplicity + excluded.multiplicity
+      `),
+
+      deleteOldVersionsData: this.#db.prepare(`
+        DELETE FROM ${this.#tableName}
+        WHERE key = ? 
+        AND version IN (SELECT value FROM json_each(?))
+      `),
+
+      getKeysNeedingCompaction: this.#db.prepare(`
+        SELECT key, COUNT(*) as version_count
+        FROM (
+          SELECT DISTINCT key, version
+          FROM ${this.#tableName}
+          WHERE key IN (SELECT key FROM ${this.#tableName}_modified_keys)
+        )
+        GROUP BY key
+        HAVING version_count > 1
+      `),
+
+      clearModifiedKeys: this.#db.prepare(`
+        DELETE FROM ${this.#tableName}_modified_keys
+        WHERE key IN (SELECT value FROM json_each(?))
       `),
     }
   }
@@ -513,67 +564,69 @@ export class SQLIndex<K, V> {
 
     this.#validate(compactionFrontier)
 
-    // Get modified keys if no keys provided
-    const keysToProcess =
+    // Get all keys that were modified
+    const allKeysToProcess =
       keys.length > 0
         ? keys
         : this.#preparedStatements.getModifiedKeys
             .all()
             .map((row) => JSON.parse(row.key))
 
-    // Process each key
-    for (const key of keysToProcess) {
+    if (allKeysToProcess.length === 0) return
+
+    // Get keys that actually need compaction (have multiple versions)
+    const keysToProcessWithMultipleVersions =
+      this.#preparedStatements.getKeysNeedingCompaction
+        .all()
+        .map((row) => JSON.parse(row.key) as K)
+        .filter((key) => allKeysToProcess.includes(key))
+
+    // Process each key that needs compaction
+    for (const key of keysToProcessWithMultipleVersions) {
+      const keyJson = JSON.stringify(key)
+
       // Get versions for this key that need compaction
-      const toCompact = this.#preparedStatements.getVersionsForKey
-        .all(JSON.stringify(key))
-        .map(
-          (row) =>
-            [row.version, Version.fromJSON(row.version)] as [string, Version],
-        )
-        .filter(([_, version]) => {
-          return !compactionFrontier.lessEqualVersion(version)
-        })
+      const versionsToCompact = this.#preparedStatements.getVersionsForKey
+        .all(keyJson)
+        .map((row) => Version.fromJSON(row.version))
+        .filter((version) => !compactionFrontier.lessEqualVersion(version))
+        .map((version) => version.toJSON())
 
-      // Track versions that need consolidation
-      const toConsolidate = new Set<string>()
-
-      // Process each version that needs compaction
-      for (const [oldVersionJson, oldVersion] of toCompact) {
+      // Group versions by their target version after compaction
+      const versionGroups = new Map<string, string[]>()
+      for (const oldVersionJson of versionsToCompact) {
+        const oldVersion = Version.fromJSON(oldVersionJson)
         const newVersion = oldVersion.advanceBy(compactionFrontier)
         const newVersionJson = newVersion.toJSON()
 
-        // Move data to new version
-        this.#preparedStatements.moveDataToNewVersion.run(
-          newVersionJson,
-          JSON.stringify(key),
-          oldVersionJson,
-        )
-
-        // Delete old version data
-        this.#preparedStatements.deleteOldVersionData.run(
-          JSON.stringify(key),
-          oldVersionJson,
-        )
-
-        toConsolidate.add(newVersionJson)
+        if (!versionGroups.has(newVersionJson)) {
+          versionGroups.set(newVersionJson, [])
+        }
+        versionGroups.get(newVersionJson)!.push(oldVersionJson)
       }
 
-      // Consolidate values for each affected version
-      for (const versionJson of toConsolidate) {
-        // Consolidate by summing multiplicities
-        this.#preparedStatements.consolidateVersions.run(
-          versionJson,
-          versionJson,
+      // Process each group in a single query
+      for (const [newVersionJson, oldVersionJsons] of versionGroups) {
+        // Compact all versions in this group to the new version
+        this.#preparedStatements.compactKey.run(
+          newVersionJson,
+          keyJson,
+          JSON.stringify(oldVersionJsons),
         )
 
-        // Remove entries with zero multiplicity
-        this.#preparedStatements.deleteZeroMultiplicity.run()
+        // Delete all old versions data at once
+        this.#preparedStatements.deleteOldVersionsData.run(
+          keyJson,
+          JSON.stringify(oldVersionJsons),
+        )
       }
     }
 
-    // Clear processed keys from modified keys table
-    for (const key of keysToProcess) {
-      this.#preparedStatements.clearModifiedKey.run(JSON.stringify(key))
+    // Clear processed keys from modified keys table in a single query
+    if (allKeysToProcess.length > 0) {
+      this.#preparedStatements.clearModifiedKeys.run(
+        JSON.stringify(allKeysToProcess.map((k) => JSON.stringify(k))),
+      )
     }
 
     this.setCompactionFrontier(compactionFrontier)
