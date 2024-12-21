@@ -27,9 +27,12 @@ interface GetAllForKeyParams {
 
 interface JoinResult {
   key: string
-  version: string
-  joined_value: string
-  multiplicity: number
+  this_version: string
+  other_version: string
+  this_value: string
+  other_value: string
+  this_multiplicity: number
+  other_multiplicity: number
 }
 
 export class SQLIndex<K, V> {
@@ -325,49 +328,52 @@ export class SQLIndex<K, V> {
       query = `
         SELECT 
           a.key,
-          (
-            WITH RECURSIVE numbers(i) AS (
-              SELECT 0
-              UNION ALL
-              SELECT i + 1 FROM numbers 
-              WHERE i < json_array_length(a.version) - 1
-            )
-            SELECT json_group_array(
-              MAX(
-                json_extract(a.version, '$[' || i || ']'),
-                json_extract(b.version, '$[' || i || ']')
-              )
-            )
-            FROM numbers
-          ) as version,
-          json_array(json(a.value), json(b.value)) as joined_value,
-          a.multiplicity * b.multiplicity as multiplicity
+          a.version as this_version,
+          b.version as other_version,
+          a.value as this_value,
+          b.value as other_value,
+          a.multiplicity as this_multiplicity,
+          b.multiplicity as other_multiplicity
         FROM ${this.#tableName} a
         JOIN ${other.tableName} b ON a.key = b.key
-        GROUP BY a.key, a.value, b.value
       `
       SQLIndex.#joinQueryCache.set(cacheKey, query)
     }
 
     const results = this.#db.prepare(query).all() as JoinResult[]
 
-    const versionMap = new Map<string, MultiSet<[K, [V, V2]]>>()
+    const collections = new Map<string, [K, [V, V2], number][]>()
 
     for (const row of results) {
       const key = JSON.parse(row.key) as K
-      const [v1, v2] = JSON.parse(row.joined_value) as [V, V2]
+      const version1 = Version.fromJSON(row.this_version)
+      const version2 = Version.fromJSON(row.other_version)
+      const val1 = JSON.parse(row.this_value) as V
+      const val2 = JSON.parse(row.other_value) as V2
+      const mul1 = row.this_multiplicity
+      const mul2 = row.other_multiplicity
 
-      if (!versionMap.has(row.version)) {
-        versionMap.set(row.version, new MultiSet())
+      const resultVersion = version1.join(version2)
+      const versionKey = resultVersion.toJSON()
+
+      if (!collections.has(versionKey)) {
+        collections.set(versionKey, [])
       }
-
-      const collection = versionMap.get(row.version)!
-      collection.extend([[[key, [v1, v2]], row.multiplicity]])
+      
+      collections.get(versionKey)!.push([
+        key,
+        [val1, val2],
+        mul1 * mul2
+      ])
     }
 
-    const result = Array.from(versionMap.entries()).map(
-      ([versionStr, collection]) => [Version.fromJSON(versionStr), collection],
-    )
+    const result = Array.from(collections.entries())
+      .filter(([_v, c]) => c.length > 0)
+      .map(([versionJson, data]) => [
+        Version.fromJSON(versionJson),
+        new MultiSet(data.map(([k, v, m]) => [[k, v], m])),
+      ])
+
     return result as [Version, MultiSet<[K, [V, V2]]>][]
   }
 
