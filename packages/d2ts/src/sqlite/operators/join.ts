@@ -47,10 +47,13 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
       for (const message of this.inputAMessages()) {
         if (message.type === MessageType.DATA) {
           const { version, collection } = message.data as DataMessage<[K, V1]>
+          // Batch the inserts
+          const items: [K, Version, [V1, number]][] = []
           for (const [item, multiplicity] of collection.getInner()) {
             const [key, value] = item
-            deltaA.addValue(key, version, [value, multiplicity])
+            items.push([key, version, [value, multiplicity]])
           }
+          deltaA.addValues(items)
         } else if (message.type === MessageType.FRONTIER) {
           const frontier = message.data as Antichain
           if (!this.inputAFrontier().lessEqual(frontier)) {
@@ -64,10 +67,13 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
       for (const message of this.inputBMessages()) {
         if (message.type === MessageType.DATA) {
           const { version, collection } = message.data as DataMessage<[K, V2]>
+          // Batch the inserts
+          const items: [K, Version, [V2, number]][] = []
           for (const [item, multiplicity] of collection.getInner()) {
             const [key, value] = item
-            deltaB.addValue(key, version, [value, multiplicity])
+            items.push([key, version, [value, multiplicity]])
           }
+          deltaB.addValues(items)
         } else if (message.type === MessageType.FRONTIER) {
           const frontier = message.data as Antichain
           if (!this.inputBFrontier().lessEqual(frontier)) {

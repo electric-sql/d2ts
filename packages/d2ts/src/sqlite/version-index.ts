@@ -1,6 +1,9 @@
 import { Version, Antichain, v } from '../order.js'
 import { MultiSet } from '../multiset.js'
 import { SQLiteDb, SQLiteStatement } from './database.js'
+import { DefaultMap } from '../utils.js'
+
+type VersionMap<T> = DefaultMap<Version, T[]>
 
 interface IndexRow {
   key: string
@@ -21,10 +24,6 @@ interface GetParams {
   version: string
 }
 
-interface GetAllForKeyParams {
-  requestedVersion: string
-}
-
 interface JoinResult {
   key: string
   this_version: string
@@ -40,11 +39,12 @@ export class SQLIndex<K, V> {
   #tableName: string
   #isTemp: boolean
   #compactionFrontierCache: Antichain | null = null
+  #statementCache = new Map<string, SQLiteStatement>()
   #preparedStatements: {
     insert: SQLiteStatement<InsertParams>
     get: SQLiteStatement<GetParams, IndexRow>
     getVersions: SQLiteStatement<[string], { version: string }>
-    getAllForKey: SQLiteStatement<[string, GetAllForKeyParams], IndexRow>
+    getAllForKey: SQLiteStatement<[string], IndexRow>
     delete: SQLiteStatement<[string]>
     deleteAll: SQLiteStatement
     getForCompaction: SQLiteStatement<[string], IndexRow>
@@ -59,11 +59,11 @@ export class SQLIndex<K, V> {
     deleteOldVersionData: SQLiteStatement<[string, string]>
     truncate: SQLiteStatement
     truncateMeta: SQLiteStatement
+    getModifiedKeys: SQLiteStatement<[], { key: string }>
+    addModifiedKey: SQLiteStatement<[string]>
+    clearModifiedKey: SQLiteStatement<[string]>
+    clearAllModifiedKeys: SQLiteStatement
   }
-
-  // Change cache to store queries instead of statements
-  static #appendQueryCache = new Map<string, string>()
-  static #joinQueryCache = new Map<string, string>()
 
   constructor(db: SQLiteDb, name: string, isTemp = false) {
     this.#db = db
@@ -85,6 +85,12 @@ export class SQLIndex<K, V> {
       CREATE ${isTemp ? 'TEMP' : ''} TABLE IF NOT EXISTS ${this.#tableName}_meta (
         key TEXT PRIMARY KEY,
         value TEXT
+      )
+    `)
+
+    this.#db.exec(`
+      CREATE ${isTemp ? 'TEMP' : ''} TABLE IF NOT EXISTS ${this.#tableName}_modified_keys (
+        key TEXT PRIMARY KEY
       )
     `)
 
@@ -124,7 +130,7 @@ export class SQLIndex<K, V> {
       getAllForKey: this.#db.prepare(`
         SELECT version, value, multiplicity 
         FROM ${this.#tableName}
-        WHERE key = ? AND json_array_length(version) <= json_array_length(@requestedVersion)
+        WHERE key = ?
       `),
 
       delete: this.#db.prepare(`
@@ -213,6 +219,24 @@ export class SQLIndex<K, V> {
       truncateMeta: this.#db.prepare(`
         DELETE FROM ${this.#tableName}_meta
       `),
+
+      getModifiedKeys: this.#db.prepare(`
+        SELECT key FROM ${this.#tableName}_modified_keys
+      `),
+
+      addModifiedKey: this.#db.prepare(`
+        INSERT OR IGNORE INTO ${this.#tableName}_modified_keys (key)
+        VALUES (?)
+      `),
+
+      clearModifiedKey: this.#db.prepare(`
+        DELETE FROM ${this.#tableName}_modified_keys
+        WHERE key = ?
+      `),
+
+      clearAllModifiedKeys: this.#db.prepare(`
+        DELETE FROM ${this.#tableName}_modified_keys
+      `),
     }
   }
 
@@ -262,12 +286,7 @@ export class SQLIndex<K, V> {
 
   reconstructAt(key: K, requestedVersion: Version): [V, number][] {
     this.#validate(requestedVersion)
-    const rows = this.#preparedStatements.getAllForKey.all(
-      JSON.stringify(key),
-      {
-        requestedVersion: requestedVersion.toJSON(),
-      },
-    )
+    const rows = this.#preparedStatements.getAllForKey.all(JSON.stringify(key))
 
     const result = rows
       .filter((row) => {
@@ -276,6 +295,28 @@ export class SQLIndex<K, V> {
       })
       .map((row) => [JSON.parse(row.value) as V, row.multiplicity])
     return result as [V, number][]
+  }
+
+  get(key: K): VersionMap<[V, number]> {
+    const rows = this.#preparedStatements.getAllForKey.all(JSON.stringify(key))
+    const result = new DefaultMap<Version, [V, number][]>(() => [])
+    const compactionFrontier = this.getCompactionFrontier()
+    for (const row of rows) {
+      let version = Version.fromJSON(row.version)
+      if (compactionFrontier && !compactionFrontier.lessEqualVersion(version)) {
+        version = version.advanceBy(compactionFrontier)
+      }
+      result.set(version, [[JSON.parse(row.value) as V, row.multiplicity]])
+    }
+    return result
+  }
+
+  entries(): [K, VersionMap<[V, number]>][] {
+    // TODO: This is inefficient, we should use a query to get the entries
+    const keys = this.#preparedStatements.getAllKeys
+      .all()
+      .map((row) => JSON.parse(row.key))
+    return keys.map((key) => [key, this.get(key)])
   }
 
   versions(key: K): Version[] {
@@ -287,21 +328,83 @@ export class SQLIndex<K, V> {
   addValue(key: K, version: Version, value: [V, number]): void {
     this.#validate(version)
     const versionJson = version.toJSON()
+    const keyJson = JSON.stringify(key)
 
     this.#preparedStatements.insert.run({
-      key: JSON.stringify(key),
+      key: keyJson,
       version: versionJson,
       value: JSON.stringify(value[0]),
       multiplicity: value[1],
     })
+
+    this.#preparedStatements.addModifiedKey.run(keyJson)
+  }
+
+  addValues(items: [K, Version, [V, number]][]): void {
+    // SQLite has a limit of 32766 parameters per query
+    // Each item uses 4 parameters (key, version, value, multiplicity)
+    const BATCH_SIZE = Math.floor(32766 / 4)
+
+    for (let i = 0; i < items.length; i += BATCH_SIZE) {
+      const batch = items.slice(i, i + BATCH_SIZE)
+
+      // Build the parameterized query for this batch
+      const placeholders = batch.map(() => '(?, ?, ?, ?)').join(',')
+
+      const query = `
+        INSERT INTO ${this.#tableName} (key, version, value, multiplicity)
+        VALUES ${placeholders}
+        ON CONFLICT(key, version, value) DO
+          UPDATE SET multiplicity = multiplicity + excluded.multiplicity
+      `
+
+      // Create flattened parameters array
+      const params: (string | number)[] = []
+      const modifiedKeys: K[] = []
+
+      batch.forEach(([key, version, [value, multiplicity]]) => {
+        this.#validate(version)
+        params.push(
+          JSON.stringify(key),
+          version.toJSON(),
+          JSON.stringify(value),
+          multiplicity,
+        )
+        modifiedKeys.push(key)
+      })
+
+      // Execute the batch insert
+      this.#db.prepare(query).run(params)
+
+      // Track modified keys in batch
+      this.addModifiedKeys(modifiedKeys)
+    }
+  }
+
+  addModifiedKeys(keys: K[]): void {
+    // SQLite has a limit of 32766 parameters per query
+    const BATCH_SIZE = 32766
+
+    for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+      const batch = keys.slice(i, i + BATCH_SIZE)
+
+      const placeholders = batch.map(() => '(?)').join(',')
+      const query = `
+        INSERT OR IGNORE INTO ${this.#tableName}_modified_keys (key)
+        VALUES ${placeholders}
+      `
+
+      const params = batch.map((key) => JSON.stringify(key))
+      this.#db.prepare(query).run(params)
+    }
   }
 
   append(other: SQLIndex<K, V>): void {
-    const cacheKey = `${this.#tableName}_${other.tableName}`
+    const cacheKey = `append_${this.#tableName}_${other.tableName}`
 
-    let query = SQLIndex.#appendQueryCache.get(cacheKey)
-    if (!query) {
-      query = `
+    let stmt = this.#statementCache.get(cacheKey)
+    if (!stmt) {
+      const query = `
         INSERT OR REPLACE INTO ${this.#tableName} (key, version, value, multiplicity)
         SELECT 
           o.key,
@@ -314,18 +417,31 @@ export class SQLIndex<K, V> {
           AND t.version = o.version
           AND t.value = o.value
       `
-      SQLIndex.#appendQueryCache.set(cacheKey, query)
+      stmt = this.#db.prepare(query)
+      this.#statementCache.set(cacheKey, stmt)
     }
 
-    this.#db.prepare(query).run()
+    stmt.run()
+
+    const modifiedKeysCacheKey = `append_modified_keys_${this.#tableName}_${other.tableName}`
+    let modifiedKeysStmt = this.#statementCache.get(modifiedKeysCacheKey)
+    if (!modifiedKeysStmt) {
+      modifiedKeysStmt = this.#db.prepare(`
+        INSERT OR IGNORE INTO ${this.#tableName}_modified_keys (key)
+        SELECT DISTINCT key FROM ${other.tableName}
+      `)
+      this.#statementCache.set(modifiedKeysCacheKey, modifiedKeysStmt)
+    }
+
+    modifiedKeysStmt.run()
   }
 
   join<V2>(other: SQLIndex<K, V2>): [Version, MultiSet<[K, [V, V2]]>][] {
-    const cacheKey = `${this.#tableName}_${other.tableName}`
+    const cacheKey = `join_${this.#tableName}_${other.tableName}`
 
-    let query = SQLIndex.#joinQueryCache.get(cacheKey)
-    if (!query) {
-      query = `
+    let stmt = this.#statementCache.get(cacheKey)
+    if (!stmt) {
+      const query = `
         SELECT 
           a.key,
           a.version as this_version,
@@ -337,10 +453,11 @@ export class SQLIndex<K, V> {
         FROM ${this.#tableName} a
         JOIN ${other.tableName} b ON a.key = b.key
       `
-      SQLIndex.#joinQueryCache.set(cacheKey, query)
+      stmt = this.#db.prepare(query)
+      this.#statementCache.set(cacheKey, stmt)
     }
 
-    const results = this.#db.prepare(query).all() as JoinResult[]
+    const results = stmt.all() as JoinResult[]
 
     const collections = new Map<string, [K, [V, V2], number][]>()
 
@@ -352,6 +469,21 @@ export class SQLIndex<K, V> {
       const val2 = JSON.parse(row.other_value) as V2
       const mul1 = row.this_multiplicity
       const mul2 = row.other_multiplicity
+
+      const compactionFrontier1 = this.getCompactionFrontier()
+      const compactionFrontier2 = other.getCompactionFrontier()
+      if (
+        compactionFrontier1 &&
+        compactionFrontier1.lessEqualVersion(version1)
+      ) {
+        version1.advanceBy(compactionFrontier1)
+      }
+      if (
+        compactionFrontier2 &&
+        compactionFrontier2.lessEqualVersion(version2)
+      ) {
+        version2.advanceBy(compactionFrontier2)
+      }
 
       const resultVersion = version1.join(version2)
       const versionKey = resultVersion.toJSON()
@@ -373,20 +505,6 @@ export class SQLIndex<K, V> {
     return result as [Version, MultiSet<[K, [V, V2]]>][]
   }
 
-  destroy(): void {
-    this.#preparedStatements.deleteMeta.run()
-    this.#preparedStatements.deleteAll.run()
-    // Just clear the query caches
-    SQLIndex.#appendQueryCache.clear()
-    SQLIndex.#joinQueryCache.clear()
-    this.#compactionFrontierCache = null
-  }
-
-  static clearStatementCaches(): void {
-    SQLIndex.#appendQueryCache.clear()
-    SQLIndex.#joinQueryCache.clear()
-  }
-
   compact(compactionFrontier: Antichain, keys: K[] = []): void {
     const existingFrontier = this.getCompactionFrontier()
     if (existingFrontier && !existingFrontier.lessEqual(compactionFrontier)) {
@@ -395,33 +513,32 @@ export class SQLIndex<K, V> {
 
     this.#validate(compactionFrontier)
 
-    // Get all keys if none provided
+    // Get modified keys if no keys provided
     const keysToProcess =
       keys.length > 0
         ? keys
-        : (() => {
-            const rows = this.#preparedStatements.getAllKeys.all()
-            return rows.map((row) => JSON.parse(row.key))
-          })()
+        : this.#preparedStatements.getModifiedKeys
+            .all()
+            .map((row) => JSON.parse(row.key))
 
     // Process each key
     for (const key of keysToProcess) {
       // Get versions for this key that need compaction
-      const versionsToCompact = this.#preparedStatements.getVersionsForKey
+      const toCompact = this.#preparedStatements.getVersionsForKey
         .all(JSON.stringify(key))
-        .map((row) => row.version)
-
-      const toCompact = versionsToCompact.filter((versionJson) => {
-        const version = Version.fromJSON(versionJson)
-        return !compactionFrontier.lessEqualVersion(version)
-      })
+        .map(
+          (row) =>
+            [row.version, Version.fromJSON(row.version)] as [string, Version],
+        )
+        .filter(([_, version]) => {
+          return !compactionFrontier.lessEqualVersion(version)
+        })
 
       // Track versions that need consolidation
       const toConsolidate = new Set<string>()
 
       // Process each version that needs compaction
-      for (const oldVersionJson of toCompact) {
-        const oldVersion = Version.fromJSON(oldVersionJson)
+      for (const [oldVersionJson, oldVersion] of toCompact) {
         const newVersion = oldVersion.advanceBy(compactionFrontier)
         const newVersionJson = newVersion.toJSON()
 
@@ -454,6 +571,11 @@ export class SQLIndex<K, V> {
       }
     }
 
+    // Clear processed keys from modified keys table
+    for (const key of keysToProcess) {
+      this.#preparedStatements.clearModifiedKey.run(JSON.stringify(key))
+    }
+
     this.setCompactionFrontier(compactionFrontier)
   }
 
@@ -472,6 +594,15 @@ export class SQLIndex<K, V> {
   truncate(): void {
     this.#preparedStatements.truncate.run()
     this.#preparedStatements.truncateMeta.run()
+    this.#preparedStatements.clearAllModifiedKeys.run()
+    this.#compactionFrontierCache = null
+  }
+
+  destroy(): void {
+    this.#preparedStatements.deleteMeta.run()
+    this.#preparedStatements.deleteAll.run()
+    this.#db.exec(`DROP TABLE IF EXISTS ${this.#tableName}_modified_keys`)
+    this.#statementCache.clear()
     this.#compactionFrontierCache = null
   }
 }
