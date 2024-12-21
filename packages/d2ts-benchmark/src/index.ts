@@ -69,32 +69,35 @@ function run({
   })
 
   // Add naive join benchmark
-  joinSuite.add({
-    name: 'Naive Join',
-    setup: () => ({
-      currentUsers: [...initialUsers],
-      currentPosts: [...initialPosts],
-      result: [] as { userName: string; postTitle: string }[],
-    }),
-    firstRun: (ctx) => {
-      ctx.result = ctx.currentUsers.flatMap((user) =>
-        ctx.currentPosts
-          .filter((post) => post.userId === user.id)
-          .map((post) => ({ userName: user.name, postTitle: post.title })),
-      )
-    },
-    incrementalRun: (ctx, i) => {
-      ctx.currentUsers.push(incrementalUsers[i])
-      ctx.currentPosts.push(incrementalPosts[i * 2])
-      ctx.currentPosts.push(incrementalPosts[i * 2 + 1])
+  // Skip for large datasets
+  if (initialSize <= 9000) {
+    joinSuite.add({
+      name: 'Naive Join',
+      setup: () => ({
+        currentUsers: [...initialUsers],
+        currentPosts: [...initialPosts],
+        result: [] as { userName: string; postTitle: string }[],
+      }),
+      firstRun: (ctx) => {
+        ctx.result = ctx.currentUsers.flatMap((user) =>
+          ctx.currentPosts
+            .filter((post) => post.userId === user.id)
+            .map((post) => ({ userName: user.name, postTitle: post.title })),
+        )
+      },
+      incrementalRun: (ctx, i) => {
+        ctx.currentUsers.push(incrementalUsers[i])
+        ctx.currentPosts.push(incrementalPosts[i * 2])
+        ctx.currentPosts.push(incrementalPosts[i * 2 + 1])
 
-      ctx.result = ctx.currentUsers.flatMap((user) =>
-        ctx.currentPosts
-          .filter((post) => post.userId === user.id)
-          .map((post) => ({ userName: user.name, postTitle: post.title })),
-      )
-    },
-  })
+        ctx.result = ctx.currentUsers.flatMap((user) =>
+          ctx.currentPosts
+            .filter((post) => post.userId === user.id)
+            .map((post) => ({ userName: user.name, postTitle: post.title })),
+        )
+      },
+    })
+  }
 
   // Add naive indexed join benchmark
   joinSuite.add({
@@ -203,53 +206,53 @@ function run({
     },
   })
 
-  // Add D2TS join with frontier benchmark
-  joinSuite.add({
-    name: 'D2TS Join with Frontier',
-    setup: () => {
-      const graph = new D2({ initialFrontier: v([0]) })
-      const usersStream = graph.newInput<[number, (typeof allUsers)[0]]>()
-      const postsStream = graph.newInput<[number, (typeof allPosts)[0]]>()
+  // // Add D2TS join with frontier benchmark
+  // joinSuite.add({
+  //   name: 'D2TS Join with Frontier',
+  //   setup: () => {
+  //     const graph = new D2({ initialFrontier: v([0]) })
+  //     const usersStream = graph.newInput<[number, (typeof allUsers)[0]]>()
+  //     const postsStream = graph.newInput<[number, (typeof allPosts)[0]]>()
 
-      const joined = usersStream.pipe(
-        join(postsStream),
-        map(([_key, [user, post]]) => ({
-          userName: user.name,
-          postTitle: post.title,
-        })),
-        output((_data) => {
-          // do nothing
-        }),
-      )
+  //     const joined = usersStream.pipe(
+  //       join(postsStream),
+  //       map(([_key, [user, post]]) => ({
+  //         userName: user.name,
+  //         postTitle: post.title,
+  //       })),
+  //       output((_data) => {
+  //         // do nothing
+  //       }),
+  //     )
 
-      graph.finalize()
-      return { graph, usersStream, postsStream, joined }
-    },
-    firstRun: (ctx) => {
-      ctx.usersStream.sendData(v([1]), initialUsersSet)
-      ctx.postsStream.sendData(v([1]), initialPostsSet)
-      ctx.usersStream.sendFrontier(v([2]))
-      ctx.postsStream.sendFrontier(v([2]))
-      ctx.graph.step()
-    },
-    incrementalRun: (ctx, i) => {
-      const user = incrementalUsers[i]
-      const post1 = incrementalPosts[i * 2]
-      const post2 = incrementalPosts[i * 2 + 1]
+  //     graph.finalize()
+  //     return { graph, usersStream, postsStream, joined }
+  //   },
+  //   firstRun: (ctx) => {
+  //     ctx.usersStream.sendData(v([1]), initialUsersSet)
+  //     ctx.postsStream.sendData(v([1]), initialPostsSet)
+  //     ctx.usersStream.sendFrontier(v([2]))
+  //     ctx.postsStream.sendFrontier(v([2]))
+  //     ctx.graph.step()
+  //   },
+  //   incrementalRun: (ctx, i) => {
+  //     const user = incrementalUsers[i]
+  //     const post1 = incrementalPosts[i * 2]
+  //     const post2 = incrementalPosts[i * 2 + 1]
 
-      ctx.usersStream.sendData(v([i + 2]), new MultiSet([[[user.id, user], 1]]))
-      ctx.postsStream.sendData(
-        v([i + 2]),
-        new MultiSet([
-          [[post1.userId, post1], 1],
-          [[post2.userId, post2], 1],
-        ]),
-      )
-      ctx.usersStream.sendFrontier(v([i + 3]))
-      ctx.postsStream.sendFrontier(v([i + 3]))
-      ctx.graph.step()
-    },
-  })
+  //     ctx.usersStream.sendData(v([i + 2]), new MultiSet([[[user.id, user], 1]]))
+  //     ctx.postsStream.sendData(
+  //       v([i + 2]),
+  //       new MultiSet([
+  //         [[post1.userId, post1], 1],
+  //         [[post2.userId, post2], 1],
+  //       ]),
+  //     )
+  //     ctx.usersStream.sendFrontier(v([i + 3]))
+  //     ctx.postsStream.sendFrontier(v([i + 3]))
+  //     ctx.graph.step()
+  //   },
+  // })
 
   // Add SQLite join benchmark
   joinSuite.add({
@@ -482,4 +485,4 @@ function run({
 run({ initialSize: 90, incrementalRuns: 1000 })
 run({ initialSize: 900, incrementalRuns: 1000 })
 run({ initialSize: 9000, incrementalRuns: 1000 })
-// run({ initialSize: 90000, incrementalRuns: 1000 })
+run({ initialSize: 90000, incrementalRuns: 1000 })

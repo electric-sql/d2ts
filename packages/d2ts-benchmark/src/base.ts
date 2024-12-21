@@ -111,11 +111,11 @@ export class Suite {
     // Calculate data for the table
     const headers = [
       'Benchmark',
-      'Startup (ms)',
+      // 'Startup (ms)',
       'First Run (ms)',
       'Incremental (ms)',
       'ops/sec',
-      'Teardown (ms)',
+      // 'Teardown (ms)',
     ]
     const rows = Array.from(resultsByBenchmark.entries()).map(
       ([name, results]) => {
@@ -127,11 +127,11 @@ export class Suite {
 
         return [
           name,
-          formatAverage(results.map((r) => r.startupTime)),
+          // formatAverage(results.map((r) => r.startupTime)),
           formatAverage(results.map((r) => r.firstRunTime)),
           formatAverage(avgIncrementalMs),
           formatOpsPerSec(avgIncrementalMs.map((ms) => 1000 / ms)),
-          formatAverage(results.map((r) => r.teardownTime)),
+          // formatAverage(results.map((r) => r.teardownTime)),
         ]
       },
     )
