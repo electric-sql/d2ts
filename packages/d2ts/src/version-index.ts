@@ -1,6 +1,6 @@
 import { Version, Antichain } from './order.js'
 import { MultiSet } from './multiset.js'
-import { DefaultMap } from './utils.js'
+import { DefaultMap, chunkedArrayPush } from './utils.js'
 
 type VersionMap<T> = DefaultMap<Version, T[]>
 type IndexMap<K, V> = DefaultMap<K, VersionMap<[V, number]>>
@@ -66,7 +66,7 @@ export class Index<K, V> implements IndexType<K, V> {
 
     for (const [version, values] of versions.entries()) {
       if (version.lessEqual(requestedVersion)) {
-        out.push(...values)
+        chunkedArrayPush(out, values)
       }
     }
 
@@ -92,7 +92,7 @@ export class Index<K, V> implements IndexType<K, V> {
       const thisVersions = this.#inner.get(key)
       for (const [version, data] of versions) {
         thisVersions.update(version, (values) => {
-          values.push(...data)
+          chunkedArrayPush(values, data)
           return values
         })
       }
@@ -180,7 +180,7 @@ export class Index<K, V> implements IndexType<K, V> {
 
         const newVersion = version.advanceBy(compactionFrontier)
         versions.update(newVersion, (existing) => {
-          existing.push(...values)
+          chunkedArrayPush(existing, values)
           return existing
         })
         toConsolidate.add(newVersion)
