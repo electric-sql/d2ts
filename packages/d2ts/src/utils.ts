@@ -51,3 +51,19 @@ export class DefaultMap<K, V> extends Map<K, V> {
     return newValue
   }
 }
+
+// JS engines have various limits on how many args can be passed to a function
+// with a spread operator, so we need to split the operation into chunks
+// 32767 is the max for Chrome 14, all others are higher
+// TODO: investigate the performance of this and other approaches
+const chunkSize = 30000
+export function chunkedArrayPush(array: unknown[], other: unknown[]) {
+  if (other.length <= chunkSize) {
+    array.push(...other)
+  } else {
+    for (let i = 0; i < other.length; i += chunkSize) {
+      const chunk = other.slice(i, i + chunkSize)
+      array.push(...chunk)
+    }
+  }
+}

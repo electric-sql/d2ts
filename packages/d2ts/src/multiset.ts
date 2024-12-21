@@ -1,4 +1,4 @@
-import { DefaultMap } from './utils.js'
+import { DefaultMap, chunkedArrayPush } from './utils.js'
 
 export type MultiSetArray<T> = [T, number][]
 export type KeyedData<T> = [key: string, value: T]
@@ -55,8 +55,8 @@ export class MultiSet<T> {
    */
   concat(other: MultiSet<T>): MultiSet<T> {
     const out: MultiSetArray<T> = []
-    out.push(...this.#inner)
-    out.push(...other.#inner)
+    chunkedArrayPush(out, this.#inner)
+    chunkedArrayPush(out, other.getInner())
     return new MultiSet(out)
   }
 
@@ -93,7 +93,7 @@ export class MultiSet<T> {
     const out: MultiSetArray<KeyedData<[T, U]>> = []
 
     for (const [[k1, v1], d1] of this.#inner as MultiSetArray<KeyedData<T>>) {
-      for (const [[k2, v2], d2] of other.#inner) {
+      for (const [[k2, v2], d2] of other.getInner()) {
         if (k1 === k2) {
           out.push([[k1, [v1, v2]], d1 * d2])
         }
@@ -283,11 +283,8 @@ export class MultiSet<T> {
   }
 
   extend(other: MultiSet<T> | MultiSetArray<T>): void {
-    if (other instanceof MultiSet) {
-      this.#inner.push(...other.getInner())
-    } else {
-      this.#inner.push(...other)
-    }
+    const otherArray = other instanceof MultiSet ? other.getInner() : other
+    chunkedArrayPush(this.#inner, otherArray)
   }
 
   getInner(): MultiSetArray<T> {

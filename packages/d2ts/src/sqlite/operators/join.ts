@@ -34,8 +34,8 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
     super(id, inputA, inputB, output, initialFrontier)
     this.#indexA = new SQLIndex<K, V1>(db, `join_a_${id}`)
     this.#indexB = new SQLIndex<K, V2>(db, `join_b_${id}`)
-    this.#deltaA = new SQLIndex<K, V1>(db, `join_delta_a_${id}`)
-    this.#deltaB = new SQLIndex<K, V2>(db, `join_delta_b_${id}`)
+    this.#deltaA = new SQLIndex<K, V1>(db, `join_delta_a_${id}`, true)
+    this.#deltaB = new SQLIndex<K, V2>(db, `join_delta_b_${id}`, true)
   }
 
   run(): void {
