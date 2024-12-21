@@ -39,18 +39,12 @@ interface PreparedStatements {
   get: SQLiteStatement<GetParams, IndexRow>
   getVersions: SQLiteStatement<[string], { version: string }>
   getAllForKey: SQLiteStatement<[string], IndexRow>
-  delete: SQLiteStatement<[string]>
   deleteAll: SQLiteStatement
-  getForCompaction: SQLiteStatement<[string], IndexRow>
-  consolidateVersions: SQLiteStatement<[string, string]>
-  deleteZeroMultiplicity: SQLiteStatement
   setCompactionFrontier: SQLiteStatement<[string]>
   getCompactionFrontier: SQLiteStatement<[], { value: string }>
   deleteMeta: SQLiteStatement
   getAllKeys: SQLiteStatement<[], { key: string }>
   getVersionsForKey: SQLiteStatement<[string], { version: string }>
-  moveDataToNewVersion: SQLiteStatement<[string, string, string]>
-  deleteOldVersionData: SQLiteStatement<[string, string]>
   truncate: SQLiteStatement
   truncateMeta: SQLiteStatement
   getModifiedKeys: SQLiteStatement<[], { key: string }>
@@ -139,45 +133,8 @@ export class SQLIndex<K, V> {
         WHERE key = ?
       `),
 
-      delete: this.#db.prepare(`
-        DELETE FROM ${this.#tableName}
-        WHERE version = ?
-      `),
-
       deleteAll: this.#db.prepare(`
         DROP TABLE IF EXISTS ${this.#tableName}
-      `),
-
-      getForCompaction: this.#db.prepare(`
-        SELECT key, version, value, multiplicity
-        FROM ${this.#tableName}
-        WHERE version = ?
-      `),
-
-      consolidateVersions: this.#db.prepare(`
-        WITH consolidated AS (
-          SELECT 
-            key,
-            value,
-            CAST(SUM(CAST(multiplicity AS BIGINT)) AS INTEGER) as new_multiplicity
-          FROM ${this.#tableName}
-          WHERE version = ?
-          GROUP BY key, value
-        )
-        UPDATE ${this.#tableName}
-        SET multiplicity = (
-          SELECT new_multiplicity
-          FROM consolidated c
-          WHERE 
-            c.key = ${this.#tableName}.key AND
-            c.value = ${this.#tableName}.value
-        )
-        WHERE version = ?
-      `),
-
-      deleteZeroMultiplicity: this.#db.prepare(`
-        DELETE FROM ${this.#tableName}
-        WHERE multiplicity = 0
       `),
 
       setCompactionFrontier: this.#db.prepare(`
@@ -202,20 +159,6 @@ export class SQLIndex<K, V> {
         SELECT DISTINCT version
         FROM ${this.#tableName}
         WHERE key = ?
-      `),
-
-      moveDataToNewVersion: this.#db.prepare(`
-        INSERT INTO ${this.#tableName} (key, version, value, multiplicity)
-        SELECT key, ?, value, multiplicity
-        FROM ${this.#tableName}
-        WHERE key = ? AND version = ?
-        ON CONFLICT(key, version, value) DO UPDATE SET
-        multiplicity = multiplicity + excluded.multiplicity
-      `),
-
-      deleteOldVersionData: this.#db.prepare(`
-        DELETE FROM ${this.#tableName}
-        WHERE key = ? AND version = ?
       `),
 
       truncate: this.#db.prepare(`
