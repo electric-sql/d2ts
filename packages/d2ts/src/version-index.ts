@@ -28,12 +28,20 @@ export interface IndexType<K, V> {
 export class Index<K, V> implements IndexType<K, V> {
   #inner: IndexMap<K, V>
   #compactionFrontier: Antichain | null
+  #modifiedKeys: Set<K>
 
   constructor() {
     this.#inner = new DefaultMap<K, VersionMap<[V, number]>>(
       () => new DefaultMap<Version, [V, number][]>(() => []),
     )
+    // #inner is as map of:
+    // {
+    //   [key]: {
+    //     [version]: [value, multiplicity]
+    //   }
+    // }
     this.#compactionFrontier = null
+    this.#modifiedKeys = new Set()
   }
 
   toString(indent = false): string {
@@ -73,8 +81,29 @@ export class Index<K, V> implements IndexType<K, V> {
     return out
   }
 
+  get(key: K): VersionMap<[V, number]> {
+    if (!this.#compactionFrontier) return this.#inner.get(key)
+    // versions may be older than the compaction frontier, so we need to
+    // advance them to it. This is due to not rewriting the whole version index
+    // to the compaction frontier as part of the compact operation.
+    const versions = this.#inner.get(key).entries()
+    const out = new DefaultMap<Version, [V, number][]>(() => [])
+    for (const [rawVersion, values] of versions) {
+      let version = rawVersion
+      if (!this.#compactionFrontier.lessEqualVersion(rawVersion)) {
+        version = rawVersion.advanceBy(this.#compactionFrontier)
+      }
+      out.set(version, values)
+    }
+    return out
+  }
+
+  entries(): [K, VersionMap<[V, number]>][] {
+    return this.keys().map((key) => [key, this.get(key)])
+  }
+
   versions(key: K): Version[] {
-    const result = Array.from(this.#inner.get(key).keys())
+    const result = Array.from(this.get(key).keys())
     return result
   }
 
@@ -85,17 +114,19 @@ export class Index<K, V> implements IndexType<K, V> {
       values.push(value)
       return values
     })
+    this.#modifiedKeys.add(key)
   }
 
   append(other: Index<K, V>): void {
-    for (const [key, versions] of other.#inner) {
-      const thisVersions = this.#inner.get(key)
+    for (const [key, versions] of other.entries()) {
+      const thisVersions = this.get(key)
       for (const [version, data] of versions) {
         thisVersions.update(version, (values) => {
           chunkedArrayPush(values, data)
           return values
         })
       }
+      this.#modifiedKeys.add(key)
     }
   }
 
@@ -106,45 +137,43 @@ export class Index<K, V> implements IndexType<K, V> {
 
     // We want to iterate over the smaller of the two indexes to reduce the
     // number of operations we need to do.
-    let inner1
-    let inner2
-    let direction: 'left' | 'right'
     if (this.#inner.size <= other.#inner.size) {
-      inner1 = this.#inner
-      inner2 = other.#inner
-      direction = 'left'
+      for (const [key, versions] of this.#inner) {
+        if (!other.has(key)) continue
+        const otherVersions = other.get(key)
+        for (const [rawVersion1, data1] of versions) {
+          const version1 =
+            this.#compactionFrontier &&
+            this.#compactionFrontier.lessEqualVersion(rawVersion1)
+              ? rawVersion1.advanceBy(this.#compactionFrontier)
+              : rawVersion1
+          for (const [version2, data2] of otherVersions) {
+            for (const [val1, mul1] of data1) {
+              for (const [val2, mul2] of data2) {
+                const resultVersion = version1.join(version2)
+                collections.update(resultVersion, (existing) => {
+                  existing.push([key, [val1, val2], mul1 * mul2])
+                  return existing
+                })
+              }
+            }
+          }
+        }
+      }
     } else {
-      inner1 = other.#inner
-      inner2 = this.#inner
-      direction = 'right'
-    }
-
-    for (const [key, versions1] of inner1) {
-      if (!inner2.has(key)) continue
-
-      const versions2 = inner2.get(key)
-
-      for (const [version1, data1] of versions1) {
-        for (const [version2, data2] of versions2) {
-          for (const [val1, mul1] of data1) {
+      for (const [key, otherVersions] of other.entries()) {
+        if (!this.has(key)) continue
+        const versions = this.get(key)
+        for (const [version2, data2] of otherVersions) {
+          for (const [version1, data1] of versions) {
             for (const [val2, mul2] of data2) {
-              const resultVersion = version1.join(version2)
-              collections.update(resultVersion, (existing) => {
-                if (direction === 'left') {
-                  existing.push([key, [val1, val2], mul1 * mul2] as [
-                    K,
-                    [V, V2],
-                    number,
-                  ])
-                } else {
-                  existing.push([key, [val2, val1], mul1 * mul2] as [
-                    K,
-                    [V, V2],
-                    number,
-                  ])
-                }
-                return existing
-              })
+              for (const [val1, mul1] of data1) {
+                const resultVersion = version1.join(version2)
+                collections.update(resultVersion, (existing) => {
+                  existing.push([key, [val1, val2], mul1 * mul2])
+                  return existing
+                })
+              }
             }
           }
         }
@@ -190,7 +219,7 @@ export class Index<K, V> implements IndexType<K, V> {
     }
 
     const keysToProcess =
-      keys.length > 0 ? keys : Array.from(this.#inner.keys())
+      keys.length > 0 ? keys : Array.from(this.#modifiedKeys)
 
     for (const key of keysToProcess) {
       const versions = this.#inner.get(key)
@@ -221,6 +250,7 @@ export class Index<K, V> implements IndexType<K, V> {
           this.#inner.delete(key)
         }
       }
+      this.#modifiedKeys.delete(key)
     }
 
     this.#compactionFrontier = compactionFrontier

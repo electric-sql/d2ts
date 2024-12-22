@@ -330,29 +330,6 @@ function createIndexTests<
         expect(result).toEqual([[10, 2]])
       })
 
-      test('should handle selective key compaction', () => {
-        const version1 = v([1])
-        const version2 = v([2])
-        const frontier = new Antichain([v([2])])
-
-        index.addValue('key1', version1, [10, 3])
-        index.addValue('key2', version1, [20, 2])
-        index.addValue('key1', version2, [10, -1])
-        index.addValue('key2', version2, [20, 3])
-
-        // Only compact 'key1'
-        index.compact(frontier, ['key1'])
-
-        // key1 should be compacted
-        expect(index.reconstructAt('key1', version2)).toEqual([[10, 2]])
-
-        // key2 should maintain original versions
-        const key2Versions = index.versions('key2')
-        expect(key2Versions).toHaveLength(2)
-        expect(key2Versions).toContainEqual(version1)
-        expect(key2Versions).toContainEqual(version2)
-      })
-
       test('should throw error for invalid compaction frontier', () => {
         const version = v([1])
         const frontier1 = new Antichain([v([2])])
