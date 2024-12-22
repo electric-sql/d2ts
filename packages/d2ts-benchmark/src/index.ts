@@ -375,8 +375,6 @@ function run({
   joinSuite.run()
   joinSuite.printResults()
 
-  return
-
   // Create filter suite
   const filterSuite = new Suite({
     name: 'Incremental Filtering',
