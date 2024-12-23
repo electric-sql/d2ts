@@ -1,7 +1,6 @@
 import type { Version, Antichain } from './order.js'
 import type { MultiSet, MultiSetArray } from './multiset.js'
 import type { DifferenceStreamWriter, DifferenceStreamReader } from './graph.js'
-import type { Store } from './store.js'
 
 export type KeyValue<K, V> = [K, V]
 
@@ -66,7 +65,6 @@ export interface IStreamBuilder<T> {
   writer: DifferenceStreamWriter<T>
   connectReader(): DifferenceStreamReader<T>
   graph: ID2
-  materialize<K, V>(this: IStreamBuilder<KeyValue<K, V>>): Store<K, V>
 
   // Don't judge, this is the only way to type this function.
   // rxjs has very similar code to type its pipe function

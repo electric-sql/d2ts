@@ -6,15 +6,7 @@ import {
 import { DifferenceStreamReader } from './graph.js'
 import { MultiSetArray, MultiSet } from './multiset.js'
 import { Antichain, Version } from './order.js'
-import { Store } from './store.js'
-import {
-  PipedOperator,
-  IStreamBuilder,
-  ID2,
-  KeyValue,
-  MessageType,
-} from './types.js'
-import { output } from './operators/output.js'
+import { PipedOperator, IStreamBuilder, ID2 } from './types.js'
 
 export type D2Options = {
   initialFrontier: Antichain | Version | number | number[]
@@ -168,48 +160,6 @@ export class StreamBuilder<T> implements IStreamBuilder<T> {
     return operators.reduce((stream, operator) => {
       return operator(stream)
     }, this as IStreamBuilder<any>)
-  }
-
-  materialize<K, V>(this: StreamBuilder<KeyValue<K, V>>): Store<K, V> {
-    const store = new Store<K, V>(new Map())
-    this.pipe(
-      output((msg) => {
-        if (msg.type === MessageType.DATA) {
-          const collection = msg.data.collection
-          store.transaction((tx) => {
-            const changesByKey = new Map<
-              K,
-              { deletes: number; inserts: number; value: V }
-            >()
-
-            for (const [[key, value], multiplicity] of collection.getInner()) {
-              let changes = changesByKey.get(key)
-              if (!changes) {
-                changes = { deletes: 0, inserts: 0, value: value }
-                changesByKey.set(key, changes)
-              }
-
-              if (multiplicity < 0) {
-                changes.deletes += Math.abs(multiplicity)
-              } else if (multiplicity > 0) {
-                changes.inserts += multiplicity
-                changes.value = value
-              }
-            }
-
-            for (const [key, changes] of changesByKey) {
-              const { deletes, inserts, value } = changes
-              if (inserts >= deletes) {
-                tx.set(key, value)
-              } else if (deletes > 0) {
-                tx.delete(key)
-              }
-            }
-          })
-        }
-      }),
-    )
-    return store
   }
 }
 

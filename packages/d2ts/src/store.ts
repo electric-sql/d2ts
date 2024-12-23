@@ -1,3 +1,8 @@
+import { MessageType } from './types'
+
+import { output } from './operators/output'
+import { IStreamBuilder } from './types'
+
 export type ChangeInsert<K, V> = {
   type: 'insert'
   key: K
@@ -29,15 +34,59 @@ export class Store<K, V> extends EventTarget {
   #inTransaction: boolean = false
   #pendingChanges: ChangeSet<K, V> = []
 
-  constructor(initial: Map<K, V>) {
+  constructor(initial?: Map<K, V>) {
     super()
     this.#inner = new Map()
-    this.#inTransaction = true
-    for (const [key, value] of initial) {
-      this.set(key, value)
+    if (initial) {
+      this.#inTransaction = true
+      for (const [key, value] of initial) {
+        this.set(key, value)
+      }
+      this.#inTransaction = false
+      this.#emitChanges()
     }
-    this.#inTransaction = false
-    this.#emitChanges()
+  }
+
+  static materialize<K, V>(stream: IStreamBuilder<[K, V]>): Store<K, V> {
+    const store = new Store<K, V>()
+    stream.pipe(
+      output((msg) => {
+        if (msg.type === MessageType.DATA) {
+          const collection = msg.data.collection
+          store.transaction((tx) => {
+            const changesByKey = new Map<
+              K,
+              { deletes: number; inserts: number; value: V }
+            >()
+
+            for (const [[key, value], multiplicity] of collection.getInner()) {
+              let changes = changesByKey.get(key)
+              if (!changes) {
+                changes = { deletes: 0, inserts: 0, value: value }
+                changesByKey.set(key, changes)
+              }
+
+              if (multiplicity < 0) {
+                changes.deletes += Math.abs(multiplicity)
+              } else if (multiplicity > 0) {
+                changes.inserts += multiplicity
+                changes.value = value
+              }
+            }
+
+            for (const [key, changes] of changesByKey) {
+              const { deletes, inserts, value } = changes
+              if (inserts >= deletes) {
+                tx.set(key, value)
+              } else if (deletes > 0) {
+                tx.delete(key)
+              }
+            }
+          })
+        }
+      }),
+    )
+    return store
   }
 
   #emitChanges() {

@@ -3,15 +3,16 @@ import { D2 } from '../src/d2'
 import { MultiSet } from '../src/multiset'
 import { map } from '../src/operators'
 import { v } from '../src/order'
+import { Store } from '../src/store'
 
 describe('StreamBuilder.materialize', () => {
   it('should create a store with initial data', () => {
     const graph = new D2({ initialFrontier: v(0) })
     const input = graph.newInput<{ key: string; value: number }>()
 
-    const materialized = input
-      .pipe(map((data) => [data.key, data.value] as [string, number]))
-      .materialize()
+    const materialized = Store.materialize(
+      input.pipe(map((data) => [data.key, data.value] as [string, number])),
+    )
 
     graph.finalize()
 
@@ -35,9 +36,9 @@ describe('StreamBuilder.materialize', () => {
     const graph = new D2({ initialFrontier: v(0) })
     const input = graph.newInput<{ key: string; value: number }>()
 
-    const materialized = input
-      .pipe(map((data) => [data.key, data.value] as [string, number]))
-      .materialize()
+    const materialized = Store.materialize(
+      input.pipe(map((data) => [data.key, data.value] as [string, number])),
+    )
 
     graph.finalize()
 
@@ -65,9 +66,9 @@ describe('StreamBuilder.materialize', () => {
     const graph = new D2({ initialFrontier: v(0) })
     const input = graph.newInput<{ key: string; value: number }>()
 
-    const materialized = input
-      .pipe(map((data) => [data.key, data.value] as [string, number]))
-      .materialize()
+    const materialized = Store.materialize(
+      input.pipe(map((data) => [data.key, data.value] as [string, number])),
+    )
 
     graph.finalize()
 
@@ -96,9 +97,9 @@ describe('StreamBuilder.materialize', () => {
     const graph = new D2({ initialFrontier: v(0) })
     const input = graph.newInput<{ key: string; value: number }>()
 
-    const materialized = input
-      .pipe(map((data) => [data.key, data.value] as [string, number]))
-      .materialize()
+    const materialized = Store.materialize(
+      input.pipe(map((data) => [data.key, data.value] as [string, number])),
+    )
 
     graph.finalize()
 
@@ -147,9 +148,9 @@ describe('StreamBuilder.materialize', () => {
     const graph = new D2({ initialFrontier: v(0) })
     const input = graph.newInput<{ key: string; value: number }>()
 
-    const materialized = input
-      .pipe(map((data) => [data.key, data.value] as [string, number]))
-      .materialize()
+    const materialized = Store.materialize(
+      input.pipe(map((data) => [data.key, data.value] as [string, number])),
+    )
 
     graph.finalize()
 

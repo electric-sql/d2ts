@@ -2,6 +2,7 @@ import { MultiSet } from '../src/multiset'
 import { D2 } from '../src/index.js'
 import { map, reduce, consolidate } from '../src/operators/index.js'
 import { v } from '../src/order.js'
+import { Store } from '../src/store.js'
 
 type FruitOrder = {
   name: string
@@ -13,8 +14,8 @@ type FruitOrder = {
 const graph = new D2({ initialFrontier: v(0) })
 const input = graph.newInput<FruitOrder>()
 
-const materializedStatus = input
-  .pipe(
+const materializedStatus = Store.materialize(
+  input.pipe(
     // debug('Raw Input'),
     map(
       (order) =>
@@ -34,12 +35,12 @@ const materializedStatus = input
     }),
     // debug('Status Totals'),
     consolidate(),
-  )
-  .materialize()
+  ),
+)
 
 // Track total processed quantities regardless of status
-const materializedProcessed = input
-  .pipe(
+const materializedProcessed = Store.materialize(
+  input.pipe(
     // debug('Raw Input'),
     map((order) => [order.name, order.quantity] as [string, number]),
     // debug('After Map'),
@@ -53,8 +54,8 @@ const materializedProcessed = input
     }),
     // debug('Total Processed'),
     consolidate(),
-  )
-  .materialize()
+  ),
+)
 
 graph.finalize()
 
