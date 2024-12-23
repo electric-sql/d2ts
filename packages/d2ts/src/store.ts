@@ -2,6 +2,8 @@ import { MessageType } from './types'
 
 import { output } from './operators/output'
 import { IStreamBuilder } from './types'
+import { D2 } from './d2'
+import { MultiSet, MultiSetArray } from './multiset'
 
 export type ChangeInsert<K, V> = {
   type: 'insert'
@@ -45,48 +47,6 @@ export class Store<K, V> extends EventTarget {
       this.#inTransaction = false
       this.#emitChanges()
     }
-  }
-
-  static materialize<K, V>(stream: IStreamBuilder<[K, V]>): Store<K, V> {
-    const store = new Store<K, V>()
-    stream.pipe(
-      output((msg) => {
-        if (msg.type === MessageType.DATA) {
-          const collection = msg.data.collection
-          store.transaction((tx) => {
-            const changesByKey = new Map<
-              K,
-              { deletes: number; inserts: number; value: V }
-            >()
-
-            for (const [[key, value], multiplicity] of collection.getInner()) {
-              let changes = changesByKey.get(key)
-              if (!changes) {
-                changes = { deletes: 0, inserts: 0, value: value }
-                changesByKey.set(key, changes)
-              }
-
-              if (multiplicity < 0) {
-                changes.deletes += Math.abs(multiplicity)
-              } else if (multiplicity > 0) {
-                changes.inserts += multiplicity
-                changes.value = value
-              }
-            }
-
-            for (const [key, changes] of changesByKey) {
-              const { deletes, inserts, value } = changes
-              if (inserts >= deletes) {
-                tx.set(key, value)
-              } else if (deletes > 0) {
-                tx.delete(key)
-              }
-            }
-          })
-        }
-      }),
-    )
-    return store
   }
 
   #emitChanges() {
@@ -195,5 +155,112 @@ export class Store<K, V> extends EventTarget {
 
   get size(): number {
     return this.#inner.size
+  }
+
+  static materialize<K, V>(stream: IStreamBuilder<[K, V]>): Store<K, V> {
+    const store = new Store<K, V>()
+    stream.pipe(
+      output((msg) => {
+        if (msg.type === MessageType.DATA) {
+          const collection = msg.data.collection
+          store.transaction((tx) => {
+            const changesByKey = new Map<
+              K,
+              { deletes: number; inserts: number; value: V }
+            >()
+
+            for (const [[key, value], multiplicity] of collection.getInner()) {
+              let changes = changesByKey.get(key)
+              if (!changes) {
+                changes = { deletes: 0, inserts: 0, value: value }
+                changesByKey.set(key, changes)
+              }
+
+              if (multiplicity < 0) {
+                changes.deletes += Math.abs(multiplicity)
+              } else if (multiplicity > 0) {
+                changes.inserts += multiplicity
+                changes.value = value
+              }
+            }
+
+            for (const [key, changes] of changesByKey) {
+              const { deletes, inserts, value } = changes
+              if (inserts >= deletes) {
+                tx.set(key, value)
+              } else if (deletes > 0) {
+                tx.delete(key)
+              }
+            }
+          })
+        }
+      }),
+    )
+    return store
+  }
+
+  static queryAll<K extends unknown, V extends unknown, R>(
+    stores: Store<K, V>[],
+    fn: (streams: IStreamBuilder<[K, V]>[]) => R,
+  ): R {
+    let time = 0
+    const graph = new D2({ initialFrontier: time })
+    const inputs = stores.map(() => graph.newInput<[K, V]>())
+    const ret = fn(inputs)
+    graph.finalize()
+
+    for (let i = 0; i < stores.length; i++) {
+      const store = stores[i]
+      const input = inputs[i]
+      store.addEventListener('change', (event) => {
+        const rawChanges = (event as CustomEvent).detail as ChangeSet<K, V>
+        const changes: MultiSetArray<[K, V]> = []
+        for (const change of rawChanges) {
+          switch (change.type) {
+            case 'insert':
+              changes.push([[change.key, change.value], 1])
+              break
+            case 'delete':
+              changes.push([[change.key, change.previousValue!], -1])
+              break
+            case 'update':
+              changes.push([[change.key, change.value], 1])
+              changes.push([[change.key, change.previousValue!], -1])
+              break
+          }
+        }
+        input.sendData(time, new MultiSet(changes))
+        input.sendFrontier(++time)
+        graph.step()
+        time++
+      })
+    }
+
+    // Send the initial data
+    for (let i = 0; i < stores.length; i++) {
+      const store = stores[i]
+      const input = inputs[i]
+      const rawChanges = store.entriesAsChanges()
+      const changes: MultiSetArray<[K, V]> = []
+      for (const change of rawChanges) {
+        switch (change.type) {
+          case 'insert':
+            changes.push([[change.key, change.value], 1])
+            break
+          case 'delete':
+            changes.push([[change.key, change.previousValue!], -1])
+            break
+          case 'update':
+            changes.push([[change.key, change.value], 1])
+            changes.push([[change.key, change.previousValue!], -1])
+            break
+        }
+      }
+      input.sendData(time, new MultiSet(changes))
+      input.sendFrontier(++time)
+      graph.step()
+    }
+
+    return ret
   }
 }
