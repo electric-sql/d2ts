@@ -354,4 +354,35 @@ describe('Store', () => {
       ])
     })
   })
+
+  describe('query', () => {
+    it('should allow querying a single store', () => {
+      const store = new Store<string, number>(
+        new Map([
+          ['a', 1],
+          ['b', 2],
+        ]),
+      )
+
+      const materialized = store.query((stream) =>
+        Store.materialize(
+          stream.pipe(
+            map(([key, value]) => [key, value * 2] as [string, number]),
+          ),
+        ),
+      )
+
+      expect(Array.from(materialized.entries())).toEqual([
+        ['a', 2],
+        ['b', 4],
+      ])
+
+      store.set('c', 3)
+      expect(Array.from(materialized.entries())).toEqual([
+        ['a', 2],
+        ['b', 4],
+        ['c', 6],
+      ])
+    })
+  })
 })

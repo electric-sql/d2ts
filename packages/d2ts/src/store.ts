@@ -143,6 +143,10 @@ export class Store<K, V> {
     this.#emitChanges()
   }
 
+  query<R>(fn: (stream: IStreamBuilder<[K, V]>) => R): R {
+    return Store.queryAll([this], ([stream]) => fn(stream))
+  }
+
   update(key: K, fn: (value: V | undefined) => V): void {
     const previousValue = this.#inner.get(key)
     const value = fn(previousValue)
