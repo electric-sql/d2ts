@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Store } from '../src/store'
 import type { ChangeSet } from '../src/store'
+import { map, reduce, concat } from '../src/operators'
 
 describe('Store', () => {
   let store: Store<string, number>
@@ -224,6 +225,132 @@ describe('Store', () => {
       expect(entries).toEqual([
         ['a', 1],
         ['b', 2],
+      ])
+    })
+  })
+
+  describe('queryAll', () => {
+    it('should allow querying multiple stores', () => {
+      const store1 = new Store<string, number>(
+        new Map([
+          ['a', 1],
+          ['b', 2],
+        ]),
+      )
+      const store2 = new Store<string, number>(
+        new Map([
+          ['c', 3],
+          ['d', 4],
+        ]),
+      )
+
+      const materialized = Store.queryAll([store1, store2], ([s1, s2]) => {
+        return Store.materialize(s1.pipe(concat(s2)))
+      })
+
+      expect(Array.from(materialized.entries())).toEqual([
+        ['a', 1],
+        ['b', 2],
+        ['c', 3],
+        ['d', 4],
+      ])
+    })
+
+    it('should react to changes in source stores', () => {
+      const store1 = new Store<string, number>(new Map([['a', 1]]))
+      const store2 = new Store<string, number>(new Map([['b', 2]]))
+
+      const materialized = Store.queryAll([store1, store2], ([s1, s2]) => {
+        // Combine both streams into one store
+        return Store.materialize(s1.pipe(concat(s2)))
+      })
+
+      expect(Array.from(materialized.entries())).toEqual([
+        ['a', 1],
+        ['b', 2],
+      ])
+
+      // Make changes to source stores
+      store1.set('a', 10)
+      store2.set('c', 3)
+
+      expect(Array.from(materialized.entries())).toEqual([
+        ['a', 10],
+        ['b', 2],
+        ['c', 3],
+      ])
+    })
+
+    it('should handle complex transformations', () => {
+      type FruitOrder = {
+        name: string
+        quantity: number
+        status: 'packed' | 'shipped'
+      }
+
+      const orders = new Store<string, FruitOrder>()
+
+      const { byStatus, totals } = Store.queryAll([orders], ([orderStream]) => {
+        // Count by status
+        const byStatus = Store.materialize(
+          orderStream.pipe(
+            map(
+              ([_, order]) =>
+                [`${order.name}-${order.status}`, order.quantity] as [
+                  string,
+                  number,
+                ],
+            ),
+          ),
+        )
+
+        // Count total by fruit
+        const totals = Store.materialize(
+          orderStream.pipe(
+            map(
+              ([_, order]) => [order.name, order.quantity] as [string, number],
+            ),
+            reduce((values) => {
+              let sum = 0
+              for (const [qty, diff] of values) {
+                sum += qty * diff
+              }
+              return [[sum, 1]]
+            }),
+          ),
+        )
+
+        return { byStatus, totals }
+      })
+
+      // Add initial orders
+      orders.transaction((tx) => {
+        tx.set('1', { name: 'apple', quantity: 100, status: 'packed' })
+        tx.set('2', { name: 'banana', quantity: 150, status: 'packed' })
+      })
+
+      expect(Array.from(byStatus.entries())).toEqual([
+        ['apple-packed', 100],
+        ['banana-packed', 150],
+      ])
+
+      expect(Array.from(totals.entries())).toEqual([
+        ['apple', 100],
+        ['banana', 150],
+      ])
+
+      // Update an order status
+      orders.set('1', { name: 'apple', quantity: 100, status: 'shipped' })
+
+      expect(Array.from(byStatus.entries())).toEqual([
+        ['banana-packed', 150],
+        ['apple-shipped', 100],
+      ])
+
+      // Totals shouldn't change since only status changed
+      expect(Array.from(totals.entries())).toEqual([
+        ['apple', 100],
+        ['banana', 150],
       ])
     })
   })
