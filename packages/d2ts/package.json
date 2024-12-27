@@ -24,6 +24,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json}\" \"tests/**/*.{ts,tsx,js,jsx,json}\""
   },
   "devDependencies": {
+    "@electric-sql/client": "1.0.0-beta.2",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.10.2",
     "@typescript-eslint/eslint-plugin": "^8.18.0",
@@ -38,9 +39,13 @@
     "vitest": "^2.1.8"
   },
   "peerDependencies": {
+    "@electric-sql/client": "1.0.0-beta.2",
     "better-sqlite3": "^11.7.0"
   },
   "peerDependenciesMeta": {
+    "@electric-sql/client": {
+      "optional": true
+    },
     "better-sqlite3": {
       "optional": true
     }

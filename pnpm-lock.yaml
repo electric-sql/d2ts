@@ -32,6 +32,9 @@ importers:
 
   packages/d2ts:
     devDependencies:
+      '@electric-sql/client':
+        specifier: 1.0.0-beta.2
+        version: 1.0.0-beta.2
       '@types/better-sqlite3':
         specifier: ^7.6.12
         version: 7.6.12
@@ -92,6 +95,9 @@ importers:
         version: 5.6.3
 
 packages:
+
+  '@electric-sql/client@1.0.0-beta.2':
+    resolution: {integrity: sha512-JbDOI9KhH+JuVOp1j4WbgkUtHeH7DUiPTWCxD1BLepbzA+xU1DU0BCQwh0xxBQXrIgddddzot5bumHqSj1yMhA==}
 
   '@esbuild/aix-ppc64@0.21.5':
     resolution: {integrity: sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ==}
@@ -1642,6 +1648,10 @@ packages:
     engines: {node: '>=12.20'}
 
 snapshots:
+
+  '@electric-sql/client@1.0.0-beta.2':
+    optionalDependencies:
+      '@rollup/rollup-darwin-arm64': 4.27.3
 
   '@esbuild/aix-ppc64@0.21.5':
     optional: true
