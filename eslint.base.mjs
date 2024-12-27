@@ -51,7 +51,10 @@ export default [
         console: true,
         window: true,
         document: true,
-        globalThis: true
+        globalThis: true,
+        EventTarget: true,
+        CustomEvent: true,
+        EventListener: true
       },
     },
     ignores: ['dist/', 'node_modules/'],
