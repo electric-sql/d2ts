@@ -104,9 +104,9 @@ describe('StreamBuilder.materialize', () => {
     graph.finalize()
 
     const changes: any[] = []
-    materialized.addEventListener('change', ((e: CustomEvent) => {
-      changes.push(e.detail)
-    }) as EventListener)
+    const unsubscribe = materialized.subscribe((change) => {
+      changes.push(change)
+    })
 
     // Initial data
     input.sendData(v(0), new MultiSet([[{ key: 'a', value: 1 }, 1]]))
@@ -142,6 +142,8 @@ describe('StreamBuilder.materialize', () => {
         previousValue: 1,
       },
     ])
+
+    unsubscribe()
   })
 
   it('should handle multiple updates in a single step', () => {

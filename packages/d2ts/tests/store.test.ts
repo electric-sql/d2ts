@@ -77,11 +77,9 @@ describe('Store', () => {
   describe('change events', () => {
     it('should emit insert events', () => {
       const changes: ChangeSet<string, number>[] = []
-      store.addEventListener('change', ((
-        e: CustomEvent<ChangeSet<string, number>>,
-      ) => {
-        changes.push(e.detail)
-      }) as EventListener)
+      const unsubscribe = store.subscribe((change) => {
+        changes.push(change)
+      })
 
       store.set('c', 3)
 
@@ -93,15 +91,15 @@ describe('Store', () => {
           value: 3,
         },
       ])
+
+      unsubscribe()
     })
 
     it('should emit update events', () => {
       const changes: ChangeSet<string, number>[] = []
-      store.addEventListener('change', ((
-        e: CustomEvent<ChangeSet<string, number>>,
-      ) => {
-        changes.push(e.detail)
-      }) as EventListener)
+      const unsubscribe = store.subscribe((change) => {
+        changes.push(change)
+      })
 
       store.set('a', 10)
 
@@ -114,15 +112,15 @@ describe('Store', () => {
           previousValue: 1,
         },
       ])
+
+      unsubscribe()
     })
 
     it('should emit delete events', () => {
       const changes: ChangeSet<string, number>[] = []
-      store.addEventListener('change', ((
-        e: CustomEvent<ChangeSet<string, number>>,
-      ) => {
-        changes.push(e.detail)
-      }) as EventListener)
+      const unsubscribe = store.subscribe((change) => {
+        changes.push(change)
+      })
 
       store.delete('a')
 
@@ -134,17 +132,37 @@ describe('Store', () => {
           previousValue: 1,
         },
       ])
+
+      unsubscribe()
+    })
+
+    it('should stop receiving events after unsubscribe', () => {
+      const changes: ChangeSet<string, number>[] = []
+      const unsubscribe = store.subscribe((change) => {
+        changes.push(change)
+      })
+
+      store.set('c', 3)
+      unsubscribe()
+      store.set('d', 4)
+
+      expect(changes).toHaveLength(1)
+      expect(changes[0]).toEqual([
+        {
+          type: 'insert',
+          key: 'c',
+          value: 3,
+        },
+      ])
     })
   })
 
   describe('transactions', () => {
     it('should batch changes in transactions', () => {
       const changes: ChangeSet<string, number>[] = []
-      store.addEventListener('change', ((
-        e: CustomEvent<ChangeSet<string, number>>,
-      ) => {
-        changes.push(e.detail)
-      }) as EventListener)
+      const unsubscribe = store.subscribe((change) => {
+        changes.push(change)
+      })
 
       store.transaction((store) => {
         store.set('c', 3)
@@ -170,6 +188,8 @@ describe('Store', () => {
           previousValue: 1,
         },
       ])
+
+      unsubscribe()
     })
   })
 

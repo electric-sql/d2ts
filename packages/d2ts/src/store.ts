@@ -31,13 +31,13 @@ export type Change<K, V> =
 
 export type ChangeSet<K, V> = Change<K, V>[]
 
-export class Store<K, V> extends EventTarget {
+export class Store<K, V> {
   #inner: Map<K, V>
   #inTransaction: boolean = false
   #pendingChanges: ChangeSet<K, V> = []
+  #subscribers: Set<(changes: ChangeSet<K, V>) => void> = new Set()
 
   constructor(initial?: Map<K, V>) {
-    super()
     this.#inner = new Map()
     if (initial) {
       this.#inTransaction = true
@@ -51,12 +51,16 @@ export class Store<K, V> extends EventTarget {
 
   #emitChanges() {
     if (this.#pendingChanges.length > 0) {
-      this.dispatchEvent(
-        new CustomEvent('change', {
-          detail: this.#pendingChanges,
-        }),
-      )
+      const changes = this.#pendingChanges
+      this.#subscribers.forEach((subscriber) => subscriber(changes))
       this.#pendingChanges = []
+    }
+  }
+
+  subscribe(callback: (changes: ChangeSet<K, V>) => void): () => void {
+    this.#subscribers.add(callback)
+    return () => {
+      this.#subscribers.delete(callback)
     }
   }
 
@@ -212,8 +216,7 @@ export class Store<K, V> extends EventTarget {
     for (let i = 0; i < stores.length; i++) {
       const store = stores[i]
       const input = inputs[i]
-      store.addEventListener('change', (event) => {
-        const rawChanges = (event as CustomEvent).detail as ChangeSet<K, V>
+      store.subscribe((rawChanges) => {
         const changes: MultiSetArray<[K, V]> = []
         for (const change of rawChanges) {
           switch (change.type) {
