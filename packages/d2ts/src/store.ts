@@ -270,4 +270,19 @@ export class Store<K, V> {
 
     return ret
   }
+
+  static transactionAll<K, V>(
+    stores: Store<K, V>[],
+    fn: (stores: Store<K, V>[]) => void,
+  ): void {
+    stores.forEach((store) => (store.#inTransaction = true))
+    try {
+      fn(stores)
+    } finally {
+      stores.forEach((store) => {
+        store.#inTransaction = false
+        store.#emitChanges()
+      })
+    }
+  }
 }

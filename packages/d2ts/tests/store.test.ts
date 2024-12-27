@@ -385,4 +385,59 @@ describe('Store', () => {
       ])
     })
   })
+
+  describe('transactionAll', () => {
+    it('should batch changes across multiple stores', () => {
+      const store1 = new Store<string, number>()
+      const store2 = new Store<string, number>()
+
+      const changes1: ChangeSet<string, number>[] = []
+      const changes2: ChangeSet<string, number>[] = []
+
+      const unsubscribe1 = store1.subscribe((change) => changes1.push(change))
+      const unsubscribe2 = store2.subscribe((change) => changes2.push(change))
+
+      Store.transactionAll([store1, store2], ([s1, s2]) => {
+        s1.set('a', 1)
+        s2.set('b', 2)
+        s1.set('c', 3)
+        s2.set('d', 4)
+      })
+
+      expect(changes1).toHaveLength(1)
+      expect(changes1[0]).toEqual([
+        { type: 'insert', key: 'a', value: 1 },
+        { type: 'insert', key: 'c', value: 3 },
+      ])
+
+      expect(changes2).toHaveLength(1)
+      expect(changes2[0]).toEqual([
+        { type: 'insert', key: 'b', value: 2 },
+        { type: 'insert', key: 'd', value: 4 },
+      ])
+
+      unsubscribe1()
+      unsubscribe2()
+    })
+
+    it('should handle errors and still emit changes', () => {
+      const store1 = new Store<string, number>()
+      const store2 = new Store<string, number>()
+
+      const changes: ChangeSet<string, number>[] = []
+      const unsubscribe = store1.subscribe((change) => changes.push(change))
+
+      expect(() => {
+        Store.transactionAll([store1, store2], ([s1, _s2]) => {
+          s1.set('a', 1)
+          throw new Error('test error')
+        })
+      }).toThrow('test error')
+
+      expect(changes).toHaveLength(1)
+      expect(changes[0]).toEqual([{ type: 'insert', key: 'a', value: 1 }])
+
+      unsubscribe()
+    })
+  })
 })
