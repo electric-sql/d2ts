@@ -1,5 +1,6 @@
 import { RootStreamBuilder } from '../d2.js'
 import { MultiSetArray } from '../multiset.js'
+import { type Version, type Antichain } from '../order.js'
 import {
   type Row,
   type ShapeStreamInterface,
@@ -33,26 +34,43 @@ function extractLSN(offset: string): number {
   return lsn
 }
 
+export interface ElectricStreamToD2InputOptions<T extends Row<unknown> = Row> {
+  /** The Electric ShapeStream to consume */
+  stream: ShapeStreamInterface<T>
+  /** The D2 input stream to send messages to */
+  input: RootStreamBuilder<[key: string, T]>
+  /** Optional function to convert LSN to version number/Version */
+  lsnToVersion?: (lsn: number) => number | Version
+  /** Optional function to convert LSN to frontier number/Antichain */
+  lsnToFrontier?: (lsn: number) => number | Antichain
+}
+
 /**
  * Connects an Electric ShapeStream to a D2 input stream
  * IMPORTANT: Requires the ShapeStream to be configured with `replica: 'full'`
- * @param stream The Electric ShapeStream to consume
- * @param input The D2 input stream to send messages to
+ * @param options Configuration options
+ * @param options.stream The Electric ShapeStream to consume
+ * @param options.input The D2 input stream to send messages to
+ * @param options.lsnToVersion Optional function to convert LSN to version number/Version
+ * @param options.lsnToFrontier Optional function to convert LSN to frontier number/Antichain
  * @returns The input stream for chaining
  */
-export function electricStreamToD2Input<T extends Row<unknown> = Row>(
-  stream: ShapeStreamInterface<T>,
-  input: RootStreamBuilder<[key: string, T]>,
-): RootStreamBuilder<[key: string, T]> {
+export function electricStreamToD2Input<T extends Row<unknown> = Row>({
+  stream,
+  input,
+  lsnToVersion = (lsn: number) => lsn,
+  lsnToFrontier = (lsn: number) => lsn,
+}: ElectricStreamToD2InputOptions<T>): RootStreamBuilder<[key: string, T]> {
   let lastLsn: number | null = null
   stream.subscribe((messages) => {
-    const changes: MultiSetArray<[key: string, T]> = []
+    let changes: MultiSetArray<[key: string, T]> = []
 
     const sendChanges = (lsn: number) => {
+      const version = lsnToVersion(lsn)
       if (changes.length > 0) {
-        input.sendData(lsn, changes)
+        input.sendData(version, changes)
       }
-      changes.length = 0
+      changes = []
     }
 
     for (const message of messages) {
@@ -61,7 +79,8 @@ export function electricStreamToD2Input<T extends Row<unknown> = Row>(
         if (message.headers.control === 'up-to-date') {
           if (lastLsn !== null) {
             sendChanges(lastLsn)
-            input.sendFrontier(lastLsn + 1) // +1 to account for the fact that the last LSN is the version of the last message
+            const frontier = lsnToFrontier(lastLsn + 1) // +1 to account for the fact that the last LSN is the version of the last message
+            input.sendFrontier(frontier)
           }
         }
       } else if (isChangeMessage(message)) {
@@ -120,5 +139,8 @@ const electricStream = new ShapeStream({
 })
 
 // Connect Electric stream to D2 input
-electricStreamToD2Input(electricStream, input)
+electricStreamToD2Input({
+  stream: electricStream,
+  input,
+})
 */
