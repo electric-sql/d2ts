@@ -12,6 +12,10 @@
     "./sqlite": {
       "types": "./dist/sqlite/index.d.ts",
       "default": "./dist/sqlite/index.js"
+    },
+    "./electric": {
+      "types": "./dist/electric/index.d.ts",
+      "default": "./dist/electric/index.js"
     }
   },
   "scripts": {

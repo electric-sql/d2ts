@@ -1,4 +1,4 @@
-import { RootStreamBuilder } from '../d2.js'
+import { D2, RootStreamBuilder } from '../d2.js'
 import { MultiSetArray } from '../multiset.js'
 import { type Version, type Antichain } from '../order.js'
 import {
@@ -35,6 +35,8 @@ function extractLSN(offset: string): number {
 }
 
 export interface ElectricStreamToD2InputOptions<T extends Row<unknown> = Row> {
+  /** D2 Graph to send messages to */
+  graph: D2
   /** The Electric ShapeStream to consume */
   stream: ShapeStreamInterface<T>
   /** The D2 input stream to send messages to */
@@ -43,6 +45,10 @@ export interface ElectricStreamToD2InputOptions<T extends Row<unknown> = Row> {
   lsnToVersion?: (lsn: number) => number | Version
   /** Optional function to convert LSN to frontier number/Antichain */
   lsnToFrontier?: (lsn: number) => number | Antichain
+  /** Initial LSN */
+  initialLsn?: number
+  /** When to run the graph */
+  runOn?: 'up-to-date' | 'lsn-advance' | false
 }
 
 /**
@@ -56,31 +62,36 @@ export interface ElectricStreamToD2InputOptions<T extends Row<unknown> = Row> {
  * @returns The input stream for chaining
  */
 export function electricStreamToD2Input<T extends Row<unknown> = Row>({
+  graph,
   stream,
   input,
   lsnToVersion = (lsn: number) => lsn,
   lsnToFrontier = (lsn: number) => lsn,
+  initialLsn = 0,
+  runOn = 'up-to-date',
 }: ElectricStreamToD2InputOptions<T>): RootStreamBuilder<[key: string, T]> {
-  let lastLsn: number | null = null
-  stream.subscribe((messages) => {
-    let changes: MultiSetArray<[key: string, T]> = []
+  let lastLsn: number = initialLsn
+  let changes: MultiSetArray<[key: string, T]> = []
 
-    const sendChanges = (lsn: number) => {
-      const version = lsnToVersion(lsn)
-      if (changes.length > 0) {
-        input.sendData(version, changes)
-      }
-      changes = []
+  const sendChanges = (lsn: number) => {
+    const version = lsnToVersion(lsn)
+    if (changes.length > 0) {
+      input.sendData(version, [...changes])
     }
+    changes = []
+  }
+
+  stream.subscribe((messages) => {
 
     for (const message of messages) {
       if (isControlMessage(message)) {
         // Handle control message
         if (message.headers.control === 'up-to-date') {
-          if (lastLsn !== null) {
-            sendChanges(lastLsn)
-            const frontier = lsnToFrontier(lastLsn + 1) // +1 to account for the fact that the last LSN is the version of the last message
-            input.sendFrontier(frontier)
+          sendChanges(lastLsn)
+          const frontier = lsnToFrontier(lastLsn + 1) // +1 to account for the fact that the last LSN is the version of the last message
+          input.sendFrontier(frontier)
+          if (runOn === 'up-to-date' || runOn === 'lsn-advance') {
+            graph.run()
           }
         }
       } else if (isChangeMessage(message)) {
@@ -101,6 +112,9 @@ export function electricStreamToD2Input<T extends Row<unknown> = Row>({
         }
         if (lsn !== lastLsn) {
           sendChanges(lsn)
+          if (runOn === 'lsn-advance') {
+            graph.run()
+          }
         }
         lastLsn = lsn
       }
