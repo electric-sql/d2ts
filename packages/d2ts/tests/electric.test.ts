@@ -35,6 +35,7 @@ describe('electricStreamToD2Input', () => {
 
   it('should handle insert operations correctly', () => {
     electricStreamToD2Input({
+      graph: d2,
       stream: mockStream,
       input
     })
@@ -60,6 +61,7 @@ describe('electricStreamToD2Input', () => {
 
   it('should handle update operations as delete + insert', () => {
     electricStreamToD2Input({
+      graph: d2,
       stream: mockStream,
       input
     })
@@ -86,6 +88,7 @@ describe('electricStreamToD2Input', () => {
 
   it('should handle delete operations correctly', () => {
     electricStreamToD2Input({
+      graph: d2,
       stream: mockStream,
       input
     })
@@ -111,6 +114,7 @@ describe('electricStreamToD2Input', () => {
 
   it('should handle control messages and send frontier', () => {
     electricStreamToD2Input({
+      graph: d2,
       stream: mockStream,
       input
     })
@@ -138,6 +142,7 @@ describe('electricStreamToD2Input', () => {
     const customLsnToFrontier = (lsn: number) => lsn * 3
 
     electricStreamToD2Input({
+      graph: d2,
       stream: mockStream,
       input,
       lsnToVersion: customLsnToVersion,
@@ -170,6 +175,7 @@ describe('electricStreamToD2Input', () => {
 
   it('should throw error for invalid LSN format', () => {
     electricStreamToD2Input({
+      graph: d2,
       stream: mockStream,
       input
     })
