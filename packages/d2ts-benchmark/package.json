@@ -2,6 +2,7 @@
   "name": "d2ts-benchmark",
   "private": true,
   "version": "0.0.1",
+  "license": "Apache-2.0",
   "scripts": {
     "bench": "tsx src/index.ts",
     "typecheck": "tsc --noEmit"
