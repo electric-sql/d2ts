@@ -25,15 +25,6 @@ To do this we:
   message, and we need to send the version of the next message as the frontier.
 */
 
-function extractLSN(offset: string): number {
-  // Extract LSN from format "LSN_sequence"
-  const lsn = parseInt(offset.split('_')[0])
-  if (isNaN(lsn)) {
-    throw new Error(`Invalid LSN format: ${offset}`)
-  }
-  return lsn
-}
-
 export interface ElectricStreamToD2InputOptions<T extends Row<unknown> = Row> {
   /** D2 Graph to send messages to */
   graph: D2
@@ -49,6 +40,8 @@ export interface ElectricStreamToD2InputOptions<T extends Row<unknown> = Row> {
   initialLsn?: number
   /** When to run the graph */
   runOn?: 'up-to-date' | 'lsn-advance' | false
+  /** Whether to log debug messages */
+  debug?: boolean | typeof console.log
 }
 
 /**
@@ -69,34 +62,67 @@ export function electricStreamToD2Input<T extends Row<unknown> = Row>({
   lsnToFrontier = (lsn: number) => lsn,
   initialLsn = 0,
   runOn = 'up-to-date',
+  debug = false,
 }: ElectricStreamToD2InputOptions<T>): RootStreamBuilder<[key: string, T]> {
   let lastLsn: number = initialLsn
   let changes: MultiSetArray<[key: string, T]> = []
 
   const sendChanges = (lsn: number) => {
     const version = lsnToVersion(lsn)
+    log?.(`sending ${changes.length} changes at version ${version}`)
     if (changes.length > 0) {
       input.sendData(version, [...changes])
     }
     changes = []
   }
 
-  stream.subscribe((messages) => {
+  const sendFrontier = (lsn: number) => {
+    const frontier = lsnToFrontier(lsn + 1) // +1 to account for the fact that the last LSN is the version of the last message
+    log?.(`sending frontier ${frontier}`)
+    input.sendFrontier(frontier)
+  }
 
+  const log =
+    typeof debug === 'function'
+      ? debug
+      : debug === true
+        ? console.log
+        : undefined
+
+  log?.('subscribing to stream')
+  stream.subscribe((messages) => {
+    log?.(`received ${messages.length} messages`)
     for (const message of messages) {
       if (isControlMessage(message)) {
+        log?.(`- control message: ${message.headers.control}`)
         // Handle control message
         if (message.headers.control === 'up-to-date') {
-          sendChanges(lastLsn)
-          const frontier = lsnToFrontier(lastLsn + 1) // +1 to account for the fact that the last LSN is the version of the last message
-          input.sendFrontier(frontier)
+          log?.(`up-to-date ${JSON.stringify(message, null, 2)}`)
+          if (changes.length > 0) {
+            sendChanges(lastLsn)
+          }
+          if (typeof message.headers.global_last_seen_lsn !== `number`) {
+            throw new Error(`global_last_seen_lsn is not a number`)
+          }
+          const lsn = message.headers.global_last_seen_lsn
+          sendFrontier(lsn)
           if (runOn === 'up-to-date' || runOn === 'lsn-advance') {
+            log?.('Running graph on up-to-date')
             graph.run()
           }
         }
       } else if (isChangeMessage(message)) {
+        log?.(`- change message: ${message.headers.operation}`)
         // Handle change message
-        const lsn = extractLSN(message.offset)
+        if (
+          message.headers.lsn !== undefined &&
+          typeof message.headers.lsn !== `number`
+        ) {
+          throw new Error(`lsn is not a number`)
+        }
+        const lsn = message.headers.lsn ?? initialLsn // The LSN is not present on the initial snapshot
+        const last: boolean =
+          (message.headers.last as boolean | undefined) ?? false
         switch (message.headers.operation) {
           case 'insert':
             changes.push([[message.key, message.value], 1])
@@ -110,13 +136,17 @@ export function electricStreamToD2Input<T extends Row<unknown> = Row>({
             changes.push([[message.key, message.value], -1])
             break
         }
-        if (lsn !== lastLsn) {
+        if (last) {
           sendChanges(lsn)
+          sendFrontier(lsn)
           if (runOn === 'lsn-advance') {
+            log?.('Running graph on lsn-advance')
             graph.run()
           }
         }
-        lastLsn = lsn
+        if (lsn > lastLsn) {
+          lastLsn = lsn
+        }
       }
     }
   })

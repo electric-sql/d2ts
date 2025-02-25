@@ -1,11 +1,11 @@
-import { Row, ShapeStream, isControlMessage } from '@electric-sql/client'
+import { MultiShapeStream } from '@electric-sql/experimental'
 import { IssuePriority, IssueStatus, Issue, User, Comment } from './types'
 import {
   D2,
   map,
   join,
   reduce,
-  consolidate,
+  buffer,
   debug,
   output,
   MessageType,
@@ -41,13 +41,12 @@ const commentsInput = graph.newInput<[string, Comment]>()
 // issuesInput.pipe(debug('issues'))
 
 // Calculate comment counts per issue
-// The join we use later is a full outer join, so we need to add a zero for each issue
-// to ensure that we get a row for each issue, even if there are no comments
+// We need a zero for each issue to ensure that we get a row for each issue, even if there are no comments
 const commentCountZero = issuesInput.pipe(
   map(([_key, issue]) => [issue.id, 0] as [string, number]),
 )
 const commentCounts = commentsInput.pipe(
-  debug('comments'),
+  // debug('comments'),
   map(([_key, comment]) => [comment.issue_id, 1] as [string, number]),
   concat(commentCountZero),
   reduce((values) => {
@@ -61,13 +60,13 @@ const commentCounts = commentsInput.pipe(
 
 // Transform issues for joining with users
 const issuesForJoin = issuesInput.pipe(
-  debug('issues'),
+  // debug('issues'),
   map(([_key, issue]) => [issue.user_id, issue] as [string, Issue]),
 )
 
 // Transform users for joining with issues
 const usersForJoin = usersInput.pipe(
-  debug('users'),
+  // debug('users'),
   map(([_key, user]) => [user.id, user] as [string, User]),
 )
 
@@ -103,17 +102,22 @@ const finalStream = issuesWithUsers.pipe(
       } as IssueData,
     ]
   }),
-  consolidate(),
-  debug('output'),
+  buffer(),
+  // debug('output'),
   output((msg) => {
     if (msg.type === MessageType.DATA) {
+      console.log('DATA version:', msg.data.version.toJSON())
       msg.data.collection.getInner().forEach(([[key, data], multiplicity]) => {
         if (multiplicity > 0) {
           console.log('+ Insert', data)
         } else if (multiplicity < 0) {
           console.log('- Delete', data)
+        } else {
+          throw new Error('Invalid multiplicity')
         }
       })
+    } else if (msg.type === MessageType.FRONTIER) {
+      console.log('FRONTIER', msg.data.toJSON())
     }
   }),
 )
@@ -122,51 +126,62 @@ const finalStream = issuesWithUsers.pipe(
 graph.finalize()
 
 // Create Electric shape streams
-const issuesStream = new ShapeStream<Issue>({
-  url: ELECTRIC_URL,
-  params: {
-    table: 'issue',
-    replica: 'full',
-  },
-})
-
-const usersStream = new ShapeStream<User>({
-  url: ELECTRIC_URL,
-  params: {
-    table: 'user',
-    replica: 'full',
-  },
-})
-
-const commentsStream = new ShapeStream<Comment>({
-  url: ELECTRIC_URL,
-  params: {
-    table: 'comment',
-    replica: 'full',
+// We are using the experimental MultiShapeStream to consume multiple shapes
+// from the same Electric instance which ensures that we get an `up-to-date` on all
+// shapes within the `checkForUpdatesAfter` interval.
+const streams = new MultiShapeStream<{
+  issue: Issue
+  user: User
+  comment: Comment
+}>({
+  checkForUpdatesAfter: 100, // ms
+  shapes: {
+    issue: {
+      url: ELECTRIC_URL,
+      params: {
+        table: 'issue',
+        replica: 'full',
+      },
+    },
+    user: {
+      url: ELECTRIC_URL,
+      params: {
+        table: 'user',
+        replica: 'full',
+      },
+    },
+    comment: {
+      url: ELECTRIC_URL,
+      params: {
+        table: 'comment',
+        replica: 'full',
+      },
+    },
   },
 })
 
 // Connect Electric streams to D2 inputs
 
-const MAX = Number.MAX_VALUE
-
 electricStreamToD2Input({
   graph,
-  stream: issuesStream,
+  stream: streams.shapes.issue,
   input: issuesInput,
   runOn: 'lsn-advance',
+  debug: (msg) => console.log('issue', msg),
 })
 
 electricStreamToD2Input({
   graph,
-  stream: usersStream,
+  stream: streams.shapes.user,
   input: usersInput,
   runOn: 'lsn-advance',
+  debug: (msg) => console.log('user', msg),
 })
 
 electricStreamToD2Input({
   graph,
-  stream: commentsStream,
+  stream: streams.shapes.comment,
   input: commentsInput,
   runOn: 'lsn-advance',
+  debug: (msg) => console.log('comment', msg),
 })

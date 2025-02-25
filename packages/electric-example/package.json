@@ -1,5 +1,5 @@
 {
-  "name": "electric-example",
+  "name": "d2ts-electric-example",
   "version": "0.0.0",
   "private": true,
   "description": "",
@@ -10,6 +10,7 @@
     "db:load-data": "node ./db/load_data.js",
     "db:migrate": "DATABASE_URL=postgresql://postgres:password@localhost:54321/electric pnpm exec pg-migrations apply --directory ./db/migrations",
     "reset": "pnpm backend:down && pnpm backend:up && pnpm db:migrate && pnpm db:load-data",
+    "start": "tsx src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -24,7 +25,8 @@
     "uuid": "^9.0.0"
   },
   "dependencies": {
-    "@electric-sql/client": "1.0.0-beta.2",
+    "@electric-sql/client": "file:/Users/samwillis/Code/electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz",
+    "@electric-sql/experimental": "file:/Users/samwillis/Code/electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz",
     "d2ts": "workspace:*"
   }
 }

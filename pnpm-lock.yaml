@@ -10,7 +10,7 @@ importers:
     devDependencies:
       '@eslint/js':
         specifier: latest
-        version: 9.17.0
+        version: 9.21.0
       '@typescript-eslint/eslint-plugin':
         specifier: ^7.0.0
         version: 7.18.0(@typescript-eslint/parser@7.18.0(eslint@9.16.0)(typescript@5.6.3))(eslint@9.16.0)(typescript@5.6.3)
@@ -33,8 +33,8 @@ importers:
   packages/d2ts:
     devDependencies:
       '@electric-sql/client':
-        specifier: 1.0.0-beta.2
-        version: 1.0.0-beta.2
+        specifier: file:/Users/samwillis/Code/electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz
+        version: file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz
       '@types/better-sqlite3':
         specifier: ^7.6.12
         version: 7.6.12
@@ -97,8 +97,11 @@ importers:
   packages/electric-example:
     dependencies:
       '@electric-sql/client':
-        specifier: 1.0.0-beta.2
-        version: 1.0.0-beta.2
+        specifier: file:/Users/samwillis/Code/electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz
+        version: file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz
+      '@electric-sql/experimental':
+        specifier: file:/Users/samwillis/Code/electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz
+        version: file:../electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz(@electric-sql/client@file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz)
       d2ts:
         specifier: workspace:*
         version: link:../d2ts
@@ -183,8 +186,15 @@ packages:
   '@databases/validate-unicode@1.0.0':
     resolution: {integrity: sha512-dLKqxGcymeVwEb/6c44KjOnzaAafFf0Wxa8xcfEjx/qOl3rdijsKYBAtIGhtVtOlpPf/PFKfgTuFurSPn/3B/g==}
 
-  '@electric-sql/client@1.0.0-beta.2':
-    resolution: {integrity: sha512-JbDOI9KhH+JuVOp1j4WbgkUtHeH7DUiPTWCxD1BLepbzA+xU1DU0BCQwh0xxBQXrIgddddzot5bumHqSj1yMhA==}
+  '@electric-sql/client@file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz':
+    resolution: {integrity: sha512-n6VDfTZlqkBAJ9w/dhUTzGUEi0YRHx2z1251sqlMcyu0fMtKVpnEHlMeL391dIYPuLgf4EmYnLOarskKOPqPnA==, tarball: file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz}
+    version: 1.0.0-beta.3
+
+  '@electric-sql/experimental@file:../electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz':
+    resolution: {integrity: sha512-fsnNL+oA4ggPt3SN3MgmUkUa1g+itUwD9HLNDNCXwipZ2JzkYSoVv1irFVZWgq9m7M3zwrToOKb6LSNAw2ZJnA==, tarball: file:../electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz}
+    version: 0.1.2-beta.2
+    peerDependencies:
+      '@electric-sql/client': 1.0.0-beta.3
 
   '@esbuild/aix-ppc64@0.21.5':
     resolution: {integrity: sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ==}
@@ -494,8 +504,8 @@ packages:
     resolution: {integrity: sha512-tw2HxzQkrbeuvyj1tG2Yqq+0H9wGoI2IMk4EOsQeX+vmd75FtJAzf+gTA69WF+baUKRYQ3x2kbLE08js5OsTVg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@eslint/js@9.17.0':
-    resolution: {integrity: sha512-Sxc4hqcs1kTu0iID3kcZDW3JHq2a77HO9P8CP6YEA/FpH3Ll8UXE2r/86Rz9YJLKme39S9vU5OWNjC6Xl0Cr3w==}
+  '@eslint/js@9.21.0':
+    resolution: {integrity: sha512-BqStZ3HX8Yz6LvsF5ByXYrtigrV5AXADWLAGc7PH/1SxOb7/FIYYMszZZWiUou/GB9P2lXWk2SV4d+Z8h0nknw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@eslint/object-schema@2.1.5':
@@ -2398,7 +2408,13 @@ snapshots:
 
   '@databases/validate-unicode@1.0.0': {}
 
-  '@electric-sql/client@1.0.0-beta.2':
+  '@electric-sql/client@file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz':
+    optionalDependencies:
+      '@rollup/rollup-darwin-arm64': 4.27.3
+
+  '@electric-sql/experimental@file:../electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz(@electric-sql/client@file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz)':
+    dependencies:
+      '@electric-sql/client': file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz
     optionalDependencies:
       '@rollup/rollup-darwin-arm64': 4.27.3
 
@@ -2578,7 +2594,7 @@ snapshots:
 
   '@eslint/js@9.16.0': {}
 
-  '@eslint/js@9.17.0': {}
+  '@eslint/js@9.21.0': {}
 
   '@eslint/object-schema@2.1.5': {}
 

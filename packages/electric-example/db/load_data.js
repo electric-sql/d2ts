@@ -2,8 +2,8 @@ import createPool, { sql } from '@databases/pg'
 import { generateUsers, generateIssues } from './generate_data.js'
 
 const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:54321/electric'
-const ISSUES_TO_LOAD = process.env.ISSUES_TO_LOAD || 512
-const USERS_TO_LOAD = process.env.USERS_TO_LOAD || 50
+const ISSUES_TO_LOAD = process.env.ISSUES_TO_LOAD || 10
+const USERS_TO_LOAD = process.env.USERS_TO_LOAD || 3
 
 console.info(`Connecting to Postgres at ${DATABASE_URL}`)
 const db = createPool(DATABASE_URL)

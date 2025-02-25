@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { electricStreamToD2Input } from '../src/electric'
 import { D2 } from '../src/d2'
-import type { ShapeStreamInterface, Message, Offset } from '@electric-sql/client'
+import type {
+  ShapeStreamInterface,
+  Message,
+  Offset,
+} from '@electric-sql/client'
 
 describe('electricStreamToD2Input', () => {
   let mockStream: ShapeStreamInterface
@@ -24,7 +28,7 @@ describe('electricStreamToD2Input', () => {
       isUpToDate: true,
       lastOffset: '0_0',
       shapeHandle: 'test-handle',
-      error: undefined
+      error: undefined,
     }
 
     d2 = new D2({ initialFrontier: 0 })
@@ -37,25 +41,25 @@ describe('electricStreamToD2Input', () => {
     electricStreamToD2Input({
       graph: d2,
       stream: mockStream,
-      input
+      input,
     })
 
-    const messages: Message[] = [{
-      headers: {
-        operation: 'insert'
+    const messages: Message[] = [
+      {
+        headers: {
+          operation: 'insert',
+        },
+        offset: '100_001',
+        key: 'test-1',
+        value: { id: 1, name: 'test' },
       },
-      offset: '100_001',
-      key: 'test-1',
-      value: { id: 1, name: 'test' }
-    }]
+    ]
 
     mockSubscribeCallback(messages)
 
     expect(input.sendData).toHaveBeenCalledWith(
       100,
-      expect.arrayContaining([
-        [['test-1', { id: 1, name: 'test' }], 1]
-      ])
+      expect.arrayContaining([[['test-1', { id: 1, name: 'test' }], 1]]),
     )
   })
 
@@ -63,17 +67,19 @@ describe('electricStreamToD2Input', () => {
     electricStreamToD2Input({
       graph: d2,
       stream: mockStream,
-      input
+      input,
     })
 
-    const messages: Message[] = [{
-      headers: {
-        operation: 'update'
+    const messages: Message[] = [
+      {
+        headers: {
+          operation: 'update',
+        },
+        offset: '100_001',
+        key: 'test-1',
+        value: { id: 1, name: 'updated' },
       },
-      offset: '100_001',
-      key: 'test-1',
-      value: { id: 1, name: 'updated' }
-    }]
+    ]
 
     mockSubscribeCallback(messages)
 
@@ -81,8 +87,8 @@ describe('electricStreamToD2Input', () => {
       100,
       expect.arrayContaining([
         [['test-1', { id: 1, name: 'updated' }], -1],
-        [['test-1', { id: 1, name: 'updated' }], 1]
-      ])
+        [['test-1', { id: 1, name: 'updated' }], 1],
+      ]),
     )
   })
 
@@ -90,25 +96,25 @@ describe('electricStreamToD2Input', () => {
     electricStreamToD2Input({
       graph: d2,
       stream: mockStream,
-      input
+      input,
     })
 
-    const messages: Message[] = [{
-      headers: {
-        operation: 'delete'
+    const messages: Message[] = [
+      {
+        headers: {
+          operation: 'delete',
+        },
+        offset: '100_001',
+        key: 'test-1',
+        value: { id: 1, name: 'deleted' },
       },
-      offset: '100_001',
-      key: 'test-1',
-      value: { id: 1, name: 'deleted' }
-    }]
+    ]
 
     mockSubscribeCallback(messages)
 
     expect(input.sendData).toHaveBeenCalledWith(
       100,
-      expect.arrayContaining([
-        [['test-1', { id: 1, name: 'deleted' }], -1]
-      ])
+      expect.arrayContaining([[['test-1', { id: 1, name: 'deleted' }], -1]]),
     )
   })
 
@@ -116,21 +122,24 @@ describe('electricStreamToD2Input', () => {
     electricStreamToD2Input({
       graph: d2,
       stream: mockStream,
-      input
+      input,
     })
 
-    const messages: Message[] = [{
-      headers: {
-        operation: 'insert'
+    const messages: Message[] = [
+      {
+        headers: {
+          operation: 'insert',
+        },
+        offset: '100_001',
+        key: 'test-1',
+        value: { id: 1 },
       },
-      offset: '100_001',
-      key: 'test-1',
-      value: { id: 1 }
-    }, {
-      headers: {
-        control: 'up-to-date'
-      }
-    }]
+      {
+        headers: {
+          control: 'up-to-date',
+        },
+      },
+    ]
 
     mockSubscribeCallback(messages)
 
@@ -146,29 +155,30 @@ describe('electricStreamToD2Input', () => {
       stream: mockStream,
       input,
       lsnToVersion: customLsnToVersion,
-      lsnToFrontier: customLsnToFrontier
+      lsnToFrontier: customLsnToFrontier,
     })
 
-    const messages: Message[] = [{
-      headers: {
-        operation: 'insert'
+    const messages: Message[] = [
+      {
+        headers: {
+          operation: 'insert',
+        },
+        offset: '100_001',
+        key: 'test-1',
+        value: { id: 1 },
       },
-      offset: '100_001',
-      key: 'test-1',
-      value: { id: 1 }
-    }, {
-      headers: {
-        control: 'up-to-date'
-      }
-    }]
+      {
+        headers: {
+          control: 'up-to-date',
+        },
+      },
+    ]
 
     mockSubscribeCallback(messages)
 
     expect(input.sendData).toHaveBeenCalledWith(
       200, // 100 * 2
-      expect.arrayContaining([
-        [['test-1', { id: 1 }], 1]
-      ])
+      expect.arrayContaining([[['test-1', { id: 1 }], 1]]),
     )
     expect(input.sendFrontier).toHaveBeenCalledWith(303) // (100 + 1) * 3
   })
@@ -177,18 +187,22 @@ describe('electricStreamToD2Input', () => {
     electricStreamToD2Input({
       graph: d2,
       stream: mockStream,
-      input
+      input,
     })
 
-    const messages: Message[] = [{
-      headers: {
-        operation: 'insert'
+    const messages: Message[] = [
+      {
+        headers: {
+          operation: 'insert',
+        },
+        offset: 'invalid_lsn' as unknown as Offset,
+        key: 'test-1',
+        value: { id: 1 },
       },
-      offset: 'invalid_lsn' as unknown as Offset,
-      key: 'test-1',
-      value: { id: 1 }
-    }]
+    ]
 
-    expect(() => mockSubscribeCallback(messages)).toThrow('Invalid LSN format: invalid_lsn')
+    expect(() => mockSubscribeCallback(messages)).toThrow(
+      'Invalid LSN format: invalid_lsn',
+    )
   })
-}) 
+})
