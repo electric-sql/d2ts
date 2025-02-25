@@ -1,0 +1,30 @@
+{
+  "name": "electric-example",
+  "version": "0.0.0",
+  "private": true,
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "backend:down": "docker compose down --volumes",
+    "backend:up": "docker compose up -d",
+    "db:load-data": "node ./db/load_data.js",
+    "db:migrate": "DATABASE_URL=postgresql://postgres:password@localhost:54321/electric pnpm exec pg-migrations apply --directory ./db/migrations",
+    "reset": "pnpm backend:down && pnpm backend:up && pnpm db:migrate && pnpm db:load-data",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@databases/pg": "^5.5.0",
+    "@databases/pg-migrations": "^5.0.3",
+    "@faker-js/faker": "^8.4.1",
+    "tsx": "^4.7.0",
+    "typescript": "^5.0.0",
+    "uuid": "^9.0.0"
+  },
+  "dependencies": {
+    "@electric-sql/client": "1.0.0-beta.2",
+    "d2ts": "workspace:*"
+  }
+}
