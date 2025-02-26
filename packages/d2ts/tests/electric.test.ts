@@ -29,6 +29,8 @@ describe('electricStreamToD2Input', () => {
       lastOffset: '0_0',
       shapeHandle: 'test-handle',
       error: undefined,
+      hasStarted: () => true,
+      forceDisconnectAndRefresh: vi.fn(),
     }
 
     d2 = new D2({ initialFrontier: 0 })
@@ -37,7 +39,7 @@ describe('electricStreamToD2Input', () => {
     vi.spyOn(input, 'sendFrontier')
   })
 
-  it('should handle insert operations correctly', () => {
+  it('should handle insert operations correctly when message has last flag', () => {
     electricStreamToD2Input({
       graph: d2,
       stream: mockStream,
@@ -48,8 +50,10 @@ describe('electricStreamToD2Input', () => {
       {
         headers: {
           operation: 'insert',
+          lsn: 100,
+          op_position: 1,
+          last: true,
         },
-        offset: '100_001',
         key: 'test-1',
         value: { id: 1, name: 'test' },
       },
@@ -63,7 +67,7 @@ describe('electricStreamToD2Input', () => {
     )
   })
 
-  it('should handle update operations as delete + insert', () => {
+  it('should handle update operations as delete + insert when message has last flag', () => {
     electricStreamToD2Input({
       graph: d2,
       stream: mockStream,
@@ -74,8 +78,10 @@ describe('electricStreamToD2Input', () => {
       {
         headers: {
           operation: 'update',
+          lsn: 100,
+          op_position: 1,
+          last: true,
         },
-        offset: '100_001',
         key: 'test-1',
         value: { id: 1, name: 'updated' },
       },
@@ -92,7 +98,7 @@ describe('electricStreamToD2Input', () => {
     )
   })
 
-  it('should handle delete operations correctly', () => {
+  it('should handle delete operations correctly when message has last flag', () => {
     electricStreamToD2Input({
       graph: d2,
       stream: mockStream,
@@ -103,8 +109,10 @@ describe('electricStreamToD2Input', () => {
       {
         headers: {
           operation: 'delete',
+          lsn: 100,
+          op_position: 1,
+          last: true,
         },
-        offset: '100_001',
         key: 'test-1',
         value: { id: 1, name: 'deleted' },
       },
@@ -118,7 +126,7 @@ describe('electricStreamToD2Input', () => {
     )
   })
 
-  it('should handle control messages and send frontier', () => {
+  it('should handle operations with up-to-date control message', () => {
     electricStreamToD2Input({
       graph: d2,
       stream: mockStream,
@@ -129,14 +137,41 @@ describe('electricStreamToD2Input', () => {
       {
         headers: {
           operation: 'insert',
+          lsn: 100,
+          op_position: 1,
         },
-        offset: '100_001',
         key: 'test-1',
-        value: { id: 1 },
+        value: { id: 1, name: 'test' },
       },
       {
         headers: {
           control: 'up-to-date',
+          global_last_seen_lsn: 100,
+        },
+      },
+    ]
+
+    mockSubscribeCallback(messages)
+
+    expect(input.sendData).toHaveBeenCalledWith(
+      100,
+      expect.arrayContaining([[['test-1', { id: 1, name: 'test' }], 1]]),
+    )
+    expect(input.sendFrontier).toHaveBeenCalledWith(101)
+  })
+
+  it('should handle control messages and send frontier', () => {
+    electricStreamToD2Input({
+      graph: d2,
+      stream: mockStream,
+      input,
+    })
+
+    const messages: Message[] = [
+      {
+        headers: {
+          control: 'up-to-date',
+          global_last_seen_lsn: 100,
         },
       },
     ]
@@ -162,14 +197,17 @@ describe('electricStreamToD2Input', () => {
       {
         headers: {
           operation: 'insert',
+          lsn: 100,
+          op_position: 1,
+          last: true,
         },
-        offset: '100_001',
         key: 'test-1',
         value: { id: 1 },
       },
       {
         headers: {
           control: 'up-to-date',
+          global_last_seen_lsn: 100,
         },
       },
     ]
@@ -181,28 +219,5 @@ describe('electricStreamToD2Input', () => {
       expect.arrayContaining([[['test-1', { id: 1 }], 1]]),
     )
     expect(input.sendFrontier).toHaveBeenCalledWith(303) // (100 + 1) * 3
-  })
-
-  it('should throw error for invalid LSN format', () => {
-    electricStreamToD2Input({
-      graph: d2,
-      stream: mockStream,
-      input,
-    })
-
-    const messages: Message[] = [
-      {
-        headers: {
-          operation: 'insert',
-        },
-        offset: 'invalid_lsn' as unknown as Offset,
-        key: 'test-1',
-        value: { id: 1 },
-      },
-    ]
-
-    expect(() => mockSubscribeCallback(messages)).toThrow(
-      'Invalid LSN format: invalid_lsn',
-    )
   })
 })
