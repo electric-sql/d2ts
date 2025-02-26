@@ -134,7 +134,7 @@ const streams = new MultiShapeStream<{
   user: User
   comment: Comment
 }>({
-  checkForUpdatesAfter: 100, // ms
+  checkForUpdatesAfterMs: 100,
   shapes: {
     issue: {
       url: ELECTRIC_URL,

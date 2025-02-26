@@ -191,7 +191,7 @@ packages:
     version: 1.0.0-beta.3
 
   '@electric-sql/experimental@file:../electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz':
-    resolution: {integrity: sha512-fsnNL+oA4ggPt3SN3MgmUkUa1g+itUwD9HLNDNCXwipZ2JzkYSoVv1irFVZWgq9m7M3zwrToOKb6LSNAw2ZJnA==, tarball: file:../electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz}
+    resolution: {integrity: sha512-oQRHYQC5GqID2RhQsdSoFtOioroEZxVq36abgNkHyUQgDmA50wgbrDjZpjPTV0dwwr+MlxWMq6uFjEM8jVcc6Q==, tarball: file:../electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz}
     version: 0.1.2-beta.2
     peerDependencies:
       '@electric-sql/client': 1.0.0-beta.3
