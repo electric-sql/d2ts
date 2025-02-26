@@ -115,6 +115,9 @@ importers:
       '@faker-js/faker':
         specifier: ^8.4.1
         version: 8.4.1
+      prettier:
+        specifier: ^3.2.5
+        version: 3.4.2
       tsx:
         specifier: ^4.7.0
         version: 4.19.2
@@ -187,7 +190,7 @@ packages:
     resolution: {integrity: sha512-dLKqxGcymeVwEb/6c44KjOnzaAafFf0Wxa8xcfEjx/qOl3rdijsKYBAtIGhtVtOlpPf/PFKfgTuFurSPn/3B/g==}
 
   '@electric-sql/client@file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz':
-    resolution: {integrity: sha512-n6VDfTZlqkBAJ9w/dhUTzGUEi0YRHx2z1251sqlMcyu0fMtKVpnEHlMeL391dIYPuLgf4EmYnLOarskKOPqPnA==, tarball: file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz}
+    resolution: {integrity: sha512-3zEA0Ys9owyybCjlx37PZtJwzmP3+rI7mzpslfVkj6VB+Rwzq92WADLJrz8k8t9WES5WWesyKRkKyxR7/igE/Q==, tarball: file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz}
     version: 1.0.0-beta.3
 
   '@electric-sql/experimental@file:../electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz':

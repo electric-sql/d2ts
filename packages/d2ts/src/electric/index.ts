@@ -10,9 +10,6 @@ import {
 
 /*
 Electric uses Postgres LSNs to track progress, each message is annotated with an LSN.
-Currently the LSN is a string in the format "LSN_sequence", we need to extract the 
-number from this to use as the version for each message. In the future we intend to add
-the LSN as a header to each message, so we can remove this logic.
 We need to keep track of these and use them to send as the version for each message to 
 the D2 input stream.
 D2 also requires a a frontier message for be sent, this is the lower bound for all 
@@ -110,6 +107,10 @@ export function electricStreamToD2Input<T extends Row<unknown> = Row>({
             log?.('Running graph on up-to-date')
             graph.run()
           }
+        } else if (message.headers.control === 'must-refetch') {
+          throw new Error(
+            'The server sent a "must-refetch" request, this is incompatible with a D2 pipeline and unresolvable. To handle this you will have to remove all state and start the pipeline again.',
+          )
         }
       } else if (isChangeMessage(message)) {
         log?.(`- change message: ${message.headers.operation}`)
@@ -129,7 +130,12 @@ export function electricStreamToD2Input<T extends Row<unknown> = Row>({
             break
           case 'update':
             // An update is a delete followed by an insert
-            changes.push([[message.key, message.value], -1]) // We don't have the old value, TODO: check if this causes issues
+            if (!message.old_value) {
+              throw new Error(
+                'old_value is undefined, please ensure you have set replica=complete',
+              )
+            }
+            changes.push([[message.key, message.old_value], -1])
             changes.push([[message.key, message.value], 1])
             break
           case 'delete':
@@ -178,7 +184,7 @@ const electricStream = new ShapeStream({
   url: 'http://localhost:3000/v1/shape',
   params: {
     table: 'items',
-    replica: 'full',
+    replica: 'complete',
   }
 })
 

@@ -11,7 +11,9 @@
     "db:migrate": "DATABASE_URL=postgresql://postgres:password@localhost:54321/electric pnpm exec pg-migrations apply --directory ./db/migrations",
     "reset": "pnpm backend:down && pnpm backend:up && pnpm db:migrate && pnpm db:load-data",
     "start": "tsx src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json}\""
   },
   "keywords": [],
   "author": "",
@@ -20,6 +22,7 @@
     "@databases/pg": "^5.5.0",
     "@databases/pg-migrations": "^5.0.3",
     "@faker-js/faker": "^8.4.1",
+    "prettier": "^3.2.5",
     "tsx": "^4.7.0",
     "typescript": "^5.0.0",
     "uuid": "^9.0.0"

@@ -5,8 +5,7 @@ import {
   map,
   join,
   reduce,
-  buffer,
-  debug,
+  consolidate,
   output,
   MessageType,
   concat,
@@ -38,15 +37,12 @@ const issuesInput = graph.newInput<[string, Issue]>()
 const usersInput = graph.newInput<[string, User]>()
 const commentsInput = graph.newInput<[string, Comment]>()
 
-// issuesInput.pipe(debug('issues'))
-
 // Calculate comment counts per issue
 // We need a zero for each issue to ensure that we get a row for each issue, even if there are no comments
 const commentCountZero = issuesInput.pipe(
   map(([_key, issue]) => [issue.id, 0] as [string, number]),
 )
 const commentCounts = commentsInput.pipe(
-  // debug('comments'),
   map(([_key, comment]) => [comment.issue_id, 1] as [string, number]),
   concat(commentCountZero),
   reduce((values) => {
@@ -60,13 +56,11 @@ const commentCounts = commentsInput.pipe(
 
 // Transform issues for joining with users
 const issuesForJoin = issuesInput.pipe(
-  // debug('issues'),
   map(([_key, issue]) => [issue.user_id, issue] as [string, Issue]),
 )
 
 // Transform users for joining with issues
 const usersForJoin = usersInput.pipe(
-  // debug('users'),
   map(([_key, user]) => [user.id, user] as [string, User]),
 )
 
@@ -102,8 +96,7 @@ const finalStream = issuesWithUsers.pipe(
       } as IssueData,
     ]
   }),
-  buffer(),
-  // debug('output'),
+  consolidate(),
   output((msg) => {
     if (msg.type === MessageType.DATA) {
       console.log('DATA version:', msg.data.version.toJSON())
@@ -140,21 +133,21 @@ const streams = new MultiShapeStream<{
       url: ELECTRIC_URL,
       params: {
         table: 'issue',
-        replica: 'full',
+        replica: 'complete',
       },
     },
     user: {
       url: ELECTRIC_URL,
       params: {
         table: 'user',
-        replica: 'full',
+        replica: 'complete',
       },
     },
     comment: {
       url: ELECTRIC_URL,
       params: {
         table: 'comment',
-        replica: 'full',
+        replica: 'complete',
       },
     },
   },
@@ -167,7 +160,6 @@ electricStreamToD2Input({
   stream: streams.shapes.issue,
   input: issuesInput,
   runOn: 'lsn-advance',
-  debug: (msg) => console.log('issue', msg),
 })
 
 electricStreamToD2Input({
@@ -175,7 +167,6 @@ electricStreamToD2Input({
   stream: streams.shapes.user,
   input: usersInput,
   runOn: 'lsn-advance',
-  debug: (msg) => console.log('user', msg),
 })
 
 electricStreamToD2Input({
@@ -183,5 +174,4 @@ electricStreamToD2Input({
   stream: streams.shapes.comment,
   input: commentsInput,
   runOn: 'lsn-advance',
-  debug: (msg) => console.log('comment', msg),
 })
