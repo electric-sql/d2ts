@@ -1,7 +1,7 @@
 {
-  "name": "d2ts-benchmark",
+  "name": "@electric-sql/d2ts-benchmark",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "Apache-2.0",
   "scripts": {
     "bench": "tsx src/index.ts",
@@ -15,6 +15,6 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "d2ts": "workspace:*"
+    "@electric-sql/d2ts": "workspace:*"
   }
 }
