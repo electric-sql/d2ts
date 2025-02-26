@@ -12,6 +12,7 @@ A D2TS pipe is also fully type safe, inferring the types at each step of the pip
 
 - **Incremental Processing**: Efficiently process changes to input data without recomputing everything
 - **Rich Operators**: Supports common operations with a pipeline API:
+  - `buffer()`: Buffer and emit versions when they are complete
   - `concat()`: Concatenate two streams
   - `consolidate()`: Consolidates the elements in the stream at each version
   - `count()`: Count elements by key
@@ -141,6 +142,14 @@ const multiSet = new MultiSet<[string, Comment]>([
 ```
 
 ### Operators
+
+#### `buffer()`
+
+Buffers the elements of the stream, emitting a version when the buffer is complete.
+
+```typescript
+const output = input.pipe(buffer())
+```
 
 #### `concat(other: IStreamBuilder<T>)`
 
