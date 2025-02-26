@@ -1,4 +1,29 @@
-# D2TS - Differential Dataflow in TypeScript
+<p align="center">
+  <a href="https://electric-sql.com" target="_blank">
+    <picture>
+      <source media="(prefers-color-scheme: dark)"
+          srcset="https://raw.githubusercontent.com/electric-sql/meta/main/identity/ElectricSQL-logo-next.svg"
+      />
+      <source media="(prefers-color-scheme: light)"
+          srcset="https://raw.githubusercontent.com/electric-sql/meta/main/identity/ElectricSQL-logo-black.svg"
+      />
+      <img alt="ElectricSQL logo"
+          src="https://raw.githubusercontent.com/electric-sql/meta/main/identity/ElectricSQL-logo-black.svg"
+      />
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/electric-sql/d2ts/actions"><img src="https://github.com/electric-sql/d2ts/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/electric-sql/d2ts/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-green" alt="License - Apache 2.0"></a>
+  <a href="https://github.com/electric-sql/d2ts/
+  ext/milestones"><img src="https://img.shields.io/badge/status-alpha-orange" alt="Status - Alpha"></a>
+  <a href="https://discord.electric-sql.com"><img src="https://img.shields.io/discord/933657521581858818?color=5969EA&label=discord" alt="Chat - Discord"></a>
+  <a href="https://x.com/ElectricSQL" target="_blank"><img src="https://img.shields.io/twitter/follow/ElectricSQL.svg?style=social&label=Follow @ElectricSQL"></a>
+</p>
+
+# D2TS - Differential Dataflow in TypeScript <!-- omit in toc -->
 
 D2TS is a TypeScript implementation of [differential dataflow](https://github.com/MaterializeInc/differential) - a powerful data-parallel programming framework that enables incremental computations over changing input data.
 
@@ -6,7 +31,9 @@ You can use D2TS to build data pipelines that can be executed incrementally, mea
 
 D2TS can be used in conjunction with [ElectricSQL](https://electric-sql.com) to build data pipelines on top of [ShapeStreams](https://electric-sql.com/docs/api/clients/typescript#shapestream) that can be executed incrementally.
 
-A D2TS pipe is also fully type safe, inferring the types at each step of the pipeline, and supports auto-complete in your IDE.
+A D2TS pipeline is also fully type safe, inferring the types at each step of the pipeline, and supports auto-complete in your IDE.
+
+## Table of Contents
 
 - [Key Features](#key-features)
 - [Quick Start](#quick-start)
