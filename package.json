@@ -10,6 +10,7 @@
     "bench": "pnpm --filter d2ts-benchmark bench"
   },
   "devDependencies": {
+    "@electric-sql/d2ts": "workspace:*",
     "@eslint/js": "latest",
     "@types/node": "^22.10.2",
     "@typescript-eslint/eslint-plugin": "^7.0.0",

@@ -1,5 +1,4 @@
-import { D2 } from '../packages/d2ts/src/index.js'
-import { map, filter, debug } from '../packages/d2ts/src/operators/index.js'
+import { D2, map, filter, debug } from '@electric-sql/d2ts'
 
 // Create a new D2 graph with an initial frontier of 0
 // This is the lower bound of the version space
@@ -27,15 +26,15 @@ graph.finalize()
 // The graph will process the data and frontier updates in a single step
 for (let i = 1; i <= 10; i++) {
   // Sending a frontier is informing the graph what the new lower bound of the version
-  // space is *on that input*. Each input essentially can have its own lower bound. 
+  // space is *on that input*. Each input essentially can have its own lower bound.
   // These are then passed through all the operators
   input.sendFrontier(i)
 
   // Sending data to the graph
   // The first param is the version of the data
-  // The second param is a MultiSetArray of *changes in the collection*, where the first 
-  // element is the record and the second is the multiplicity. A positive multiplicity 
-  // means that the record is added to the collection at that version. A negative 
+  // The second param is a MultiSetArray of *changes in the collection*, where the first
+  // element is the record and the second is the multiplicity. A positive multiplicity
+  // means that the record is added to the collection at that version. A negative
   // multiplicity means that the record is removed from the collection at that version.
   input.sendData(i, [
     [i + 1, 1],

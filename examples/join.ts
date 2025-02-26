@@ -1,6 +1,4 @@
-import { D2 } from '../packages/d2ts/src/index.js'
-import { map, join, distinct, debug } from '../packages/d2ts/src/operators/index.js'
-import { parseArgs } from 'node:util'
+import { D2, map, join, distinct, debug } from '@electric-sql/d2ts'
 
 type Issue = {
   id: number
@@ -17,13 +15,13 @@ type User = {
 const issues: Issue[] = [
   {
     id: 1,
-    title: "Fix login bug",
-    userId: 1
+    title: 'Fix login bug',
+    userId: 1,
   },
   {
-    id: 2, 
-    title: "Add dark mode",
-    userId: 1
+    id: 2,
+    title: 'Add dark mode',
+    userId: 1,
   },
   {
     id: 3,
@@ -70,29 +68,19 @@ const issues: Issue[] = [
 const users: User[] = [
   {
     id: 1,
-    name: "Alice Johnson"
+    name: 'Alice Johnson',
   },
   {
     id: 2,
-    name: "Bob Smith"
+    name: 'Bob Smith',
   },
   {
     id: 3,
-    name: "Carol Williams"
-  }
+    name: 'Carol Williams',
+  },
 ]
 
-const args = parseArgs({
-  options: {
-    sqlite: {
-      type: 'boolean',
-      short: 's',
-      default: false
-    }
-  }
-})
-
-const graph = new D2({ 
+const graph = new D2({
   initialFrontier: 0,
 })
 
@@ -102,14 +90,14 @@ const inputUsers = graph.newInput<[number, User]>()
 // Transform issues into [key, value] pairs for joining
 const issuesStream = inputIssues.pipe(
   // debug('issues_stream'),
-  map(([issueId, issue]) => [issue.userId, issue] as [number, Issue])
+  map(([issueId, issue]) => [issue.userId, issue] as [number, Issue]),
   // debug('issues_stream_map')
 )
 
 // Transform users into [key, value] pairs for joining
 const usersStream = inputUsers.pipe(
   // debug('users_stream'),
-  map(([userId, user]) => [userId, user] as [number, User])
+  map(([userId, user]) => [userId, user] as [number, User]),
   // debug('users_stream_map')
 )
 
@@ -117,14 +105,17 @@ const usersStream = inputUsers.pipe(
 const joinedStream = issuesStream.pipe(
   join(usersStream),
   // debug('join'),
-  map(([_key, [issue, user]]) => ([issue.id, {
-    id: issue.id,
-    title: issue.title,
-    userName: user.name
-  }])),
+  map(([_key, [issue, user]]) => [
+    issue.id,
+    {
+      id: issue.id,
+      title: issue.title,
+      userName: user.name,
+    },
+  ]),
   debug('map', true),
   distinct(),
-  debug('distinct', true)
+  debug('distinct', true),
 )
 
 graph.finalize()
@@ -143,11 +134,19 @@ inputUsers.sendFrontier(2)
 graph.run()
 
 // Add a new issue
-inputIssues.sendData(2, [[[11, {
-  id: 11,
-  title: 'New issue',
-  userId: 1,
-}], 1]])
+inputIssues.sendData(2, [
+  [
+    [
+      11,
+      {
+        id: 11,
+        title: 'New issue',
+        userId: 1,
+      },
+    ],
+    1,
+  ],
+])
 
 inputIssues.sendFrontier(3)
 inputUsers.sendFrontier(3)
@@ -155,11 +154,19 @@ inputUsers.sendFrontier(3)
 graph.run()
 
 // Delete an issue
-inputIssues.sendData(3, [[[1, {
-  id: 1,
-  title: 'Fix login bug',
-  userId: 1,
-}], -1]])
+inputIssues.sendData(3, [
+  [
+    [
+      1,
+      {
+        id: 1,
+        title: 'Fix login bug',
+        userId: 1,
+      },
+    ],
+    -1,
+  ],
+])
 
 inputIssues.sendFrontier(4)
 inputUsers.sendFrontier(4)
@@ -167,16 +174,32 @@ inputUsers.sendFrontier(4)
 graph.run()
 
 // Insert a new user and issue by the same user
-inputUsers.sendData(4, [[[4, {
-  id: 4,
-  name: 'Dave Brown',
-}], 1]])
+inputUsers.sendData(4, [
+  [
+    [
+      4,
+      {
+        id: 4,
+        name: 'Dave Brown',
+      },
+    ],
+    1,
+  ],
+])
 
-inputIssues.sendData(4, [[[12, {
-  id: 12,
-  title: 'New issue 2',
-  userId: 4,
-}], 1]])
+inputIssues.sendData(4, [
+  [
+    [
+      12,
+      {
+        id: 12,
+        title: 'New issue 2',
+        userId: 4,
+      },
+    ],
+    1,
+  ],
+])
 
 inputIssues.sendFrontier(5)
 inputUsers.sendFrontier(5)
@@ -184,15 +207,31 @@ inputUsers.sendFrontier(5)
 graph.run()
 
 // Delete a user and their issues
-inputUsers.sendData(5, [[[4, {
-  id: 4,
-  name: 'Dave Brown',
-}], -1]])
-inputIssues.sendData(5, [[[12, {
-  id: 12,
-  title: 'New issue 2',
-  userId: 4,
-}], -1]])
+inputUsers.sendData(5, [
+  [
+    [
+      4,
+      {
+        id: 4,
+        name: 'Dave Brown',
+      },
+    ],
+    -1,
+  ],
+])
+inputIssues.sendData(5, [
+  [
+    [
+      12,
+      {
+        id: 12,
+        title: 'New issue 2',
+        userId: 4,
+      },
+    ],
+    -1,
+  ],
+])
 
 inputIssues.sendFrontier(6)
 inputUsers.sendFrontier(6)

@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@electric-sql/d2ts':
+        specifier: workspace:*
+        version: link:packages/d2ts
       '@eslint/js':
         specifier: latest
         version: 9.21.0
@@ -77,7 +80,7 @@ importers:
 
   packages/d2ts-benchmark:
     dependencies:
-      d2ts:
+      '@electric-sql/d2ts':
         specifier: workspace:*
         version: link:../d2ts
     devDependencies:
