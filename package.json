@@ -7,9 +7,13 @@
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
-    "bench": "pnpm --filter d2ts-benchmark bench"
+    "bench": "pnpm --filter d2ts-benchmark bench",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.28.1",
     "@electric-sql/d2ts": "workspace:*",
     "@eslint/js": "latest",
     "@types/node": "^22.10.2",
