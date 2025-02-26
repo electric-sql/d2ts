@@ -1,15 +1,16 @@
-import { D2 } from '../src/index.js'
-import { MultiSet } from '../src/multiset.js'
-import { Antichain, v } from '../src/order.js'
 import {
-  iterate,
-  debug,
-  map,
+  D2,
+  Antichain,
+  concat,
   consolidate,
+  debug,
   distinct,
   filter,
-  concat,
-} from '../src/operators/index.js'
+  iterate,
+  map,
+  MultiSet,
+  v,
+} from '@electric-sql/d2ts'
 
 const graph = new D2({ initialFrontier: new Antichain([v(0)]) })
 

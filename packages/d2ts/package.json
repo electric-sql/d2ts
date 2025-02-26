@@ -1,5 +1,5 @@
 {
-  "name": "d2ts",
+  "name": "@electric-sql/d2ts",
   "version": "0.1.0",
   "type": "module",
   "main": "dist/index.js",
@@ -12,6 +12,10 @@
     "./sqlite": {
       "types": "./dist/sqlite/index.d.ts",
       "default": "./dist/sqlite/index.js"
+    },
+    "./store": {
+      "types": "./dist/store.d.ts",
+      "default": "./dist/store.js"
     }
   },
   "scripts": {

@@ -1,5 +1,5 @@
-import { map, reduce, consolidate } from '../src/operators/index.js'
-import { Store } from '../src/store.js'
+import { map, reduce, consolidate } from '@electric-sql/d2ts'
+import { Store } from '@electric-sql/d2ts/store'
 
 type FruitOrder = {
   name: string
