@@ -135,6 +135,51 @@ graph.run()
 // 8 (from 3 + 5)
 ```
 
+### Using with ElectricSQL
+
+D2TS can be used in conjunction with [ElectricSQL](https://electric-sql.com) to build data pipelines on top of [ShapeStreams](https://electric-sql.com/docs/api/clients/typescript#shapestream) that can be executed incrementally.
+
+> [!NOTE]
+> Electric support has not yet been merged to main, you can follow the progress [in this PR](https://github.com/electric-sql/d2ts/pull/11).
+
+Here's an example of how to use D2TS with ElectricSQL:
+
+```typescript
+import { D2, map, filter, output } from '@electric-sql/d2ts'
+import { electricStreamToD2Input } from '@electric-sql/d2ts/electric'
+import { ShapeStream } from '@electric-sql/client'
+
+// Create D2 graph
+const graph = new D2({ initialFrontier: 0 })
+
+// Create D2 input
+const input = graph.newInput<any>()
+
+// Configure the pipeline
+input
+  .pipe(
+    map(([key, data]) => data.value),
+    filter(value => value > 10),
+    // ... any other processing / joining
+    output((msg) => doSomething(msg))
+  )
+
+// Finalize graph
+graph.finalize()
+
+// Create Electric stream (example)
+const electricStream = new ShapeStream({
+  url: 'http://localhost:3000/v1/shape',
+  params: {
+    table: 'items',
+    replica: 'full',  // <-- IMPORTANT!
+  }
+})
+
+// Connect Electric stream to D2 input
+electricStreamToD2Input(electricStream, input)
+```
+
 ## Examples
 
 There are a number of examples in the [./examples](./examples) directory, covering:
