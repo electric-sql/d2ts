@@ -1,6 +1,22 @@
 {
   "name": "@electric-sql/d2ts",
   "version": "0.1.0",
+  "license": "Apache-2.0",
+  "description": "D2TS is a TypeScript implementation of Differential Dataflow.",
+  "author": "Electric DB Limited",
+  "homepage": "https://github.com/electric-sql/d2ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/electric-sql/d2ts.git",
+    "directory": "packages/d2ts"
+  },
+  "keywords": [
+    "differential dataflow",
+    "differential",
+    "dataflow",
+    "stream processing",
+    "sync"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
