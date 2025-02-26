@@ -1,6 +1,6 @@
-import { D2 } from '../src/index.js'
-import { map, filter, join, concat, distinct, debug } from '../src/operators/index.js'
-import { v } from '../src/order.js'
+import { D2 } from '../packages/d2ts/src/index.js'
+import { map, filter, join, concat, distinct, debug } from '../packages/d2ts/src/operators/index.js'
+import { v } from '../packages/d2ts/src/order.js'
 
 type Issue = {
   type: 'issue'

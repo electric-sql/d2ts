@@ -137,12 +137,13 @@ graph.run()
 
 ## Examples
 
-There are a number of examples in the [packages/d2ts/examples](./packages/d2ts/examples) directory, covering:
+There are a number of examples in the [./examples](./examples) directory, covering:
 
-- Basic usage (map and filter)
-- Joins between two streams
-- Iterative computations
-- Modeling "includes" using joins
+- [Basic usage](./examples/basic.ts) (map and filter)
+- ["Fruit processed"](./examples/fruit-processed.ts) (reduce and consolidate)
+- [Joins between two streams](./examples/join.ts)
+- [Iterative computations](./examples/iterate.ts)
+- [Modeling "includes" using joins](./examples/includes.ts)
 
 ## API
 

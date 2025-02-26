@@ -1,6 +1,6 @@
-import { D2 } from '../src/index.js'
-import { MultiSet } from '../src/multiset.js'
-import { Antichain, v } from '../src/order.js'
+import { D2 } from '../packages/d2ts/src/index.js'
+import { MultiSet } from '../packages/d2ts/src/multiset.js'
+import { Antichain, v } from '../packages/d2ts/src/order.js'
 import {
   iterate,
   debug,
@@ -9,7 +9,7 @@ import {
   distinct,
   filter,
   concat,
-} from '../src/operators/index.js'
+} from '../packages/d2ts/src/operators/index.js'
 
 const graph = new D2({ initialFrontier: new Antichain([v(0)]) })
 
