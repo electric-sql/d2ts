@@ -1,6 +1,6 @@
 {
   "name": "@electric-sql/d2ts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "Apache-2.0",
   "description": "D2TS is a TypeScript implementation of Differential Dataflow.",
   "author": "Electric DB Limited",
