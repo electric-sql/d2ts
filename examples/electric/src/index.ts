@@ -6,11 +6,13 @@ import {
   join,
   reduce,
   consolidate,
-  output,
   MessageType,
   concat,
 } from '@electric-sql/d2ts'
-import { electricStreamToD2Input } from '@electric-sql/d2ts/electric'
+import {
+  electricStreamToD2Input,
+  outputElectricMessages,
+} from '@electric-sql/d2ts/electric'
 
 // The URL of the ElectricSQL instance
 const ELECTRIC_URL = 'http://localhost:3000/v1/shape'
@@ -43,12 +45,12 @@ const commentsInput = graph.newInput<[string, Comment]>()
 // We now construct the D2 pipeline
 
 // Calculate comment counts per issue
-// We need a zero for each issue to ensure that we get a row for each issue, even if 
+// We need a zero for each issue to ensure that we get a row for each issue, even if
 // there are no comments
 const commentCountZero = issuesInput.pipe(
   map(([_key, issue]) => [issue.id, 0] as [string, number]),
 )
-// We "key" the comments by issue_id, combine with the zero for each issue, and then 
+// We "key" the comments by issue_id, combine with the zero for each issue, and then
 // reduce to get the comment count
 const commentCounts = commentsInput.pipe(
   map(([_key, comment]) => [comment.issue_id, 1] as [string, number]),
@@ -85,7 +87,7 @@ const issuesWithUsers = issuesForJoin.pipe(
 )
 
 // Join with comment counts and map to final structure
-// We join the issues with the comment counts so that we can get the comment count for 
+// We join the issues with the comment counts so that we can get the comment count for
 // each issue and then map to the final structure
 const finalStream = issuesWithUsers.pipe(
   join(commentCounts),
@@ -106,25 +108,14 @@ const finalStream = issuesWithUsers.pipe(
         user_email: user.email,
         user_full_name: user.full_name,
         comment_count: commentCount || 0,
-      } as IssueData,
-    ]
+      },
+    ] as [string, IssueData]
   }),
   consolidate(),
-  output((msg) => {
-    if (msg.type === MessageType.DATA) {
-      console.log('DATA version:', msg.data.version.toJSON())
-      msg.data.collection.getInner().forEach(([[key, data], multiplicity]) => {
-        if (multiplicity > 0) {
-          console.log('+ Insert', data)
-        } else if (multiplicity < 0) {
-          console.log('- Delete', data)
-        } else {
-          throw new Error('Invalid multiplicity')
-        }
-      })
-    } else if (msg.type === MessageType.FRONTIER) {
-      console.log('FRONTIER', msg.data.toJSON())
-    }
+  outputElectricMessages((msg) => {
+    // Output the messages in the pipeline as ElectricSQL change messages
+    console.log(msg)
+    console.log('--------------------------------')
   }),
 )
 

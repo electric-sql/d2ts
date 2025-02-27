@@ -2,8 +2,23 @@ import { D2, RootStreamBuilder } from '../d2.js'
 import { MultiSetArray } from '../multiset.js'
 import { type Version, type Antichain } from '../order.js'
 import {
+  IStreamBuilder,
+  Message,
+  DataMessage,
+  MessageType,
+  KeyValue,
+} from '../types.js'
+import {
+  DifferenceStreamReader,
+  DifferenceStreamWriter,
+  UnaryOperator,
+} from '../graph.js'
+import { StreamBuilder } from '../d2.js'
+import {
   type Row,
   type ShapeStreamInterface,
+  type ChangeMessage,
+  type Operation,
   isChangeMessage,
   isControlMessage,
 } from '@electric-sql/client'
@@ -50,6 +65,40 @@ export interface ElectricStreamToD2InputOptions<T extends Row<unknown> = Row> {
  * @param options.lsnToVersion Optional function to convert LSN to version number/Version
  * @param options.lsnToFrontier Optional function to convert LSN to frontier number/Antichain
  * @returns The input stream for chaining
+ *
+ * @example
+ * ```ts
+ * // Create D2 graph
+ * const graph = new D2({ initialFrontier: 0 })
+ *
+ * // Create D2 input
+ * const input = graph.newInput<any>()
+ *
+ * // Configure the pipeline
+ * input
+ *   .pipe(
+ *     map(([key, data]) => data.value),
+ *     filter(value => value > 10)
+ *   )
+ *
+ * // Finalize graph
+ * graph.finalize()
+ *
+ * // Create Electric stream (example)
+ * const electricStream = new ShapeStream({
+ *   url: 'http://localhost:3000/v1/shape',
+ *   params: {
+ *     table: 'items',
+ *     replica: 'full',
+ *   }
+ * })
+ *
+ * // Connect Electric stream to D2 input
+ * electricStreamToD2Input({
+ *   stream: electricStream,
+ *   input,
+ * })
+ * ```
  */
 export function electricStreamToD2Input<T extends Row<unknown> = Row>({
   graph,
@@ -162,37 +211,137 @@ export function electricStreamToD2Input<T extends Row<unknown> = Row>({
   return input
 }
 
-/* 
-// Used something like this:
+/**
+ * Operator that outputs the messages from the stream in ElectricSQL format
+ *
+ * TODO: Have two modes `replica=default` and `replica=full` to match the two modes
+ * of core Electric.
+ */
+export class OutputElectricMessagesOperator<K, V> extends UnaryOperator<
+  [K, V]
+> {
+  #fn: (data: ChangeMessage<Row<V>>[]) => void
 
-// Create D2 graph
-const graph = new D2({ initialFrontier: 0 })
-
-// Create D2 input
-const input = graph.newInput<any>()
-
-// Configure the pipeline
-input
-  .pipe(
-    map(([key, data]) => data.value),
-    filter(value => value > 10)
-  )
-
-// Finalize graph
-graph.finalize()
-
-// Create Electric stream (example)
-const electricStream = new ShapeStream({
-  url: 'http://localhost:3000/v1/shape',
-  params: {
-    table: 'items',
-    replica: 'full',
+  constructor(
+    id: number,
+    inputA: DifferenceStreamReader<[K, V]>,
+    output: DifferenceStreamWriter<[K, V]>,
+    fn: (data: ChangeMessage<Row<V>>[]) => void,
+    initialFrontier: Antichain,
+  ) {
+    super(id, inputA, output, initialFrontier)
+    this.#fn = fn
   }
-})
 
-// Connect Electric stream to D2 input
-electricStreamToD2Input({
-  stream: electricStream,
-  input,
-})
-*/
+  transformMessages(messages: Message<[K, V]>[]): ChangeMessage<Row<V>>[] {
+    const output: ChangeMessage<Row<V>>[] = []
+    let lastLSN = -Infinity
+    for (const message of messages) {
+      if (message.type === MessageType.DATA) {
+        const { version, collection } = message.data as DataMessage<[K, V]>
+        // We use the first element of the D2version as the LSN as its what we used
+        // in the input
+        const lsn = version.getInner()[0]
+        if (lsn < lastLSN) {
+          throw new Error(
+            `Invalid LSN ${lsn} less than lastLSN ${lastLSN}, you must consolidate your stream before passing it to the OutputElectricMessagesOperator`,
+          )
+        }
+        lastLSN = lsn
+
+        const changesByKey = new Map<
+          K,
+          { deletes: number; inserts: number; value: V }
+        >()
+
+        for (const [[key, value], multiplicity] of collection.getInner()) {
+          let changes = changesByKey.get(key)
+          if (!changes) {
+            changes = { deletes: 0, inserts: 0, value: value }
+            changesByKey.set(key, changes)
+          }
+
+          if (multiplicity < 0) {
+            changes.deletes += Math.abs(multiplicity)
+          } else if (multiplicity > 0) {
+            changes.inserts += multiplicity
+            changes.value = value
+          }
+        }
+
+        const newMessages = Array.from(changesByKey.entries()).map(
+          ([key, { deletes, inserts, value }]) => {
+            const operation: Operation =
+              deletes > inserts
+                ? 'delete'
+                : inserts > deletes
+                  ? 'insert'
+                  : 'update'
+            return {
+              key: (key as any).toString(),
+              value: value as Row<V>,
+              headers: { lsn, operation },
+            }
+          },
+        )
+
+        output.push(...newMessages)
+      }
+    }
+    return output
+  }
+
+  run(): void {
+    const messages = this.inputMessages()
+    const outputMessages = this.transformMessages(messages)
+    if (outputMessages.length > 0) {
+      this.#fn(outputMessages)
+    }
+    for (const message of messages) {
+      if (message.type === MessageType.DATA) {
+        const { version, collection } = message.data as DataMessage<[K, V]>
+        this.output.sendData(version, collection)
+      } else if (message.type === MessageType.FRONTIER) {
+        const frontier = message.data as Antichain
+        if (!this.inputFrontier().lessEqual(frontier)) {
+          throw new Error('Invalid frontier update')
+        }
+        this.setInputFrontier(frontier)
+        if (!this.outputFrontier.lessEqual(this.inputFrontier())) {
+          throw new Error('Invalid frontier state')
+        }
+        if (this.outputFrontier.lessThan(this.inputFrontier())) {
+          this.outputFrontier = this.inputFrontier()
+          this.output.sendFrontier(this.outputFrontier)
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Outputs the messages from the stream in ElectricSQL format
+ * @param fn - The function to call with a batch of messages
+ */
+export function outputElectricMessages<
+  K extends T extends KeyValue<infer K extends string, infer _V> ? K : never,
+  V extends T extends KeyValue<K, infer V> ? V : never,
+  T,
+>(fn: (data: ChangeMessage<Row<V>>[]) => void) {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, V>> => {
+    const output = new StreamBuilder<KeyValue<K, V>>(
+      stream.graph,
+      new DifferenceStreamWriter<KeyValue<K, V>>(),
+    )
+    const operator = new OutputElectricMessagesOperator<K, V>(
+      stream.graph.getNextOperatorId(),
+      stream.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
+      output.writer,
+      fn,
+      stream.graph.frontier(),
+    )
+    stream.graph.addOperator(operator)
+    stream.graph.addStream(output.connectReader())
+    return output
+  }
+}
