@@ -342,6 +342,37 @@ function createIndexTests<
           index.compact(frontier2)
         }).toThrow('Invalid compaction frontier')
       })
+
+      test('should append after compact', () => {
+        const version1 = v([1])
+        const version2 = v([2])
+        const version3 = v([3])
+        const frontier = new Antichain([version2])
+
+        index.addValue('key1', version1, [10, 1])
+
+        expect(index.reconstructAt('key1', version1)).toEqual([[10, 1]])
+
+        index.compact(frontier)
+
+        const other = createIndex('other')
+        other.addValue('key1', version2, [20, 1])
+
+        // @ts-expect-error
+        index.append(other)
+
+        const other2 = createIndex('other2')
+        other2.addValue('key1', version3, [30, 1])
+
+        // @ts-expect-error
+        index.append(other2)
+
+        expect(index.reconstructAt('key1', version3)).toEqual([
+          [10, 1],
+          [20, 1],
+          [30, 1],
+        ])
+      })
     })
 
     describe('validation', () => {

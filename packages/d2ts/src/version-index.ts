@@ -119,7 +119,7 @@ export class Index<K, V> implements IndexType<K, V> {
 
   append(other: Index<K, V>): void {
     for (const [key, versions] of other.entries()) {
-      const thisVersions = this.get(key)
+      const thisVersions = this.#inner.get(key)
       for (const [version, data] of versions) {
         thisVersions.update(version, (values) => {
           chunkedArrayPush(values, data)
