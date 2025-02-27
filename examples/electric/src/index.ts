@@ -6,7 +6,6 @@ import {
   join,
   reduce,
   consolidate,
-  MessageType,
   concat,
 } from '@electric-sql/d2ts'
 import {
