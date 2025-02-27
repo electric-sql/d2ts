@@ -104,7 +104,7 @@ export function electricStreamToD2Input<T extends Row<unknown> = Row>({
           const lsn = message.headers.global_last_seen_lsn
           sendFrontier(lsn)
           if (runOn === 'up-to-date' || runOn === 'lsn-advance') {
-            log?.('Running graph on up-to-date')
+            log?.('running graph on up-to-date')
             graph.run()
           }
         } else if (message.headers.control === 'must-refetch') {
@@ -129,13 +129,15 @@ export function electricStreamToD2Input<T extends Row<unknown> = Row>({
             changes.push([[message.key, message.value], 1])
             break
           case 'update':
-            // An update is a delete followed by an insert
-            if (!message.old_value) {
-              throw new Error(
-                'old_value is undefined, please ensure you have set replica=complete',
-              )
+            // An update in D2 is a delete followed by an insert.
+            // `old_value` only holds the old values *that have changed*
+            // so we need to merge the old and new value to get a complete row
+            // that represents the row as it was before the update.
+            const oldValue = {
+              ...message.value,
+              ...(message.old_value ?? {}),
             }
-            changes.push([[message.key, message.old_value], -1])
+            changes.push([[message.key, oldValue], -1])
             changes.push([[message.key, message.value], 1])
             break
           case 'delete':
@@ -146,7 +148,7 @@ export function electricStreamToD2Input<T extends Row<unknown> = Row>({
           sendChanges(lsn)
           sendFrontier(lsn)
           if (runOn === 'lsn-advance') {
-            log?.('Running graph on lsn-advance')
+            log?.('running graph on lsn-advance')
             graph.run()
           }
         }
@@ -184,7 +186,7 @@ const electricStream = new ShapeStream({
   url: 'http://localhost:3000/v1/shape',
   params: {
     table: 'items',
-    replica: 'complete',
+    replica: 'full',
   }
 })
 

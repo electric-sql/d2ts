@@ -9,8 +9,8 @@ import {
   output,
   MessageType,
   concat,
-} from 'd2ts'
-import { electricStreamToD2Input } from 'd2ts/electric'
+} from '@electric-sql/d2ts'
+import { electricStreamToD2Input } from '@electric-sql/d2ts/electric'
 
 const ELECTRIC_URL = 'http://localhost:3000/v1/shape'
 
@@ -133,21 +133,21 @@ const streams = new MultiShapeStream<{
       url: ELECTRIC_URL,
       params: {
         table: 'issue',
-        replica: 'complete',
+        replica: 'full',
       },
     },
     user: {
       url: ELECTRIC_URL,
       params: {
         table: 'user',
-        replica: 'complete',
+        replica: 'full',
       },
     },
     comment: {
       url: ELECTRIC_URL,
       params: {
         table: 'comment',
-        replica: 'complete',
+        replica: 'full',
       },
     },
   },
