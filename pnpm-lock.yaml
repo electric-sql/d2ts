@@ -42,6 +42,40 @@ importers:
         specifier: ^1.0.0
         version: 1.6.0(@types/node@22.10.2)
 
+  examples/electric:
+    dependencies:
+      '@electric-sql/client':
+        specifier: file:/Users/samwillis/Code/electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz
+        version: file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz
+      '@electric-sql/d2ts':
+        specifier: workspace:*
+        version: link:../../packages/d2ts
+      '@electric-sql/experimental':
+        specifier: file:/Users/samwillis/Code/electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz
+        version: file:../electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz(@electric-sql/client@file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz)
+    devDependencies:
+      '@databases/pg':
+        specifier: ^5.5.0
+        version: 5.5.0(typescript@5.7.2)
+      '@databases/pg-migrations':
+        specifier: ^5.0.3
+        version: 5.0.3(typescript@5.7.2)
+      '@faker-js/faker':
+        specifier: ^8.4.1
+        version: 8.4.1
+      prettier:
+        specifier: ^3.2.5
+        version: 3.4.2
+      tsx:
+        specifier: ^4.7.0
+        version: 4.19.2
+      typescript:
+        specifier: ^5.0.0
+        version: 5.7.2
+      uuid:
+        specifier: ^9.0.0
+        version: 9.0.1
+
   packages/d2ts:
     devDependencies:
       '@electric-sql/client':
@@ -105,40 +139,6 @@ importers:
       typescript:
         specifier: ^5.0.0
         version: 5.6.3
-
-  packages/electric-example:
-    dependencies:
-      '@electric-sql/client':
-        specifier: file:/Users/samwillis/Code/electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz
-        version: file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz
-      '@electric-sql/d2ts':
-        specifier: workspace:*
-        version: link:../d2ts
-      '@electric-sql/experimental':
-        specifier: file:/Users/samwillis/Code/electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz
-        version: file:../electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz(@electric-sql/client@file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz)
-    devDependencies:
-      '@databases/pg':
-        specifier: ^5.5.0
-        version: 5.5.0(typescript@5.7.2)
-      '@databases/pg-migrations':
-        specifier: ^5.0.3
-        version: 5.0.3(typescript@5.7.2)
-      '@faker-js/faker':
-        specifier: ^8.4.1
-        version: 8.4.1
-      prettier:
-        specifier: ^3.2.5
-        version: 3.4.2
-      tsx:
-        specifier: ^4.7.0
-        version: 4.19.2
-      typescript:
-        specifier: ^5.0.0
-        version: 5.7.2
-      uuid:
-        specifier: ^9.0.0
-        version: 9.0.1
 
 packages:
 
