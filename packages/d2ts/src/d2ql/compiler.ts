@@ -242,12 +242,14 @@ function evaluateSimpleCondition<T extends Record<string, any>>(
     case '>=':
       return leftValue >= rightValue
     case 'like':
+    case 'not like':
       if (typeof leftValue === 'string' && typeof rightValue === 'string') {
-        // Simple implementation of LIKE - replace % with .* for regex
-        const pattern = rightValue.replace(/%/g, '.*')
-        return new RegExp(`^${pattern}$`).test(leftValue)
+        // Convert SQL LIKE pattern to proper regex pattern
+        let pattern = convertLikeToRegex(rightValue)
+        const matches = new RegExp(`^${pattern}$`, 'i').test(leftValue)
+        return comparator === 'like' ? matches : !matches
       }
-      return false
+      return comparator === 'like' ? false : true
     case 'in':
       // If right value is not an array, we can't do an IN operation
       if (!Array.isArray(rightValue)) {
@@ -297,6 +299,65 @@ function evaluateSimpleCondition<T extends Record<string, any>>(
     default:
       return false
   }
+}
+
+/**
+ * Converts a SQL LIKE pattern to a JavaScript regex pattern
+ * @param pattern The SQL LIKE pattern to convert
+ * @returns A regex-compatible pattern string
+ */
+function convertLikeToRegex(pattern: string): string {
+  let finalPattern = ''
+  let i = 0
+
+  while (i < pattern.length) {
+    const char = pattern[i]
+
+    // Handle escape character
+    if (char === '\\' && i + 1 < pattern.length) {
+      // Add the next character as a literal (escaped)
+      finalPattern += pattern[i + 1]
+      i += 2 // Skip both the escape and the escaped character
+      continue
+    }
+
+    // Handle SQL LIKE special characters
+    switch (char) {
+      case '%':
+        // % matches any sequence of characters (including empty)
+        finalPattern += '.*'
+        break
+      case '_':
+        // _ matches any single character
+        finalPattern += '.'
+        break
+      // Handle regex special characters
+      case '.':
+      case '^':
+      case '$':
+      case '*':
+      case '+':
+      case '?':
+      case '(':
+      case ')':
+      case '[':
+      case ']':
+      case '{':
+      case '}':
+      case '|':
+      case '/':
+        // Escape regex special characters
+        finalPattern += '\\' + char
+        break
+      default:
+        // Regular character, just add it
+        finalPattern += char
+    }
+
+    i++
+  }
+
+  return finalPattern
 }
 
 /**
