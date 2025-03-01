@@ -24,13 +24,18 @@ export function compileQuery<T extends Record<string, any>>(
   // Start building the pipeline
   let pipeline: IStreamBuilder<T> = input
 
+  // Get the main table alias if provided, otherwise use the 'from' value
+  const mainTableAlias = query.as || query.from
+
   // Process the FROM clause - this is just the input source
   // In a more complex implementation, we would look up the input by name
 
   // Process the WHERE clause if it exists
   if (query.where) {
     pipeline = pipeline.pipe(
-      filter((row: T) => evaluateCondition(row, query.where as Condition)),
+      filter((row: T) =>
+        evaluateCondition(row, query.where as Condition, mainTableAlias),
+      ),
     )
   }
 
@@ -40,7 +45,9 @@ export function compileQuery<T extends Record<string, any>>(
   // This works similarly to WHERE but is applied after any aggregations
   if (query.having) {
     pipeline = pipeline.pipe(
-      filter((row: T) => evaluateCondition(row, query.having as Condition)),
+      filter((row: T) =>
+        evaluateCondition(row, query.having as Condition, mainTableAlias),
+      ),
     )
   }
 
@@ -54,15 +61,27 @@ export function compileQuery<T extends Record<string, any>>(
         if (typeof item === 'string') {
           // Handle simple column references like "@column_name"
           if (item.startsWith('@')) {
-            const columnName = item.substring(1)
-            result[columnName] = row[columnName]
+            const columnRef = item.substring(1)
+            // Check if it's a table.column reference or just a column reference
+            if (columnRef.includes('.')) {
+              const [tableAlias, columnName] = columnRef.split('.')
+              result[columnName] = row[columnName]
+            } else {
+              result[columnRef] = row[columnRef]
+            }
           }
         } else {
           // Handle aliased columns like { alias: "@column_name" }
           for (const [alias, expr] of Object.entries(item)) {
             if (typeof expr === 'string' && expr.startsWith('@')) {
-              const columnName = expr.substring(1)
-              result[alias] = row[columnName]
+              const columnRef = expr.substring(1)
+              // Check if it's a table.column reference or just a column reference
+              if (columnRef.includes('.')) {
+                const [tableAlias, columnName] = columnRef.split('.')
+                result[alias] = row[columnName]
+              } else {
+                result[alias] = row[columnRef]
+              }
             }
             // We'll handle function calls later
           }
@@ -93,10 +112,15 @@ export function createPipeline<T extends Record<string, any>>(
 
 /**
  * Evaluates a condition against a row of data
+ * @param row The data row to evaluate against
+ * @param condition The condition to evaluate
+ * @param defaultTableAlias The default table alias to use for column references without an explicit table
+ * @returns True if the condition is satisfied, false otherwise
  */
 function evaluateCondition<T extends Record<string, any>>(
   row: T,
   condition: Condition,
+  defaultTableAlias?: string,
 ): boolean {
   // For debugging
   // console.log('Evaluating condition:', JSON.stringify(condition));
@@ -104,7 +128,13 @@ function evaluateCondition<T extends Record<string, any>>(
   // Handle simple conditions with exactly 3 elements
   if (condition.length === 3 && !Array.isArray(condition[0])) {
     const [left, comparator, right] = condition as SimpleCondition
-    return evaluateSimpleCondition(row, left, comparator, right)
+    return evaluateSimpleCondition(
+      row,
+      left,
+      comparator,
+      right,
+      defaultTableAlias,
+    )
   }
 
   // Handle flat composite conditions (multiple conditions in a single array)
@@ -120,6 +150,7 @@ function evaluateCondition<T extends Record<string, any>>(
       condition[0],
       condition[1] as Comparator,
       condition[2],
+      defaultTableAlias,
     )
 
     // Process the rest in groups: logical operator, then 3 elements for each condition
@@ -133,6 +164,7 @@ function evaluateCondition<T extends Record<string, any>>(
           condition[i + 1],
           condition[i + 2] as Comparator,
           condition[i + 3],
+          defaultTableAlias,
         )
 
         // Apply the logical operator
@@ -152,7 +184,11 @@ function evaluateCondition<T extends Record<string, any>>(
     // console.log('Evaluating nested condition:', JSON.stringify(condition));
 
     // Start with the first condition
-    let result = evaluateCondition(row, condition[0] as Condition)
+    let result = evaluateCondition(
+      row,
+      condition[0] as Condition,
+      defaultTableAlias,
+    )
 
     // Process the rest of the conditions and logical operators in pairs
     for (let i = 1; i < condition.length; i += 2) {
@@ -163,9 +199,11 @@ function evaluateCondition<T extends Record<string, any>>(
 
       // Apply the logical operator
       if (operator === 'and') {
-        result = result && evaluateCondition(row, nextCondition)
+        result =
+          result && evaluateCondition(row, nextCondition, defaultTableAlias)
       } else if (operator === 'or') {
-        result = result || evaluateCondition(row, nextCondition)
+        result =
+          result || evaluateCondition(row, nextCondition, defaultTableAlias)
       }
     }
 
@@ -185,9 +223,10 @@ function evaluateSimpleCondition<T extends Record<string, any>>(
   left: ConditionOperand,
   comparator: Comparator,
   right: ConditionOperand,
+  defaultTableAlias?: string,
 ): boolean {
-  const leftValue = evaluateOperand(row, left)
-  const rightValue = evaluateOperand(row, right)
+  const leftValue = evaluateOperand(row, left, defaultTableAlias)
+  const rightValue = evaluateOperand(row, right, defaultTableAlias)
 
   switch (comparator) {
     case '=':
@@ -229,20 +268,44 @@ function evaluateSimpleCondition<T extends Record<string, any>>(
 
 /**
  * Evaluates an operand against a row of data
+ * @param row The data row to evaluate against
+ * @param operand The operand to evaluate
+ * @param defaultTableAlias The default table alias to use for column references without an explicit table
+ * @returns The evaluated operand value
  */
 function evaluateOperand<T extends Record<string, any>>(
   row: T,
   operand: ConditionOperand,
+  defaultTableAlias?: string,
 ): any {
   // Handle column references
   if (typeof operand === 'string' && operand.startsWith('@')) {
-    const columnName = operand.substring(1)
-    return row[columnName]
+    const columnRef = operand.substring(1)
+
+    // Check if it's a table.column reference
+    if (columnRef.includes('.')) {
+      const [tableAlias, columnName] = columnRef.split('.')
+      // In a more complex implementation with actual joins, we would look up
+      // the correct table data based on the alias.
+      // For now, we just use the column name directly.
+      return row[columnName]
+    } else {
+      // Simple column reference, use directly
+      return row[columnRef]
+    }
   }
 
   // Handle explicit column references
   if (operand && typeof operand === 'object' && 'col' in operand) {
-    return row[operand.col]
+    const colRef = operand.col
+
+    // Check if it's a table.column reference
+    if (typeof colRef === 'string' && colRef.includes('.')) {
+      const [tableAlias, columnName] = colRef.split('.')
+      return row[columnName]
+    }
+
+    return row[colRef]
   }
 
   // Handle explicit literals
