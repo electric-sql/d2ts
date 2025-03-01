@@ -14,6 +14,7 @@ import {
 import { Version, Antichain } from '../../order.js'
 import { SQLiteDb } from '../database.js'
 import { SQLIndex } from '../version-index.js'
+import { JoinType } from '../../operators/join.js'
 
 export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
   [K, unknown]
@@ -22,20 +23,23 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
   #indexB: SQLIndex<K, V2>
   #deltaA: SQLIndex<K, V1>
   #deltaB: SQLIndex<K, V2>
+  #joinType: JoinType
 
   constructor(
     id: number,
     inputA: DifferenceStreamReader<[K, V1]>,
     inputB: DifferenceStreamReader<[K, V2]>,
-    output: DifferenceStreamWriter<[K, [V1, V2]]>,
+    output: DifferenceStreamWriter<[K, [V1 | null, V2 | null]]>,
     initialFrontier: Antichain,
     db: SQLiteDb,
+    joinType: JoinType = 'inner',
   ) {
     super(id, inputA, inputB, output, initialFrontier)
     this.#indexA = new SQLIndex<K, V1>(db, `join_a_${id}`)
     this.#indexB = new SQLIndex<K, V2>(db, `join_b_${id}`)
     this.#deltaA = new SQLIndex<K, V1>(db, `join_delta_a_${id}`, true)
     this.#deltaB = new SQLIndex<K, V2>(db, `join_delta_b_${id}`, true)
+    this.#joinType = joinType
   }
 
   run(): void {
@@ -84,32 +88,67 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
       }
 
       // Process results
-      const results = new Map<Version, MultiSet<[K, [V1, V2]]>>()
+      const results = new Map<Version, MultiSet<[K, [V1 | null, V2 | null]]>>()
 
-      // Join deltaA with existing indexB and collect results
-      for (const [version, collection] of deltaA.join(this.#indexB)) {
-        const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
-        existing.extend(collection)
-        results.set(version, existing)
-      }
-
-      // Append deltaA to indexA
+      // Add deltaA to the main index
       this.#indexA.append(deltaA)
 
-      // Join indexA with deltaB and collect results
-      for (const [version, collection] of this.#indexA.join(deltaB)) {
-        const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
-        existing.extend(collection)
-        results.set(version, existing)
+      // Add deltaB to the main index
+      this.#indexB.append(deltaB)
+
+      // Use SQL native joins to process the data with the appropriate join type
+      // This handles inner, left, right, and full joins all in one SQL query
+      const joinResults = deltaA.joinWithType(this.#indexB, this.#joinType)
+
+      // Process the results from the SQL join
+      for (const [version, multiset] of joinResults) {
+        if (!results.has(version)) {
+          results.set(version, multiset)
+        } else {
+          results.get(version)!.extend(multiset.getInner())
+        }
+      }
+
+      // Also need to check for any joins between existing data and new data
+      const otherJoinResults = this.#indexA.joinWithType(deltaB, this.#joinType)
+
+      // Only include results for keys that weren't already matched
+      const processedKeys = new Set<string>()
+
+      // Mark keys from first join
+      for (const [_version, multiset] of joinResults) {
+        for (const [[key, _values], _multiplicity] of multiset.getInner()) {
+          processedKeys.add(JSON.stringify(key))
+        }
+      }
+
+      // Process other join results, skipping already processed keys
+      for (const [version, multiset] of otherJoinResults) {
+        const innerEntries: [[K, [V1 | null, V2 | null]], number][] = []
+
+        for (const [[key, value], multiplicity] of multiset.getInner()) {
+          if (!processedKeys.has(JSON.stringify(key))) {
+            innerEntries.push([[key, value], multiplicity])
+            processedKeys.add(JSON.stringify(key))
+          }
+        }
+
+        if (innerEntries.length > 0) {
+          const filteredMultiset = new MultiSet<[K, [V1 | null, V2 | null]]>(
+            innerEntries,
+          )
+          if (!results.has(version)) {
+            results.set(version, filteredMultiset)
+          } else {
+            results.get(version)!.extend(filteredMultiset.getInner())
+          }
+        }
       }
 
       // Send all results
       for (const [version, collection] of results) {
         this.output.sendData(version, collection)
       }
-
-      // Finally append deltaB to indexB
-      this.#indexB.append(deltaB)
 
       // Update frontiers
       const inputFrontier = this.inputAFrontier().meet(this.inputBFrontier())
@@ -135,20 +174,27 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
  * Persists state to SQLite
  * @param other - The other stream to join with
  * @param db - The SQLite database
+ * @param joinType - Type of join to perform (inner, left, right, full)
  */
 export function join<
   K,
   V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
   V2,
   T,
->(other: IStreamBuilder<KeyValue<K, V2>>, db: SQLiteDb) {
-  return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, [V1, V2]>> => {
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+  db: SQLiteDb,
+  joinType: JoinType = 'inner',
+) {
+  return (
+    stream: IStreamBuilder<T>,
+  ): IStreamBuilder<KeyValue<K, [V1 | null, V2 | null]>> => {
     if (stream.graph !== other.graph) {
       throw new Error('Cannot join streams from different graphs')
     }
-    const output = new StreamBuilder<KeyValue<K, [V1, V2]>>(
+    const output = new StreamBuilder<KeyValue<K, [V1 | null, V2 | null]>>(
       stream.graph,
-      new DifferenceStreamWriter<KeyValue<K, [V1, V2]>>(),
+      new DifferenceStreamWriter<KeyValue<K, [V1 | null, V2 | null]>>(),
     )
     const operator = new JoinOperatorSQLite<K, V1, V2>(
       stream.graph.getNextOperatorId(),
@@ -157,6 +203,7 @@ export function join<
       output.writer,
       stream.graph.frontier(),
       db,
+      joinType,
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())
