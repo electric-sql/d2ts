@@ -34,6 +34,16 @@ export function compileQuery<T extends Record<string, any>>(
     )
   }
 
+  // Note: In the future, GROUP BY would be implemented here
+
+  // Process the HAVING clause if it exists
+  // This works similarly to WHERE but is applied after any aggregations
+  if (query.having) {
+    pipeline = pipeline.pipe(
+      filter((row: T) => evaluateCondition(row, query.having as Condition)),
+    )
+  }
+
   // Process the SELECT clause
   const resultPipeline = pipeline.pipe(
     map((row: T) => {
