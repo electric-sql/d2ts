@@ -249,10 +249,43 @@ function evaluateSimpleCondition<T extends Record<string, any>>(
       }
       return false
     case 'in':
-      if (Array.isArray(rightValue)) {
-        return rightValue.includes(leftValue)
+      // If right value is not an array, we can't do an IN operation
+      if (!Array.isArray(rightValue)) {
+        return false
       }
-      return false
+
+      // For empty arrays, nothing is contained in them
+      if (rightValue.length === 0) {
+        return false
+      }
+
+      // Handle array-to-array comparison (check if any element in leftValue exists in rightValue)
+      if (Array.isArray(leftValue)) {
+        return leftValue.some((item) => isValueInArray(item, rightValue))
+      }
+
+      // Handle single value comparison
+      return isValueInArray(leftValue, rightValue)
+
+    case 'not in':
+      // If right value is not an array, everything is "not in" it
+      if (!Array.isArray(rightValue)) {
+        return true
+      }
+
+      // For empty arrays, everything is "not in" them
+      if (rightValue.length === 0) {
+        return true
+      }
+
+      // Handle array-to-array comparison (check if no element in leftValue exists in rightValue)
+      if (Array.isArray(leftValue)) {
+        return !leftValue.some((item) => isValueInArray(item, rightValue))
+      }
+
+      // Handle single value comparison
+      return !isValueInArray(leftValue, rightValue)
+
     case 'is':
       return leftValue === rightValue
     case 'is not':
@@ -264,6 +297,70 @@ function evaluateSimpleCondition<T extends Record<string, any>>(
     default:
       return false
   }
+}
+
+/**
+ * Helper function to check if a value is in an array, with special handling for various types
+ * @param value The value to check for
+ * @param array The array to search in
+ * @param caseInsensitive Optional flag to enable case-insensitive matching for strings (default: false)
+ * @returns True if the value is found in the array
+ */
+function isValueInArray(
+  value: any,
+  array: any[],
+  caseInsensitive: boolean = false,
+): boolean {
+  // Direct inclusion check first (fastest path)
+  if (array.includes(value)) {
+    return true
+  }
+
+  // Handle null/undefined
+  if (value === null || value === undefined) {
+    return array.some((item) => item === null || item === undefined)
+  }
+
+  // Handle numbers and strings with type coercion
+  if (typeof value === 'number' || typeof value === 'string') {
+    return array.some((item) => {
+      // Same type, direct comparison
+      if (typeof item === typeof value) {
+        if (typeof value === 'string' && caseInsensitive) {
+          // Case-insensitive comparison for strings (only if explicitly enabled)
+          return (
+            (value as string).toLowerCase() === (item as string).toLowerCase()
+          )
+        }
+        return item === value
+      }
+
+      // Different types, try coercion for number/string
+      if (
+        (typeof item === 'number' || typeof item === 'string') &&
+        (typeof value === 'number' || typeof value === 'string')
+      ) {
+        // Convert both to strings for comparison
+        return String(item) === String(value)
+      }
+
+      return false
+    })
+  }
+
+  // Handle objects/arrays by comparing stringified versions
+  if (typeof value === 'object' && value !== null) {
+    const valueStr = JSON.stringify(value)
+    return array.some((item) => {
+      if (typeof item === 'object' && item !== null) {
+        return JSON.stringify(item) === valueStr
+      }
+      return false
+    })
+  }
+
+  // Fallback
+  return false
 }
 
 /**
