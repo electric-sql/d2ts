@@ -11,8 +11,7 @@ import {
   BinaryOperator,
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
-import { MultiSet } from '../multiset.js'
-import { Antichain, Version } from '../order.js'
+import { Antichain } from '../order.js'
 import { Index } from '../version-index.js'
 
 /**
@@ -126,6 +125,60 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
     }
   }
 }
+
+// Overload for inner join - no nulls on either side
+export function join<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T,
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+  joinType: 'inner',
+): PipedOperator<T, KeyValue<K, [V1, V2]>>
+
+// Overload for left join - right side can be null
+export function join<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T,
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+  joinType: 'left',
+): PipedOperator<T, KeyValue<K, [V1, V2 | null]>>
+
+// Overload for right join - left side can be null
+export function join<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T,
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+  joinType: 'right',
+): PipedOperator<T, KeyValue<K, [V1 | null, V2]>>
+
+// Overload for full join - both sides can be null
+export function join<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T,
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+  joinType: 'full',
+): PipedOperator<T, KeyValue<K, [V1 | null, V2 | null]>>
+
+// Default overload for when join type is not specified
+export function join<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T,
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+): PipedOperator<T, KeyValue<K, [V1, V2]>>
 
 /**
  * Joins two input streams
