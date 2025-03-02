@@ -26,6 +26,14 @@ This directory contains examples demonstrating the capabilities of D2QL, a SQL-l
    - Illustrates date handling and COALESCE for null values
    - Shows how to use JSON_EXTRACT for working with JSON data
 
+5. **Kitchen Sink (05_kitchen_sink.ts)**
+   - Combines multiple features in a single comprehensive example
+   - Demonstrates column selection with aliases
+   - Shows multiple function calls in SELECT clauses
+   - Illustrates LEFT JOIN between related tables
+   - Showcases complex WHERE conditions with AND/OR logic and function calls
+   - Perfect as a reference for building complex D2QL queries
+
 ## Running the Examples
 
 To run an example, use the following command from the project root:
