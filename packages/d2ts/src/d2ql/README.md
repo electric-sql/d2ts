@@ -17,9 +17,7 @@ const query: Query = {
   ],
   from: 'users',
   where: [
-    '@age',
-    '>',
-    21
+    '@age', '>', 21
   ]
 };
 
@@ -83,7 +81,7 @@ Here's a comprehensive example demonstrating many of D2QL's current capabilities
 ```typescript
 import { D2, MultiSet, output, v, Antichain } from '@electric-sql/d2ts';
 import { Query, compileQuery } from '@electric-sql/d2ts/d2ql';
-import { Message, MessageType } from '@electric-sql/d2ts/types';
+import { Message, MessageType } from '@electric-sql/d2ts';
 
 // Define sample types
 type Employee = {
@@ -106,43 +104,45 @@ type Department = {
 // Create a D2QL query with multiple features
 const query: Query = {
   select: [
-    { emp_id: '@employees.id' },
-    { 
-      emp_name: { 
-        UPPER: '@employees.name' 
-      } 
-    },
-    { dept_name: '@departments.name' },
-    { location: '@departments.location' },
-    { 
-      annual_salary: '@employees.salary' 
-    },
+    // Non-aliased columns (direct references)
+    '@e.id',
+    '@e.active',
     {
+      // Aliased columns
+      emp_name: '@e.name',
+      dept_name: '@d.name',
+      location: '@d.location',
+      // Function calls
+      upper_name: {
+        UPPER: '@e.name',
+      },
+      annual_salary: '@e.salary',
       theme: {
-        JSON_EXTRACT: ['@employees.preferences', 'theme']
-      }
+        JSON_EXTRACT: ['@e.preferences', 'theme'],
+      },
+      hire_date: {
+        DATE: '@e.hire_date',
+      },
+      employee_info: {
+        CONCAT: ['Employee: ', '@e.name'],
+      },
     },
-    {
-      hire_year: {
-        DATE: '@employees.hire_date'
-      }
-    }
   ],
   from: 'employees',
-  as: 'employees',
+  as: 'e',  // Short alias for employees table
   join: [
     {
       type: 'left',  // Could be 'inner', 'right', or 'full'
       from: 'departments',
-      as: 'departments',
-      on: ['@employees.department_id', '=', '@departments.id']
+      as: 'd',  // Short alias for departments table
+      on: ['@e.department_id', '=', '@d.id']
     }
   ],
   where: [
-    ['@employees.salary', '>', 50000, 'and', '@employees.active', '=', true],
+    ['@e.salary', '>', 50000, 'and', '@e.active', '=', true],
     'or',
     [{
-      UPPER: '@departments.name'
+      UPPER: '@d.name'
     }, '=', 'ENGINEERING']
   ]
 };
@@ -224,10 +224,13 @@ graph.run();
 ```
 
 This example shows:
-1. Column selection with aliases
-2. Function calls in SELECT clauses (UPPER, JSON_EXTRACT, DATE)
-3. LEFT JOIN between employees and departments
-4. Complex WHERE conditions with AND/OR logic and function calls
+1. Multiple column selection methods:
+   - Direct column references without aliases (e.g., '@e.id')
+   - Column references with aliases (e.g., { emp_name: '@e.name' })
+2. Short, readable table aliases ('e' for employees, 'd' for departments)
+3. Function calls in SELECT clauses (UPPER, JSON_EXTRACT, DATE)
+4. LEFT JOIN between employees and departments
+5. Complex WHERE conditions with AND/OR logic and function calls
 
 ## Query Schema
 

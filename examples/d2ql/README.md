@@ -1,48 +1,55 @@
 # D2QL Examples
 
-This directory contains examples demonstrating the capabilities of D2QL, a SQL-like query language for D2. These examples showcase how to use D2QL to perform various query operations on datasets within D2 pipelines.
+This directory contains examples that demonstrate the capabilities of D2QL, a SQL-like query language for D2.
 
-## Examples Overview
+## Examples
 
-1. **Basic Select (01_basic_select.ts)**
-   - Demonstrates basic SELECT statements
-   - Shows how to select all columns from a table
-   - Illustrates how to use column aliases
+1. **Basic SELECT (01_basic_select.ts)**  
+   A simple example showing how to select specific fields from a dataset.
 
-2. **Where Conditions (02_where_conditions.ts)**
-   - Shows how to filter data with simple WHERE clauses
-   - Demonstrates compound conditions using AND
-   - Illustrates complex nested conditions with AND/OR combinations
+2. **WHERE Conditions (02_where_conditions.ts)**  
+   Demonstrates filtering data using various comparison operators and logical conditions.
 
-3. **Joins (03_joins.ts)**
-   - Shows how to join data from multiple sources
-   - Covers all join types: INNER, LEFT, RIGHT, and FULL joins
-   - Demonstrates how to properly alias tables in join queries
+3. **Joins (03_joins.ts)**  
+   Shows how to join multiple datasets together using different join types.
 
-4. **Functions (04_functions.ts)**
-   - Demonstrates usage of built-in functions in SELECT clauses
-   - Shows how to use functions in WHERE clauses for filtering
-   - Covers string functions: UPPER, LOWER, LENGTH, CONCAT
-   - Illustrates date handling and COALESCE for null values
-   - Shows how to use JSON_EXTRACT for working with JSON data
+4. **Functions (04_functions.ts)**  
+   Illustrates the use of built-in functions like UPPER, LOWER, LENGTH, CONCAT, DATE, and JSON_EXTRACT.
 
-5. **Kitchen Sink (05_kitchen_sink.ts)**
-   - Combines multiple features in a single comprehensive example
-   - Demonstrates column selection with aliases
-   - Shows multiple function calls in SELECT clauses
-   - Illustrates LEFT JOIN between related tables
-   - Showcases complex WHERE conditions with AND/OR logic and function calls
-   - Perfect as a reference for building complex D2QL queries
+5. **Kitchen Sink (05_kitchen_sink.ts)**  
+   A comprehensive example that combines multiple D2QL features:
+   - Multiple column selection methods:
+     - Direct column references without aliases (e.g., '@e.id')
+     - Column references with aliases (e.g., { emp_name: '@e.name' })
+   - Short, readable table aliases ('e' for employees, 'd' for departments)
+   - Function calls in SELECT clauses (UPPER, JSON_EXTRACT, DATE, CONCAT)
+   - LEFT JOIN between employees and departments
+   - Complex WHERE conditions with AND/OR logic and function calls
 
 ## Running the Examples
 
-To run an example, use the following command from the project root:
+To run an example, use the following command:
 
 ```bash
-npx tsx examples/d2ql/01_basic_select.ts
+npx tsx examples/d2ql/EXAMPLE_FILENAME.ts
 ```
 
-Replace the filename with the example you want to run. Each example runs multiple D2QL queries and prints the results to the console.
+For instance, to run the kitchen sink example:
+
+```bash
+npx tsx examples/d2ql/05_kitchen_sink.ts
+```
+
+## Current D2QL Features
+
+- Selecting columns with or without aliases
+- WHERE clauses with comparison operators, logical conditions (AND/OR), and nested conditions
+- JOIN operations (INNER, LEFT, RIGHT, FULL)
+- Function calls in SELECT and WHERE clauses:
+  - String functions: UPPER, LOWER, LENGTH, CONCAT
+  - Date handling with DATE function
+  - JSON data extraction with JSON_EXTRACT
+  - Null handling with COALESCE
 
 ## Example Data
 

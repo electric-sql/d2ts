@@ -5,9 +5,9 @@
  * in SELECT clauses and within WHERE conditions.
  */
 
-import { D2, MultiSet, output, v, Antichain } from '../../packages/d2ts/src/index.js'
-import { Query, compileQuery } from '../../packages/d2ts/src/d2ql/index.js'
-import { Message, MessageType } from '../../packages/d2ts/src/types.js'
+import { D2, MultiSet, output, v, Antichain } from '@electric-sql/d2ts'
+import { Query, compileQuery } from '@electric-sql/d2ts/d2ql'
+import { Message, MessageType } from '@electric-sql/d2ts'
 
 // Sample type for examples
 type Customer = {
