@@ -377,11 +377,46 @@ const output = input.pipe(filter((x) => x % 2 === 0))
 
 #### iterate
 
-`iterate(f: (data: T) => T, initial: T)`
+`iterate<T>(f: (stream: IStreamBuilder<T>) => IStreamBuilder<T>)`
 
-Performs an iterative computation on the stream
+Performs iterative computations on a stream by creating a feedback loop. This allows you to repeatedly process data until it reaches a fixed point or meets specific conditions.
 
-TODO: Explain and add example
+The `iterate` operator takes a function that defines the iteration step. Inside this function, you can apply any series of transformations to the stream, and the results will be fed back into the loop for further iterations.
+
+```typescript
+// This example repeatedly doubles numbers and includes previous values,
+// filtering out any values > 50
+const output = input.pipe(
+  iterate((stream) =>
+    stream.pipe(
+      map((x) => x * 2),            // Double each value
+      concat(stream),               // Include original values
+      filter((x) => x <= 50),       // Keep only values <= 50
+      map((x) => [x, []]),          // Convert to keyable format
+      distinct(),                   // Remove duplicates 
+      map((x) => x[0]),             // Convert back to simple values
+      consolidate(),                // Ensure consistent version updates
+    )
+  ),
+  debug('results')
+)
+```
+
+In this example:
+1. The `iterate` function creates a feedback loop on the input stream
+2. Each value is doubled, then combined with all previous values
+3. Values greater than 50 are filtered out
+4. The remaining values are deduplicated and consolidated before the next iteration
+
+The iteration will continue until no new values are produced (reaching a fixed point) or until the frontier advances beyond the iteration scope.
+
+Common use cases for the `iterate` operator include:
+- Computing transitive closures in graph algorithms
+- Propagating values until convergence
+- Implementing fixed-point algorithms
+- Simulating recursive processes with bounded results
+
+This powerful operator enables complex recursive computations while maintaining the incremental nature of differential dataflow.
 
 #### join
 
