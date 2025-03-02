@@ -11,36 +11,50 @@ import {
   BinaryOperator,
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
-import { MultiSet } from '../multiset.js'
-import { Antichain, Version } from '../order.js'
+import { Antichain } from '../order.js'
 import { Index } from '../version-index.js'
+
+/**
+ * Type of join to perform
+ */
+export type JoinType = 'inner' | 'left' | 'right' | 'full'
 
 /**
  * Operator that joins two input streams
  */
 export class JoinOperator<K, V1, V2> extends BinaryOperator<
-  [K, V1] | [K, V2] | [K, [V1, V2]]
+  [K, V1] | [K, V2] | [K, [V1 | null, V2 | null]]
 > {
   #indexA = new Index<K, V1>()
   #indexB = new Index<K, V2>()
+  #joinType: JoinType
 
   constructor(
     id: number,
     inputA: DifferenceStreamReader<[K, V1]>,
     inputB: DifferenceStreamReader<[K, V2]>,
-    output: DifferenceStreamWriter<[K, [V1, V2]]>,
+    output: DifferenceStreamWriter<[K, [V1 | null, V2 | null]]>,
     initialFrontier: Antichain,
+    joinType: JoinType = 'inner',
   ) {
     super(id, inputA, inputB, output, initialFrontier)
+    this.#joinType = joinType
   }
 
   run(): void {
-    const deltaA = new Index<K, V1>()
-    const deltaB = new Index<K, V2>()
+    // Process input messages
+    const messagesA = this.inputAMessages()
+    const messagesB = this.inputBMessages()
 
-    // Process input A
-    for (const message of this.inputAMessages()) {
+    // Track if we have any data messages to process
+    let hasDataA = false
+    let hasDataB = false
+
+    // Process input A messages
+    const deltaA = new Index<K, V1>()
+    for (const message of messagesA) {
       if (message.type === MessageType.DATA) {
+        hasDataA = true
         const { version, collection } = message.data as DataMessage<[K, V1]>
         for (const [item, multiplicity] of collection.getInner()) {
           const [key, value] = item
@@ -55,9 +69,11 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
       }
     }
 
-    // Process input B
-    for (const message of this.inputBMessages()) {
+    // Process input B messages
+    const deltaB = new Index<K, V2>()
+    for (const message of messagesB) {
       if (message.type === MessageType.DATA) {
+        hasDataB = true
         const { version, collection } = message.data as DataMessage<[K, V2]>
         for (const [item, multiplicity] of collection.getInner()) {
           const [key, value] = item
@@ -72,33 +88,29 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
       }
     }
 
-    // Process results
-    const results = new Map<Version, MultiSet<[K, [V1, V2]]>>()
+    // Only process joins if we have data to process
+    if (hasDataA || hasDataB) {
+      // Create a combined index for each input
+      const combinedA = new Index<K, V1>()
+      combinedA.append(this.#indexA)
+      combinedA.append(deltaA)
 
-    // Join deltaA with existing indexB
-    for (const [version, collection] of deltaA.join(this.#indexB)) {
-      const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
-      existing.extend(collection)
-      results.set(version, existing)
+      const combinedB = new Index<K, V2>()
+      combinedB.append(this.#indexB)
+      combinedB.append(deltaB)
+
+      // Perform the join using the combined indices
+      const joinResults = combinedA.joinWithType(combinedB, this.#joinType)
+
+      // Send the results
+      for (const [version, collection] of joinResults) {
+        this.output.sendData(version, collection)
+      }
+
+      // Update the indices with the deltas
+      this.#indexA.append(deltaA)
+      this.#indexB.append(deltaB)
     }
-
-    // Append deltaA to indexA
-    this.#indexA.append(deltaA)
-
-    // Join existing indexA with deltaB
-    for (const [version, collection] of this.#indexA.join(deltaB)) {
-      const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
-      existing.extend(collection)
-      results.set(version, existing)
-    }
-
-    // Send results
-    for (const [version, collection] of results) {
-      this.output.sendData(version, collection)
-    }
-
-    // Append deltaB to indexB
-    this.#indexB.append(deltaB)
 
     // Update frontiers
     const inputFrontier = this.inputAFrontier().meet(this.inputBFrontier())
@@ -114,9 +126,64 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
   }
 }
 
+// Overload for inner join - no nulls on either side
+export function join<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T,
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+  joinType: 'inner',
+): PipedOperator<T, KeyValue<K, [V1, V2]>>
+
+// Overload for left join - right side can be null
+export function join<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T,
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+  joinType: 'left',
+): PipedOperator<T, KeyValue<K, [V1, V2 | null]>>
+
+// Overload for right join - left side can be null
+export function join<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T,
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+  joinType: 'right',
+): PipedOperator<T, KeyValue<K, [V1 | null, V2]>>
+
+// Overload for full join - both sides can be null
+export function join<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T,
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+  joinType: 'full',
+): PipedOperator<T, KeyValue<K, [V1 | null, V2 | null]>>
+
+// Default overload for when join type is not specified
+export function join<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T,
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+): PipedOperator<T, KeyValue<K, [V1, V2]>>
+
 /**
  * Joins two input streams
  * @param other - The other stream to join with
+ * @param joinType - Type of join to perform (inner, left, right, full)
  */
 export function join<
   K,
@@ -125,14 +192,17 @@ export function join<
   T,
 >(
   other: IStreamBuilder<KeyValue<K, V2>>,
-): PipedOperator<T, KeyValue<K, [V1, V2]>> {
-  return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, [V1, V2]>> => {
+  joinType: JoinType = 'inner',
+): PipedOperator<T, KeyValue<K, [V1 | null, V2 | null]>> {
+  return (
+    stream: IStreamBuilder<T>,
+  ): IStreamBuilder<KeyValue<K, [V1 | null, V2 | null]>> => {
     if (stream.graph !== other.graph) {
       throw new Error('Cannot join streams from different graphs')
     }
-    const output = new StreamBuilder<KeyValue<K, [V1, V2]>>(
+    const output = new StreamBuilder<KeyValue<K, [V1 | null, V2 | null]>>(
       stream.graph,
-      new DifferenceStreamWriter<KeyValue<K, [V1, V2]>>(),
+      new DifferenceStreamWriter<KeyValue<K, [V1 | null, V2 | null]>>(),
     )
     const operator = new JoinOperator<K, V1, V2>(
       stream.graph.getNextOperatorId(),
@@ -140,6 +210,7 @@ export function join<
       other.connectReader() as DifferenceStreamReader<KeyValue<K, V2>>,
       output.writer,
       stream.graph.frontier(),
+      joinType,
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())
