@@ -5,8 +5,12 @@ import {
   JoinType,
 } from '../operators/index.js'
 import { IStreamBuilder } from '../types.js'
-import { Query, Condition } from './schema.js'
-import { extractValueFromNestedRow, extractJoinKey } from './extractors.js'
+import { Query, Condition, ConditionOperand } from './schema.js'
+import {
+  extractValueFromNestedRow,
+  extractJoinKey,
+  evaluateOperandOnNestedRow,
+} from './extractors.js'
 import { evaluateConditionOnNestedRow } from './evaluators.js'
 import { processJoinResults } from './joins.js'
 
@@ -213,6 +217,14 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
               // Handle expressions like "table1.col * table2.col"
               // This would need more advanced parsing - for now just log
               // Future: Parse and evaluate the expression
+            } else if (typeof expr === 'object') {
+              // This might be a function call
+              result[alias] = evaluateOperandOnNestedRow(
+                nestedRow,
+                expr as ConditionOperand,
+                mainTableAlias,
+                undefined,
+              )
             }
           }
         }

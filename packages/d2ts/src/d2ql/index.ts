@@ -20,3 +20,6 @@ export * from './evaluators.js'
 
 // Export join processing functions for external use
 export * from './joins.js'
+
+// Export function evaluation functions for external use
+export * from './functions.js'

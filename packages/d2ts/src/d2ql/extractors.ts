@@ -1,4 +1,9 @@
-import { ConditionOperand } from './schema.js'
+import {
+  ConditionOperand,
+  AllowedFunctionName,
+  FunctionCall,
+} from './schema.js'
+import { evaluateFunction, isFunctionCall } from './functions.js'
 
 /**
  * Extracts a value from a nested row structure
@@ -107,6 +112,37 @@ export function evaluateOperandOnNestedRow(
     }
 
     return undefined
+  }
+
+  // Handle function calls
+  if (operand && typeof operand === 'object' && isFunctionCall(operand)) {
+    // Get the function name (the only key in the object)
+    const functionName = Object.keys(operand)[0] as AllowedFunctionName
+    // Get the arguments
+    const args = operand[functionName]
+
+    // If the arguments are a reference or another expression, evaluate them first
+    const evaluatedArgs = Array.isArray(args)
+      ? args.map((arg) =>
+          evaluateOperandOnNestedRow(
+            nestedRow,
+            arg as ConditionOperand,
+            mainTableAlias,
+            joinedTableAlias,
+          ),
+        )
+      : evaluateOperandOnNestedRow(
+          nestedRow,
+          args as ConditionOperand,
+          mainTableAlias,
+          joinedTableAlias,
+        )
+
+    // Call the function with the evaluated arguments
+    return evaluateFunction(
+      functionName,
+      evaluatedArgs as ConditionOperand | ConditionOperand[],
+    )
   }
 
   // Handle explicit literals

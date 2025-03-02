@@ -21,11 +21,6 @@ export interface ExplicitLiteral {
 
 // Allowed function names (common SQL functions)
 export type AllowedFunctionName =
-  | 'SUM'
-  | 'COUNT'
-  | 'AVG'
-  | 'MIN'
-  | 'MAX'
   | 'DATE'
   | 'JSON_EXTRACT'
   | 'UPPER'
