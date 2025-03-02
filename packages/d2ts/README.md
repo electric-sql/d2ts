@@ -377,28 +377,76 @@ const output = input.pipe(filter((x) => x % 2 === 0))
 
 #### iterate
 
-`iterate(f: (data: T) => T, initial: T)`
+`iterate<T>(f: (stream: IStreamBuilder<T>) => IStreamBuilder<T>)`
 
-Performs an iterative computation on the stream
+Performs iterative computations on a stream by creating a feedback loop. This allows you to repeatedly process data until it reaches a fixed point or meets specific conditions.
 
-TODO: Explain and add example
+The `iterate` operator takes a function that defines the iteration step. Inside this function, you can apply any series of transformations to the stream, and the results will be fed back into the loop for further iterations.
+
+```typescript
+// This example repeatedly doubles numbers and includes previous values,
+// filtering out any values > 50
+const output = input.pipe(
+  iterate((stream) =>
+    stream.pipe(
+      map((x) => x * 2),            // Double each value
+      concat(stream),               // Include original values
+      filter((x) => x <= 50),       // Keep only values <= 50
+      map((x) => [x, []]),          // Convert to keyable format
+      distinct(),                   // Remove duplicates 
+      map((x) => x[0]),             // Convert back to simple values
+      consolidate(),                // Ensure consistent version updates
+    )
+  ),
+  debug('results')
+)
+```
+
+In this example:
+1. The `iterate` function creates a feedback loop on the input stream
+2. Each value is doubled, then combined with all previous values
+3. Values greater than 50 are filtered out
+4. The remaining values are deduplicated and consolidated before the next iteration
+
+The iteration will continue until no new values are produced (reaching a fixed point) or until the frontier advances beyond the iteration scope.
+
+Common use cases for the `iterate` operator include:
+- Computing transitive closures in graph algorithms
+- Propagating values until convergence
+- Implementing fixed-point algorithms
+- Simulating recursive processes with bounded results
+
+This powerful operator enables complex recursive computations while maintaining the incremental nature of differential dataflow.
 
 #### join
 
-`join<(other: IStreamBuilder<T>)`
+`join(other: IStreamBuilder<T>, joinType?: JoinType)`
 
-Joins two keyed streams, the output stream will contain the elements of the two streams combined, with the key of the element from the left stream.
+Joins two keyed streams based on matching keys. The `joinType` parameter controls how the join behaves:
 
-This is an inner join, so only elements with matching keys will be included in the output.
+- `'inner'` (default): Returns only records that have matching keys in both streams
+- `'left'`: Returns all records from the left stream, plus matching records from the right (with nulls for non-matches)
+- `'right'`: Returns all records from the right stream, plus matching records from the left (with nulls for non-matches)
+- `'full'`: Returns all records from both streams, with nulls for non-matches on either side
 
 ```typescript
 const input = graph.newInput<[key: string, value: number]>()
 const other = graph.newInput<[key: string, value: string]>()
 
-const output = input.pipe(join(other))
+// Inner join - only matching keys
+const innerJoin = input.pipe(join(other, 'inner'))
+
+// Left join - all records from input, matching from other
+const leftJoin = input.pipe(join(other, 'left'))
+
+// Right join - all records from other, matching from input
+const rightJoin = input.pipe(join(other, 'right'))
+
+// Full join - all records from both streams
+const fullJoin = input.pipe(join(other, 'full'))
 ```
 
-If for example you have a comments, and users stream, you can join them to get a list of comments with the user's name.
+The join operation is type-safe, with appropriate nullable types for the different join types:
 
 ```typescript
 // The two streams are initially keyed by the userId and commentId respectively
@@ -410,21 +458,28 @@ const commentsByUser = comments.pipe(
   map(([commentId, comment]) => [comment.userId, comment] as [string, Comment]),
 )
 
-// Join the comments with the users
+// Left join - keeps all comments, even those without matching users
 const output = commentsByUser.pipe(
-  join(users),
-  map(([_, [userId, [comment, user]]]) => {
-    // Re-map the comment to be keyed by the comment id
-    // and add the user name to the comment
+  join(users, 'left'),
+  map(([userId, [comment, user]]) => {
+    // user can be null in a left join if there's no matching user
     return [
       comment.id,
       {
         ...comment,
-        userName: user.name,
+        userName: user?.name ?? 'Unknown User',
       },
     ]
   }),
 )
+```
+
+When using SQLite persistence, you can supply the database as an additional parameter:
+
+```typescript
+// Using SQLite persistence
+const db = new BetterSQLite3Wrapper(sqlite)
+const persistedJoin = input.pipe(join(other, 'inner', db))
 ```
 
 #### map
