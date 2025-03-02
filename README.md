@@ -385,20 +385,33 @@ TODO: Explain and add example
 
 #### join
 
-`join<(other: IStreamBuilder<T>)`
+`join(other: IStreamBuilder<T>, joinType?: JoinType)`
 
-Joins two keyed streams, the output stream will contain the elements of the two streams combined, with the key of the element from the left stream.
+Joins two keyed streams based on matching keys. The `joinType` parameter controls how the join behaves:
 
-This is an inner join, so only elements with matching keys will be included in the output.
+- `'inner'` (default): Returns only records that have matching keys in both streams
+- `'left'`: Returns all records from the left stream, plus matching records from the right (with nulls for non-matches)
+- `'right'`: Returns all records from the right stream, plus matching records from the left (with nulls for non-matches)
+- `'full'`: Returns all records from both streams, with nulls for non-matches on either side
 
 ```typescript
 const input = graph.newInput<[key: string, value: number]>()
 const other = graph.newInput<[key: string, value: string]>()
 
-const output = input.pipe(join(other))
+// Inner join - only matching keys
+const innerJoin = input.pipe(join(other, 'inner'))
+
+// Left join - all records from input, matching from other
+const leftJoin = input.pipe(join(other, 'left'))
+
+// Right join - all records from other, matching from input
+const rightJoin = input.pipe(join(other, 'right'))
+
+// Full join - all records from both streams
+const fullJoin = input.pipe(join(other, 'full'))
 ```
 
-If for example you have a comments, and users stream, you can join them to get a list of comments with the user's name.
+The join operation is type-safe, with appropriate nullable types for the different join types:
 
 ```typescript
 // The two streams are initially keyed by the userId and commentId respectively
@@ -410,21 +423,28 @@ const commentsByUser = comments.pipe(
   map(([commentId, comment]) => [comment.userId, comment] as [string, Comment]),
 )
 
-// Join the comments with the users
+// Left join - keeps all comments, even those without matching users
 const output = commentsByUser.pipe(
-  join(users),
-  map(([_, [userId, [comment, user]]]) => {
-    // Re-map the comment to be keyed by the comment id
-    // and add the user name to the comment
+  join(users, 'left'),
+  map(([userId, [comment, user]]) => {
+    // user can be null in a left join if there's no matching user
     return [
       comment.id,
       {
         ...comment,
-        userName: user.name,
+        userName: user?.name ?? 'Unknown User',
       },
     ]
   }),
 )
+```
+
+When using SQLite persistence, you can supply the database as an additional parameter:
+
+```typescript
+// Using SQLite persistence
+const db = new BetterSQLite3Wrapper(sqlite)
+const persistedJoin = input.pipe(join(other, 'inner', db))
 ```
 
 #### map
