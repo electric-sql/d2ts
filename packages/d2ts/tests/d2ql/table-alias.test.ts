@@ -4,7 +4,7 @@ import { MultiSet } from '../../src/multiset.js'
 import { Message, MessageType } from '../../src/types.js'
 import { output } from '../../src/operators/index.js'
 import { v, Antichain } from '../../src/order.js'
-import { Query, Condition, createPipeline } from '../../src/d2ql/index.js'
+import { Query, Condition, compileQuery } from '../../src/d2ql/index.js'
 
 describe('D2QL - Table Aliasing', () => {
   // Define a sample data type for our tests
@@ -72,7 +72,8 @@ describe('D2QL - Table Aliasing', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<Product>(graph, query)
+    const input = graph.newInput<Product>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -116,7 +117,8 @@ describe('D2QL - Table Aliasing', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<Product>(graph, query)
+    const input = graph.newInput<Product>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -159,7 +161,8 @@ describe('D2QL - Table Aliasing', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<Product>(graph, query)
+    const input = graph.newInput<Product>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -212,7 +215,8 @@ describe('D2QL - Table Aliasing', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<Product>(graph, query)
+    const input = graph.newInput<Product>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -236,9 +240,6 @@ describe('D2QL - Table Aliasing', () => {
     const results = dataMessages[0].data.collection
       .getInner()
       .map(([data]) => data)
-
-    // Debug the results
-    console.log('Mixed alias test results:', results)
 
     // The condition @p.price > 100 AND @inStock = true should match:
     // - Laptop (price: 1200, inStock: true)
@@ -272,7 +273,8 @@ describe('D2QL - Table Aliasing', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<Product>(graph, query)
+    const input = graph.newInput<Product>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(

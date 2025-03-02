@@ -4,7 +4,7 @@ import { MultiSet } from '../../src/multiset.js'
 import { Message, MessageType } from '../../src/types.js'
 import { output } from '../../src/operators/index.js'
 import { v, Antichain } from '../../src/order.js'
-import { Query, Condition, createPipeline } from '../../src/d2ql/index.js'
+import { Query, Condition, compileQuery } from '../../src/d2ql/index.js'
 
 describe('D2QL - HAVING Clause', () => {
   // Define a sample data type for our tests
@@ -94,7 +94,8 @@ describe('D2QL - HAVING Clause', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<Product>(graph, query)
+    const input = graph.newInput<Product>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -137,7 +138,8 @@ describe('D2QL - HAVING Clause', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<Product>(graph, query)
+    const input = graph.newInput<Product>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -185,7 +187,8 @@ describe('D2QL - HAVING Clause', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<Product>(graph, query)
+    const input = graph.newInput<Product>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -209,9 +212,6 @@ describe('D2QL - HAVING Clause', () => {
     const results = dataMessages[0].data.collection
       .getInner()
       .map(([data]) => data)
-
-    // Log the results for debugging
-    console.log('Complex condition results:', results)
 
     expect(results).toHaveLength(2)
 
@@ -241,7 +241,8 @@ describe('D2QL - HAVING Clause', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<Product>(graph, query)
+    const input = graph.newInput<Product>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -265,9 +266,6 @@ describe('D2QL - HAVING Clause', () => {
     const results = dataMessages[0].data.collection
       .getInner()
       .map(([data]) => data)
-
-    // Log the results for debugging
-    console.log('Nested condition results:', results)
 
     // Expected: inexpensive electronics or in-stock furniture
     expect(results).toHaveLength(3)

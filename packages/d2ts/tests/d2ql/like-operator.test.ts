@@ -4,7 +4,7 @@ import { MultiSet } from '../../src/multiset.js'
 import { Message, MessageType } from '../../src/types.js'
 import { output } from '../../src/operators/index.js'
 import { v, Antichain } from '../../src/order.js'
-import { Query, Condition, createPipeline } from '../../src/d2ql/index.js'
+import { Query, Condition, compileQuery } from '../../src/d2ql/index.js'
 
 describe('D2QL - LIKE Operator', () => {
   // Sample test data
@@ -57,7 +57,8 @@ describe('D2QL - LIKE Operator', () => {
 
   function runQuery(query: Query): any[] {
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<TestItem>(graph, query)
+    const input = graph.newInput<TestItem>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -133,7 +134,8 @@ describe('D2QL - LIKE Operator', () => {
 
     // Create a separate graph for this test with our specific SKU test items
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<TestItem>(graph, query)
+    const input = graph.newInput<TestItem>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -156,15 +158,6 @@ describe('D2QL - LIKE Operator', () => {
     const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
     const results =
       dataMessages[0]?.data.collection.getInner().map(([data]) => data) || []
-
-    console.log(
-      'SKU test items:',
-      skuTestItems.map((item) => item.SKU),
-    )
-    console.log(
-      'Underscore pattern results:',
-      results.map((item) => item.SKU),
-    )
 
     // Both 'TECH-ABC-2023' and 'TECH-XYZ-2023' should match 'TECH-___-2023'
     expect(results).toHaveLength(2)

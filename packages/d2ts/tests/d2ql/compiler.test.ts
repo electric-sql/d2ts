@@ -4,7 +4,8 @@ import { MultiSet } from '../../src/multiset.js'
 import { Message, MessageType } from '../../src/types.js'
 import { output } from '../../src/operators/index.js'
 import { v, Antichain } from '../../src/order.js'
-import { Query, createPipeline } from '../../src/d2ql/index.js'
+import { Query } from '../../src/d2ql/index.js'
+import { compileQuery } from '../../src/d2ql/compiler.js'
 
 // Sample user type for tests
 type User = {
@@ -38,7 +39,8 @@ describe('D2QL', () => {
       }
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
-      const [input, pipeline] = createPipeline<User>(graph, query)
+      const input = graph.newInput<User>()
+      const pipeline = compileQuery(query, { [query.from]: input })
 
       const messages: Message<any>[] = []
       pipeline.pipe(
@@ -84,7 +86,8 @@ describe('D2QL', () => {
       }
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
-      const [input, pipeline] = createPipeline<User>(graph, query)
+      const input = graph.newInput<User>()
+      const pipeline = compileQuery(query, { [query.from]: input })
 
       const messages: Message<any>[] = []
       pipeline.pipe(
@@ -133,7 +136,8 @@ describe('D2QL', () => {
       }
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
-      const [input, pipeline] = createPipeline<User>(graph, query)
+      const input = graph.newInput<User>()
+      const pipeline = compileQuery(query, { [query.from]: input })
 
       const messages: Message<any>[] = []
       pipeline.pipe(
@@ -179,7 +183,8 @@ describe('D2QL', () => {
       }
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
-      const [input, pipeline] = createPipeline<User>(graph, query)
+      const input = graph.newInput<User>()
+      const pipeline = compileQuery(query, { [query.from]: input })
 
       const messages: Message<any>[] = []
       pipeline.pipe(

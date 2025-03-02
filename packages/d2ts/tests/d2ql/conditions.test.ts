@@ -4,7 +4,7 @@ import { MultiSet } from '../../src/multiset.js'
 import { Message, MessageType } from '../../src/types.js'
 import { output } from '../../src/operators/index.js'
 import { v, Antichain } from '../../src/order.js'
-import { Query, createPipeline } from '../../src/d2ql/index.js'
+import { Query, compileQuery } from '../../src/d2ql/index.js'
 import {
   FlatCompositeCondition,
   NestedCompositeCondition,
@@ -77,7 +77,8 @@ describe('D2QL', () => {
       }
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
-      const [input, pipeline] = createPipeline<Product>(graph, query)
+      const input = graph.newInput<Product>()
+      const pipeline = compileQuery(query, { [query.from]: input })
 
       const messages: Message<any>[] = []
       pipeline.pipe(
@@ -119,7 +120,8 @@ describe('D2QL', () => {
       }
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
-      const [input, pipeline] = createPipeline<Product>(graph, query)
+      const input = graph.newInput<Product>()
+      const pipeline = compileQuery(query, { [query.from]: input })
 
       const messages: Message<any>[] = []
       pipeline.pipe(
@@ -161,7 +163,8 @@ describe('D2QL', () => {
       }
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
-      const [input, pipeline] = createPipeline<Product>(graph, query)
+      const input = graph.newInput<Product>()
+      const pipeline = compileQuery(query, { [query.from]: input })
 
       const messages: Message<any>[] = []
       pipeline.pipe(
@@ -209,7 +212,8 @@ describe('D2QL', () => {
       expect(filteredProducts).toHaveLength(1)
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
-      const [input, pipeline] = createPipeline<Product>(graph, query)
+      const input = graph.newInput<Product>()
+      const pipeline = compileQuery(query, { [query.from]: input })
 
       const messages: Message<any>[] = []
       pipeline.pipe(
@@ -249,7 +253,8 @@ describe('D2QL', () => {
       }
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
-      const [input, pipeline] = createPipeline<Product>(graph, query)
+      const input = graph.newInput<Product>()
+      const pipeline = compileQuery(query, { [query.from]: input })
 
       const messages: Message<any>[] = []
       pipeline.pipe(
@@ -298,7 +303,8 @@ describe('D2QL', () => {
       expect(filteredProducts[0].name).toBe('Headphones')
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
-      const [input, pipeline] = createPipeline<Product>(graph, query)
+      const input = graph.newInput<Product>()
+      const pipeline = compileQuery(query, { [query.from]: input })
 
       const messages: Message<any>[] = []
       pipeline.pipe(
@@ -346,7 +352,8 @@ describe('D2QL', () => {
       expect(filteredProducts).toHaveLength(4)
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
-      const [input, pipeline] = createPipeline<Product>(graph, query)
+      const input = graph.newInput<Product>()
+      const pipeline = compileQuery(query, { [query.from]: input })
 
       const messages: Message<any>[] = []
       pipeline.pipe(
@@ -410,17 +417,12 @@ describe('D2QL', () => {
           p.category === 'Books',
       )
 
-      // Print matching products for debugging
-      console.log(
-        'Matching products:',
-        filteredProducts.map((p) => ({ id: p.id, name: p.name })),
-      )
-
       // Should match Laptop (1), Smartphone (2) for electronics > 200, and Book (4)
       expect(filteredProducts).toHaveLength(3)
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
-      const [input, pipeline] = createPipeline<Product>(graph, query)
+      const input = graph.newInput<Product>()
+      const pipeline = compileQuery(query, { [query.from]: input })
 
       const messages: Message<any>[] = []
       pipeline.pipe(
@@ -442,32 +444,24 @@ describe('D2QL', () => {
       // Check the filtered results
       const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
 
-      if (dataMessages.length === 0) {
-        console.error('No data messages found!')
-      } else {
-        const results = dataMessages[0].data.collection
-          .getInner()
-          .map(([data]) => data)
-        console.log(
-          'Pipeline results:',
-          results.map((r) => ({ id: r.id, name: r.name })),
-        )
+      const results = dataMessages[0].data.collection
+        .getInner()
+        .map(([data]) => data)
 
-        // Should match our expected count
-        expect(results).toHaveLength(3)
+      // Should match our expected count
+      expect(results).toHaveLength(3)
 
-        // Verify that specific IDs are included
-        const resultIds = results.map((r) => r.id).sort()
-        expect(resultIds).toEqual([1, 2, 4]) // Laptop, Smartphone, Book
+      // Verify that specific IDs are included
+      const resultIds = results.map((r) => r.id).sort()
+      expect(resultIds).toEqual([1, 2, 4]) // Laptop, Smartphone, Book
 
-        // Verify that each result matches the complex condition
-        results.forEach((result) => {
-          const matches =
-            (result.category === 'Electronics' && result.price > 200) ||
-            result.category === 'Books'
-          expect(matches).toBe(true)
-        })
-      }
+      // Verify that each result matches the complex condition
+      results.forEach((result) => {
+        const matches =
+          (result.category === 'Electronics' && result.price > 200) ||
+          result.category === 'Books'
+        expect(matches).toBe(true)
+      })
     })
   })
 })

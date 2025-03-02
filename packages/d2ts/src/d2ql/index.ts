@@ -7,4 +7,4 @@
 export * from './schema.js'
 
 // Export the compiler functions
-export { compileQuery, createPipeline } from './compiler.js'
+export { compileQuery } from './compiler.js'

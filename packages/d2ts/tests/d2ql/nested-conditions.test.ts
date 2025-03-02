@@ -4,12 +4,10 @@ import { MultiSet } from '../../src/multiset.js'
 import { Message, MessageType } from '../../src/types.js'
 import { output } from '../../src/operators/index.js'
 import { v, Antichain } from '../../src/order.js'
-import { Query, createPipeline } from '../../src/d2ql/index.js'
+import { Query, compileQuery } from '../../src/d2ql/index.js'
 import {
   FlatCompositeCondition,
   NestedCompositeCondition,
-  LogicalOperator,
-  SimpleCondition,
 } from '../../src/d2ql/schema.js'
 
 // Sample data type for testing
@@ -294,7 +292,8 @@ describe('D2QL', () => {
 // Helper function to run queries and collect results
 function runQuery(query: Query): any[] {
   const graph = new D2({ initialFrontier: v([0, 0]) })
-  const [input, pipeline] = createPipeline<Product>(graph, query)
+  const input = graph.newInput<Product>()
+  const pipeline = compileQuery(query, { [query.from]: input })
 
   const messages: Message<any>[] = []
   pipeline.pipe(

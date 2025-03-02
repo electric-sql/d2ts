@@ -4,7 +4,7 @@ import { MultiSet } from '../../src/multiset.js'
 import { Message, MessageType } from '../../src/types.js'
 import { output } from '../../src/operators/index.js'
 import { v, Antichain } from '../../src/order.js'
-import { Query, Condition, createPipeline } from '../../src/d2ql/index.js'
+import { Query, Condition, compileQuery } from '../../src/d2ql/index.js'
 
 describe('D2QL - IN Operator', () => {
   // Sample test data
@@ -73,7 +73,8 @@ describe('D2QL - IN Operator', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<TestItem>(graph, query)
+    const input = graph.newInput<TestItem>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -106,7 +107,8 @@ describe('D2QL - IN Operator', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<TestItem>(graph, query)
+    const input = graph.newInput<TestItem>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -139,7 +141,8 @@ describe('D2QL - IN Operator', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<TestItem>(graph, query)
+    const input = graph.newInput<TestItem>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -173,7 +176,8 @@ describe('D2QL - IN Operator', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<TestItem>(graph, query)
+    const input = graph.newInput<TestItem>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -214,7 +218,8 @@ describe('D2QL - IN Operator', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<TestItem>(graph, query)
+    const input = graph.newInput<TestItem>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -234,8 +239,6 @@ describe('D2QL - IN Operator', () => {
     const results =
       dataMessages[0]?.data.collection.getInner().map(([data]) => data) || []
 
-    console.log('Array-to-array results:', results)
-
     // This test is to verify array-to-array functionality - we need to investigate the proper syntax
     // for now, we'll skip the assertions
   })
@@ -248,7 +251,8 @@ describe('D2QL - IN Operator', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<TestItem>(graph, query)
+    const input = graph.newInput<TestItem>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -294,7 +298,8 @@ describe('D2QL - IN Operator', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<TestItem>(graph, query)
+    const input = graph.newInput<TestItem>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -314,9 +319,6 @@ describe('D2QL - IN Operator', () => {
     const results =
       dataMessages[0]?.data.collection.getInner().map(([data]) => data) || []
 
-    console.log('Object comparison results:', results)
-    console.log('Test data metadata:', JSON.stringify(testData[0].metadata))
-
     // For now, we'll skip the assertions for this test
     // The direct object comparison is complex and might require more work
     // We'll come back to this
@@ -330,7 +332,8 @@ describe('D2QL - IN Operator', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<TestItem>(graph, query)
+    const input = graph.newInput<TestItem>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -366,7 +369,8 @@ describe('D2QL - IN Operator', () => {
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
-    const [input, pipeline] = createPipeline<TestItem>(graph, query)
+    const input = graph.newInput<TestItem>()
+    const pipeline = compileQuery(query, { [query.from]: input })
 
     const messages: Message<any>[] = []
     pipeline.pipe(
@@ -386,7 +390,11 @@ describe('D2QL - IN Operator', () => {
     const results =
       dataMessages[0]?.data.collection.getInner().map(([data]) => data) || []
 
-    // Should return Electronics or Books items with price > 100 (items 1, 2, 5)
+    // Should return items that are in category Electronics or Books AND have price > 100
+    // This matches items 1, 2, and 5:
+    // - Laptop (id: 1): Electronics, price 1200
+    // - Smartphone (id: 2): Electronics, price 800
+    // - Headphones (id: 5): Electronics, price 150
     expect(results).toHaveLength(3)
     expect(results.map((item) => item.id).sort()).toEqual([1, 2, 5])
   })

@@ -1,14 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { D2 } from '../../src/d2.js'
-import { Message, MessageType } from '../../src/types.js'
+import { MessageType } from '../../src/types.js'
 import { output } from '../../src/operators/index.js'
-import { v } from '../../src/order.js'
-import { Query, createPipeline } from '../../src/d2ql/index.js'
+import { Query, compileQuery } from '../../src/d2ql/index.js'
 import { RootStreamBuilder } from '../../src/d2.js'
-import { compileQuery } from '../../src/d2ql/compiler.js'
 import { MultiSet } from '../../src/multiset.js'
-import { operators } from '../../src/operators/index.js'
-import { Antichain } from '../../src/antichain.js'
 
 describe('D2QL - JOIN Clauses', () => {
   // Sample data for users
@@ -146,77 +142,60 @@ describe('D2QL - JOIN Clauses', () => {
   function runQueryWithJoins<T extends Record<string, any>>(
     mainData: T[],
     query: Query,
-    additionalData: Record<string, any[]> = {}
+    additionalData: Record<string, any[]> = {},
   ): any[] {
-    console.log('Running query with joins:', JSON.stringify(query, null, 2));
-    console.log('Main data:', JSON.stringify(mainData, null, 2));
-    console.log('Additional data:', JSON.stringify(additionalData, null, 2));
-    
-    // Create a D2 graph
     const graph = new D2({ initialFrontier: 0 })
-    
+
     // Create inputs for each table
     const mainInput = graph.newInput<T>()
-    const joinInputs: Record<string, RootStreamBuilder<any>> = {}
-    
+    const inputs: Record<string, RootStreamBuilder<any>> = {
+      [query.from]: mainInput,
+    }
+
     // Create inputs for each joined table
     if (query.join) {
       for (const joinClause of query.join) {
         const tableName = joinClause.from
-        joinInputs[tableName] = graph.newInput<any>()
+        inputs[tableName] = graph.newInput<any>()
       }
     }
-    
-    // Compile the query
-    const pipeline = compileQuery(mainInput, query, joinInputs)
-    
+
+    // Compile the query with the unified inputs map
+    const pipeline = compileQuery(query, inputs)
+
     // Create a sink to collect the results
     const results: any[] = []
     pipeline.pipe(
       output((message) => {
         if (message.type === MessageType.DATA) {
-          console.log('Received data message:', JSON.stringify(message.data, null, 2));
           const data = message.data.collection.getInner().map(([item]) => item)
-          console.log('Extracted items:', JSON.stringify(data, null, 2));
           results.push(...data)
-        } else {
-          console.log('Received non-data message:', message.type);
         }
-      })
+      }),
     )
-    
+
     // Finalize the graph
     graph.finalize()
-    
+
     // Send data to the main input
-    console.log('Sending data to main input:', JSON.stringify(mainData, null, 2));
-    mainInput.sendData(0, new MultiSet(mainData.map(d => [d, 1])))
+    mainInput.sendData(0, new MultiSet(mainData.map((d) => [d, 1])))
     mainInput.sendFrontier(1)
-    
+
     // Send data to the joined inputs
     if (query.join) {
       for (const joinClause of query.join) {
         const tableName = joinClause.from
         const data = additionalData[tableName] || []
-        const input = joinInputs[tableName]
-        
+        const input = inputs[tableName]
+
         if (input && data.length > 0) {
-          console.log(`Sending data to ${tableName} input:`, JSON.stringify(data, null, 2));
-          input.sendData(0, new MultiSet(data.map(d => [d, 1])))
+          input.sendData(0, new MultiSet(data.map((d) => [d, 1])))
           input.sendFrontier(1)
-        } else {
-          console.log(`No data or input for ${tableName}`);
         }
       }
     }
-    
-    // Run the graph
-    console.log('Running the graph...');
+
     graph.run()
-    console.log('Graph execution completed');
-    
-    // Return the results
-    console.log('Results:', JSON.stringify(results, null, 2));
     return results
   }
 
@@ -250,7 +229,7 @@ describe('D2QL - JOIN Clauses', () => {
 
     // Inner join should only include records with matches in all tables
     expect(results).toHaveLength(5) // All our sample data matches
-    
+
     // Check a specific result
     const firstOrder = results.find((r) => r.order_id === 1)
     expect(firstOrder).toBeDefined()
@@ -294,7 +273,7 @@ describe('D2QL - JOIN Clauses', () => {
 
     // Left join should include all records from the left side
     expect(results).toHaveLength(6) // 5 with matching products + 1 without
-    
+
     // The last order should have a null product name
     const lastOrder = results.find((r) => r.order_id === 6)
     expect(lastOrder).toBeDefined()
@@ -328,7 +307,7 @@ describe('D2QL - JOIN Clauses', () => {
 
     // Right join should include all records from the right side
     expect(results).toHaveLength(5) // All products should be included
-    
+
     // Product 4 should appear with null order info
     const product4 = results.find((r) => r.product_id === 4)
     expect(product4).toBeDefined()
@@ -384,13 +363,13 @@ describe('D2QL - JOIN Clauses', () => {
 
     // Full join should include all records from both sides
     expect(results).toHaveLength(7) // 5 matches + 1 order-only + 1 product-only
-    
+
     // Order with no matching product
     const noProductOrder = results.find((r) => r.order_id === 6)
     expect(noProductOrder).toBeDefined()
     expect(noProductOrder.productId).toBe(99)
     expect(noProductOrder.product_name).toBeNull()
-    
+
     // Product with no matching order
     const noOrderProduct = results.find((r) => r.product_id === 6)
     expect(noOrderProduct).toBeDefined()
@@ -435,7 +414,7 @@ describe('D2QL - JOIN Clauses', () => {
     expect(results[0].product_name).toBeDefined()
     expect(results[0].price).toBeDefined()
     expect(results[0].quantity).toBeDefined()
-    
+
     // Note: The total_price calculation would require function implementation
     // which is noted as a future enhancement
   })
@@ -472,7 +451,7 @@ describe('D2QL - JOIN Clauses', () => {
 
     // Only 3 orders are for electronic products
     expect(results).toHaveLength(3)
-    
+
     // All results should be for electronics
     for (const result of results) {
       expect(result.category).toBe('Electronics')
@@ -510,10 +489,10 @@ describe('D2QL - JOIN Clauses', () => {
 
     // Only 2 orders were placed by admin users (Alice)
     expect(results).toHaveLength(2)
-    
+
     // All results should be for the admin user
     for (const result of results) {
       expect(result.user_name).toBe('Alice Johnson')
     }
   })
-}) 
+})

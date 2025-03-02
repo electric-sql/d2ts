@@ -5,7 +5,7 @@ import { map } from '../../operators/map.js'
 import { outputElectricMessages } from '../../electric/index.js'
 // Import from the d2ql module (in an actual package this would be '@electric-sql/d2ts/d2ql')
 import { Query } from '../schema.js'
-import { createPipeline } from '../compiler.js'
+import { compileQuery } from '../compiler.js'
 
 // Define a simple query that selects specific columns and filters rows
 const query: Query = {
@@ -26,8 +26,9 @@ type User = {
   active: boolean
 }
 
-// Create a pipeline from the query
-const [input, pipeline] = createPipeline<User>(graph, query)
+// Create input and pipeline directly
+const input = graph.newInput<User>()
+const pipeline = compileQuery(query, { [query.from]: input })
 
 // Add an output to see the results
 const messages: any[] = []
