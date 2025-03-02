@@ -1,8 +1,4 @@
-import {
-  ConditionOperand,
-  AllowedFunctionName,
-  FunctionCall,
-} from './schema.js'
+import { ConditionOperand, AllowedFunctionName } from './schema.js'
 import { evaluateFunction, isFunctionCall } from './functions.js'
 
 /**
@@ -118,8 +114,8 @@ export function evaluateOperandOnNestedRow(
   if (operand && typeof operand === 'object' && isFunctionCall(operand)) {
     // Get the function name (the only key in the object)
     const functionName = Object.keys(operand)[0] as AllowedFunctionName
-    // Get the arguments
-    const args = operand[functionName]
+    // Get the arguments using type assertion with specific function name
+    const args = (operand as any)[functionName]
 
     // If the arguments are a reference or another expression, evaluate them first
     const evaluatedArgs = Array.isArray(args)

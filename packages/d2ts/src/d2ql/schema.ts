@@ -23,6 +23,7 @@ export interface ExplicitLiteral {
 export type AllowedFunctionName =
   | 'DATE'
   | 'JSON_EXTRACT'
+  | 'JSON_EXTRACT_PATH'
   | 'UPPER'
   | 'LOWER'
   | 'COALESCE'
