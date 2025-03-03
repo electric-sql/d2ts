@@ -114,12 +114,12 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
       const otherJoinResults = this.#indexA.joinWithType(deltaB, this.#joinType)
 
       // Only include results for keys that weren't already matched
-      const processedKeys = new Set<string>()
+      const processedKeys = new Set<K>()
 
       // Mark keys from first join
       for (const [_version, multiset] of joinResults) {
         for (const [[key, _values], _multiplicity] of multiset.getInner()) {
-          processedKeys.add(JSON.stringify(key))
+          processedKeys.add(key)
         }
       }
 
@@ -128,9 +128,9 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
         const innerEntries: [[K, [V1 | null, V2 | null]], number][] = []
 
         for (const [[key, value], multiplicity] of multiset.getInner()) {
-          if (!processedKeys.has(JSON.stringify(key))) {
+          if (!processedKeys.has(key)) {
             innerEntries.push([[key, value], multiplicity])
-            processedKeys.add(JSON.stringify(key))
+            processedKeys.add(key)
           }
         }
 
