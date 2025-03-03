@@ -20,7 +20,7 @@ services:
       - wal_level=logical
 
   backend:
-    image: electric:local
+    image: electricsql/electric:canary
     environment:
       DATABASE_URL: postgresql://postgres:password@postgres:5432/electric?sslmode=disable
     ports:

@@ -45,14 +45,14 @@ importers:
   examples/electric:
     dependencies:
       '@electric-sql/client':
-        specifier: file:/Users/samwillis/Code/electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz
-        version: file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz
+        specifier: '>=1.0.0-beta.4'
+        version: 1.0.0-beta.4
       '@electric-sql/d2ts':
         specifier: workspace:*
         version: link:../../packages/d2ts
       '@electric-sql/experimental':
-        specifier: file:/Users/samwillis/Code/electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz
-        version: file:../electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz(@electric-sql/client@file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz)
+        specifier: '>=0.1.2-beta.3'
+        version: 0.1.2-beta.3(@electric-sql/client@1.0.0-beta.4)
     devDependencies:
       '@databases/pg':
         specifier: ^5.5.0
@@ -79,8 +79,8 @@ importers:
   packages/d2ts:
     devDependencies:
       '@electric-sql/client':
-        specifier: file:/Users/samwillis/Code/electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz
-        version: file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz
+        specifier: '>=1.0.0-beta.4'
+        version: 1.0.0-beta.4
       '@types/better-sqlite3':
         specifier: ^7.6.12
         version: 7.6.12
@@ -266,15 +266,13 @@ packages:
   '@databases/validate-unicode@1.0.0':
     resolution: {integrity: sha512-dLKqxGcymeVwEb/6c44KjOnzaAafFf0Wxa8xcfEjx/qOl3rdijsKYBAtIGhtVtOlpPf/PFKfgTuFurSPn/3B/g==}
 
-  '@electric-sql/client@file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz':
-    resolution: {integrity: sha512-z5+o9k0WjGDYFqqxfoI9cmkR8J1XTqj1KmnCyJOYlYvdRlahDirPD2yZNnD6VzdlMpBcBDmq2gosYcI2mqMspA==, tarball: file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz}
-    version: 1.0.0-beta.3
+  '@electric-sql/client@1.0.0-beta.4':
+    resolution: {integrity: sha512-UKiS0WJHVL91mvcZPPXuUGE9vSFB8zjNuYESUUNKqO+jhaebxwI6e8SHx4nHH1P4RD5hotGGvQNErz8ViB9b7Q==}
 
-  '@electric-sql/experimental@file:../electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz':
-    resolution: {integrity: sha512-oQRHYQC5GqID2RhQsdSoFtOioroEZxVq36abgNkHyUQgDmA50wgbrDjZpjPTV0dwwr+MlxWMq6uFjEM8jVcc6Q==, tarball: file:../electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz}
-    version: 0.1.2-beta.2
+  '@electric-sql/experimental@0.1.2-beta.3':
+    resolution: {integrity: sha512-6NxfKojMD0jS5LGdbjVRdIVSX1Dk+1srUo1vL8Qh3krEz8Sz3YUqGFB2cb/Uqf6hyhOEOzUg+7TJt9RzaUAbiA==}
     peerDependencies:
-      '@electric-sql/client': 1.0.0-beta.3
+      '@electric-sql/client': 1.0.0-beta.4
 
   '@esbuild/aix-ppc64@0.21.5':
     resolution: {integrity: sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ==}
@@ -2791,13 +2789,13 @@ snapshots:
 
   '@databases/validate-unicode@1.0.0': {}
 
-  '@electric-sql/client@file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz':
+  '@electric-sql/client@1.0.0-beta.4':
     optionalDependencies:
       '@rollup/rollup-darwin-arm64': 4.27.3
 
-  '@electric-sql/experimental@file:../electric/packages/experimental/electric-sql-experimental-0.1.2-beta.2.tgz(@electric-sql/client@file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz)':
+  '@electric-sql/experimental@0.1.2-beta.3(@electric-sql/client@1.0.0-beta.4)':
     dependencies:
-      '@electric-sql/client': file:../electric/packages/typescript-client/electric-sql-client-1.0.0-beta.3.tgz
+      '@electric-sql/client': 1.0.0-beta.4
     optionalDependencies:
       '@rollup/rollup-darwin-arm64': 4.27.3
 
