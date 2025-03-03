@@ -1,6 +1,8 @@
 # D2QL
 
-D2QL is a subset of SQL, encoded as JSON/TypeScript, that's compiled to a D2 pipeline. It provides a declarative way to express data transformations using familiar SQL-like syntax.
+D2QL is a subset of SQL, encoded as JSON/TypeScript, that's compiled to a D2TS pipeline. It provides a declarative way to express data transformations using familiar SQL-like syntax.
+
+This is a work in progress, and the syntax is subject to change as we explore the space of SQL-like query languages for D2TS.
 
 ## Basic Usage
 

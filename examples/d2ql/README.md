@@ -1,6 +1,6 @@
 # D2QL Examples
 
-This directory contains examples that demonstrate the capabilities of D2QL, a SQL-like query language for D2.
+This directory contains examples that demonstrate the capabilities of D2QL, a SQL-like query language for D2TS.
 
 ## Examples
 
