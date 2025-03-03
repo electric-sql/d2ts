@@ -132,7 +132,8 @@ export function electricStreamToD2Input<T extends Row<unknown> = Row>({
     typeof debug === 'function'
       ? debug
       : debug === true
-        ? console.log
+        ? // eslint-disable-next-line no-console
+          console.log
         : undefined
 
   log?.('subscribing to stream')
@@ -177,7 +178,7 @@ export function electricStreamToD2Input<T extends Row<unknown> = Row>({
           case 'insert':
             changes.push([[message.key, message.value], 1])
             break
-          case 'update':
+          case 'update': {
             // An update in D2 is a delete followed by an insert.
             // `old_value` only holds the old values *that have changed*
             // so we need to merge the old and new value to get a complete row
@@ -189,6 +190,7 @@ export function electricStreamToD2Input<T extends Row<unknown> = Row>({
             changes.push([[message.key, oldValue], -1])
             changes.push([[message.key, message.value], 1])
             break
+          }
           case 'delete':
             changes.push([[message.key, message.value], -1])
             break
