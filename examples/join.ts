@@ -1,4 +1,4 @@
-import { D2, map, join, distinct, debug } from '@electric-sql/d2ts'
+import { D2, map, join, distinct, debug, rekey } from '@electric-sql/d2ts'
 
 type Issue = {
   id: number
@@ -90,14 +90,14 @@ const inputUsers = graph.newInput<[number, User]>()
 // Transform issues into [key, value] pairs for joining
 const issuesStream = inputIssues.pipe(
   // debug('issues_stream'),
-  map(([issueId, issue]) => [issue.userId, issue] as [number, Issue]),
+  rekey((issue) => issue.userId),
   // debug('issues_stream_map')
 )
 
 // Transform users into [key, value] pairs for joining
 const usersStream = inputUsers.pipe(
   // debug('users_stream'),
-  map(([userId, user]) => [userId, user] as [number, User]),
+  rekey((user) => user.id),
   // debug('users_stream_map')
 )
 

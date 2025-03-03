@@ -7,6 +7,7 @@ import {
   distinct,
   debug,
   v,
+  rekey,
 } from '@electric-sql/d2ts'
 
 type Issue = {
@@ -38,7 +39,7 @@ const inputComments = graph.newInput<[number, Comment]>()
 
 // Transform comments into [issue_id, comment] pairs for joining
 const commentsByIssue = inputComments.pipe(
-  map(([id, comment]) => [comment.issue_id, comment] as [number, Comment]),
+  rekey((comment) => comment.issue_id),
 )
 
 // Issues for our project
