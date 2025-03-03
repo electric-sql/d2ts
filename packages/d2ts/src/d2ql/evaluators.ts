@@ -152,42 +152,13 @@ export function evaluateSimpleConditionOnNestedRow(
     case '!=':
       return leftValue !== rightValue
     case '<':
-      try {
-        return compareValues(leftValue, rightValue, '<')
-      } catch (err: unknown) {
-        // Log the error but don't crash the query - return false for the comparison
-        console.warn(
-          `Error in D2QL comparison: ${err instanceof Error ? err.message : String(err)}`,
-        )
-        return false
-      }
+      return compareValues(leftValue, rightValue, '<')
     case '<=':
-      try {
-        return compareValues(leftValue, rightValue, '<=')
-      } catch (err: unknown) {
-        console.warn(
-          `Error in D2QL comparison: ${err instanceof Error ? err.message : String(err)}`,
-        )
-        return false
-      }
+      return compareValues(leftValue, rightValue, '<=')
     case '>':
-      try {
-        return compareValues(leftValue, rightValue, '>')
-      } catch (err: unknown) {
-        console.warn(
-          `Error in D2QL comparison: ${err instanceof Error ? err.message : String(err)}`,
-        )
-        return false
-      }
+      return compareValues(leftValue, rightValue, '>')
     case '>=':
-      try {
-        return compareValues(leftValue, rightValue, '>=')
-      } catch (err: unknown) {
-        console.warn(
-          `Error in D2QL comparison: ${err instanceof Error ? err.message : String(err)}`,
-        )
-        return false
-      }
+      return compareValues(leftValue, rightValue, '>=')
     case 'like':
     case 'not like':
       if (typeof leftValue === 'string' && typeof rightValue === 'string') {
