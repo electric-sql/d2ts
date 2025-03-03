@@ -1,6 +1,6 @@
 {
   "name": "@electric-sql/d2ts-electric-example",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "",
   "main": "index.js",
