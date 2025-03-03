@@ -154,7 +154,7 @@ export class Index<K, V> implements IndexType<K, V> {
     >(() => [])
 
     // Track which keys have matches in the join
-    const matchedKeys = new Set<string>()
+    const matchedKeys = new Set<K>()
 
     // Process matching keys (inner join part)
     // We want to iterate over the smaller of the two indexes to reduce the
@@ -163,7 +163,7 @@ export class Index<K, V> implements IndexType<K, V> {
       for (const [key, versions] of this.#inner) {
         if (other.has(key)) {
           // For matched keys, we create normal inner join results
-          matchedKeys.add(JSON.stringify(key))
+          matchedKeys.add(key)
           const otherVersions = other.get(key)
           for (const [rawVersion1, data1] of versions) {
             const version1 =
@@ -192,7 +192,7 @@ export class Index<K, V> implements IndexType<K, V> {
       for (const [key, otherVersions] of other.#inner) {
         if (this.has(key)) {
           // For matched keys, we create normal inner join results
-          matchedKeys.add(JSON.stringify(key))
+          matchedKeys.add(key)
           const versions = this.get(key)
           for (const [version2, data2] of otherVersions) {
             for (const [version1, data1] of versions) {
@@ -220,8 +220,7 @@ export class Index<K, V> implements IndexType<K, V> {
       this.#inner.size <= other.#inner.size
     ) {
       for (const [key, otherVersions] of other.#inner) {
-        const keyJson = JSON.stringify(key)
-        if (!matchedKeys.has(keyJson)) {
+        if (!matchedKeys.has(key)) {
           this.#processRightUnmatched(key, otherVersions, collections)
         }
       }
@@ -233,8 +232,7 @@ export class Index<K, V> implements IndexType<K, V> {
       this.#inner.size > other.#inner.size
     ) {
       for (const [key, versions] of this.#inner) {
-        const keyJson = JSON.stringify(key)
-        if (!matchedKeys.has(keyJson)) {
+        if (!matchedKeys.has(key)) {
           this.#processLeftUnmatched(key, versions, collections)
         }
       }
