@@ -60,8 +60,11 @@ A D2TS pipeline is also fully type safe, inferring the types at each step of the
   - [`filter`](#filter): Filter elements based on predicates
   - [`iterate`](#iterate): Perform iterative computations
   - [`join`](#join): Join two streams
+  - [`keyBy`](#keyBy): Key a stream by a property
   - [`map`](#map): Transform elements in a stream
   - [`reduce`](#reduce): Aggregate values by key
+  - [`rekey`](#rekey): Change the key of a keyed stream
+  - [`unkey`](#unkey): Remove keys from a keyed stream
   - [`output`](#output): Output the messages of the stream
   - [`pipe`](#pipe): Build a pipeline of operators enabling reuse of combinations of operators
 - **SQLite Integration**: Optional SQLite backend for persisting operator state allowing for larger datasets and resumable pipelines
@@ -602,6 +605,48 @@ const output = input.pipe(
       console.log(message.data)
     }
   }),
+)
+```
+
+#### Keying Operators
+
+D2TS provides a set of operators for working with keyed streams, which are useful for operations like joins and grouping.
+
+##### `keyBy`
+
+Keys a stream by a property of each element. This is useful for preparing data for joins or grouping operations.
+
+```typescript
+const keyedStream = input.pipe(keyBy(item => item.id))
+```
+
+##### `unkey`
+
+Removes the keys from a keyed stream, returning just the values.
+
+```typescript
+const unkeyedStream = keyedStream.pipe(unkey())
+```
+
+##### `rekey`
+
+Changes the key of a keyed stream to a new key based on a property of the value.
+
+```typescript
+const rekeyedStream = keyedStream.pipe(rekey(item => item.newKey))
+```
+
+Example usage with joins:
+
+```typescript
+// Transform comments into [issue_id, comment] pairs for joining
+const commentsByIssue = inputComments.pipe(
+  rekey(comment => comment.issue_id)
+)
+
+// Join comments with issues
+const issuesWithComments = issuesForProject.pipe(
+  join(commentsByIssue)
 )
 ```
 

@@ -6,3 +6,4 @@ dist
 *.sqlite
 *.db
 .eslintcache
+packages/d2ts-benchmark/benchmark-results.png

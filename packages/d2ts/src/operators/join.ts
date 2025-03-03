@@ -5,13 +5,14 @@ import {
   MessageType,
   KeyValue,
 } from '../types.js'
+import { MultiSet } from '../multiset.js'
 import {
   DifferenceStreamReader,
   DifferenceStreamWriter,
   BinaryOperator,
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
-import { Antichain } from '../order.js'
+import { Antichain, Version } from '../order.js'
 import { Index } from '../version-index.js'
 
 /**
@@ -42,19 +43,12 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
   }
 
   run(): void {
-    // Process input messages
-    const messagesA = this.inputAMessages()
-    const messagesB = this.inputBMessages()
-
-    // Track if we have any data messages to process
-    let hasDataA = false
-    let hasDataB = false
-
-    // Process input A messages
     const deltaA = new Index<K, V1>()
-    for (const message of messagesA) {
+    const deltaB = new Index<K, V2>()
+
+    // Process input A
+    for (const message of this.inputAMessages()) {
       if (message.type === MessageType.DATA) {
-        hasDataA = true
         const { version, collection } = message.data as DataMessage<[K, V1]>
         for (const [item, multiplicity] of collection.getInner()) {
           const [key, value] = item
@@ -69,11 +63,9 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
       }
     }
 
-    // Process input B messages
-    const deltaB = new Index<K, V2>()
-    for (const message of messagesB) {
+    // Process input B
+    for (const message of this.inputBMessages()) {
       if (message.type === MessageType.DATA) {
-        hasDataB = true
         const { version, collection } = message.data as DataMessage<[K, V2]>
         for (const [item, multiplicity] of collection.getInner()) {
           const [key, value] = item
@@ -88,28 +80,67 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
       }
     }
 
-    // Only process joins if we have data to process
-    if (hasDataA || hasDataB) {
-      // Create a combined index for each input
-      const combinedA = new Index<K, V1>()
-      combinedA.append(this.#indexA)
-      combinedA.append(deltaA)
+    // Process results
+    const results = new Map<Version, MultiSet<[K, [V1 | null, V2 | null]]>>()
 
-      const combinedB = new Index<K, V2>()
-      combinedB.append(this.#indexB)
-      combinedB.append(deltaB)
+    // Add deltaA to the main index
+    this.#indexA.append(deltaA)
 
-      // Perform the join using the combined indices
-      const joinResults = combinedA.joinWithType(combinedB, this.#joinType)
+    // Add deltaB to the main index
+    this.#indexB.append(deltaB)
 
-      // Send the results
-      for (const [version, collection] of joinResults) {
-        this.output.sendData(version, collection)
+    // Use SQL native joins to process the data with the appropriate join type
+    // This handles inner, left, right, and full joins all in one SQL query
+    const joinResults = deltaA.joinWithType(this.#indexB, this.#joinType)
+
+    // Process the results from the SQL join
+    for (const [version, multiset] of joinResults) {
+      if (!results.has(version)) {
+        results.set(version, multiset)
+      } else {
+        results.get(version)!.extend(multiset.getInner())
+      }
+    }
+
+    // Also need to check for any joins between existing data and new data
+    const otherJoinResults = this.#indexA.joinWithType(deltaB, this.#joinType)
+
+    // Only include results for keys that weren't already matched
+    const processedKeys = new Set<K>()
+
+    // Mark keys from first join
+    for (const [_version, multiset] of joinResults) {
+      for (const [[key, _values], _multiplicity] of multiset.getInner()) {
+        processedKeys.add(key)
+      }
+    }
+
+    // Process other join results, skipping already processed keys
+    for (const [version, multiset] of otherJoinResults) {
+      const innerEntries: [[K, [V1 | null, V2 | null]], number][] = []
+
+      for (const [[key, value], multiplicity] of multiset.getInner()) {
+        if (!processedKeys.has(key)) {
+          innerEntries.push([[key, value], multiplicity])
+          processedKeys.add(key)
+        }
       }
 
-      // Update the indices with the deltas
-      this.#indexA.append(deltaA)
-      this.#indexB.append(deltaB)
+      if (innerEntries.length > 0) {
+        const filteredMultiset = new MultiSet<[K, [V1 | null, V2 | null]]>(
+          innerEntries,
+        )
+        if (!results.has(version)) {
+          results.set(version, filteredMultiset)
+        } else {
+          results.get(version)!.extend(filteredMultiset.getInner())
+        }
+      }
+    }
+
+    // Send results
+    for (const [version, collection] of results) {
+      this.output.sendData(version, collection)
     }
 
     // Update frontiers

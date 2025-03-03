@@ -1,0 +1,255 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SQL DSL Query Schema",
+  "description": "A SQL-like DSL supporting select, join (with optional where clauses), where, groupBy, having, orderBy, limit, and offset. In string values, those starting with '@' denote column references unless wrapped explicitly as a literal. Literal arbitrary JSON (including dates in ISO 8601 format) must be wrapped as {\"value\": ...}. Function calls are represented as objects with a single key (one of the allowed SQL functions) and its argument(s) as the value.",
+  "type": "object",
+  "properties": {
+    "select": {
+      "description": "An array of columns to select. Each item may be a plain string or an object mapping alias(es) to column expressions. Plain strings starting with '@' denote column references.",
+      "type": "array",
+      "items": {
+        "anyOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "oneOf": [
+                { "type": "string" },
+                { "$ref": "#/definitions/functionCall" }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "as": {
+      "description": "An optional alias for the main table.",
+      "type": "string"
+    },
+    "from": {
+      "description": "The table name to query from.",
+      "type": "string"
+    },
+    "join": {
+      "description": "Optional join clauses.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "description": "Type of join.",
+            "type": "string",
+            "enum": ["inner", "left", "right", "full", "cross"]
+          },
+          "from": {
+            "description": "The table to join.",
+            "type": "string"
+          },
+          "as": {
+            "description": "Optional alias for the joined table.",
+            "type": "string"
+          },
+          "on": {
+            "description": "A join condition (simple or composite).",
+            "$ref": "#/definitions/condition"
+          },
+          "where": {
+            "description": "Optional condition to filter the join results.",
+            "$ref": "#/definitions/condition"
+          }
+        },
+        "required": ["type", "from", "on"],
+        "additionalProperties": false
+      }
+    },
+    "where": {
+      "description": "A condition or composite condition clause for the main query.",
+      "$ref": "#/definitions/condition"
+    },
+    "groupBy": {
+      "description": "Grouping clause. Accepts a single column (string) or an array of column names.",
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
+    "having": {
+      "description": "A condition or composite condition clause to filter grouped results.",
+      "$ref": "#/definitions/condition"
+    },
+    "orderBy": {
+      "description": "Ordering clause. Can be a string, an object mapping a column to 'asc' or 'desc', or an array of such items.",
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["asc", "desc"]
+          }
+        },
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              { "type": "string" },
+              {
+                "type": "object",
+                "minProperties": 1,
+                "additionalProperties": {
+                  "type": "string",
+                  "enum": ["asc", "desc"]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "limit": {
+      "description": "Limits the number of rows returned.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "offset": {
+      "description": "Specifies the number of rows to skip.",
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": ["select", "from"],
+  "additionalProperties": false,
+  "definitions": {
+    "JSONLike": {
+      "description": "Any JSON-compatible value. Dates should be represented as ISO 8601 strings.",
+      "anyOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        { "type": "null" },
+        { "type": "object" },
+        { "type": "array", "items": {} }
+      ]
+    },
+    "columnReference": {
+      "description": "A column reference, either as a string starting with '@' or an explicit object with a 'col' key.",
+      "oneOf": [
+        { "type": "string", "pattern": "^@.+" },
+        {
+          "type": "object",
+          "properties": { "col": { "type": "string" } },
+          "required": ["col"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "literalValueObject": {
+      "description": "An explicit literal value. Use this to wrap an arbitrary JSON value (or date) so it is not misinterpreted as a column reference.",
+      "type": "object",
+      "properties": {
+        "value": { "$ref": "#/definitions/JSONLike" }
+      },
+      "required": ["value"],
+      "additionalProperties": false
+    },
+    "functionCall": {
+      "description": "A function call represented as an object with a single key: the function name, and a value that is either a single operand or an array of operands.",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "propertyNames": {
+        "enum": [
+          "SUM",
+          "COUNT",
+          "AVG",
+          "MIN",
+          "MAX",
+          "DATE",
+          "JSON_EXTRACT",
+          "UPPER",
+          "LOWER",
+          "COALESCE",
+          "CONCAT",
+          "LENGTH"
+        ]
+      },
+      "additionalProperties": {
+        "oneOf": [
+          { "$ref": "#/definitions/conditionOperand" },
+          {
+            "type": "array",
+            "items": { "$ref": "#/definitions/conditionOperand" }
+          }
+        ]
+      }
+    },
+    "conditionOperand": {
+      "description": "An operand in a condition. It can be a literal (string, number, boolean, null), a column reference, an explicit literal, a function call, or an array of operands.",
+      "oneOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        { "type": "null" },
+        { "$ref": "#/definitions/columnReference" },
+        { "$ref": "#/definitions/literalValueObject" },
+        { "$ref": "#/definitions/functionCall" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/definitions/conditionOperand" }
+        }
+      ]
+    },
+    "logicalOperator": {
+      "description": "A logical operator to combine conditions.",
+      "type": "string",
+      "enum": ["and", "or"]
+    },
+    "simpleCondition": {
+      "description": "A simple condition in the form [left operand, comparator, right operand].",
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": [
+        { "$ref": "#/definitions/conditionOperand" },
+        {
+          "type": "string",
+          "enum": [
+            "=",
+            "!=",
+            "<",
+            "<=",
+            ">",
+            ">=",
+            "like",
+            "not like",
+            "in",
+            "not in",
+            "is",
+            "is not"
+          ]
+        },
+        { "$ref": "#/definitions/conditionOperand" }
+      ]
+    },
+    "compositeCondition": {
+      "description": "A composite condition, e.g. [condition, logicalOperator, condition, ...].",
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "oneOf": [
+          { "$ref": "#/definitions/condition" },
+          { "$ref": "#/definitions/logicalOperator" }
+        ]
+      }
+    },
+    "condition": {
+      "description": "A condition can be either a simple condition or a composite condition.",
+      "oneOf": [
+        { "$ref": "#/definitions/simpleCondition" },
+        { "$ref": "#/definitions/compositeCondition" }
+      ]
+    }
+  }
+}

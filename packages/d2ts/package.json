@@ -36,6 +36,10 @@
     "./store": {
       "types": "./dist/store.d.ts",
       "default": "./dist/store.js"
+    },
+    "./d2ql": {
+      "types": "./dist/d2ql/index.d.ts",
+      "default": "./dist/d2ql/index.js"
     }
   },
   "scripts": {
