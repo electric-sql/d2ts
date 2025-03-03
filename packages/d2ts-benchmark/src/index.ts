@@ -3,6 +3,7 @@ import { D2, MultiSet, map, join, filter, v, output } from '@electric-sql/d2ts'
 import { join as joinSql } from '@electric-sql/d2ts/sqlite'
 import { BetterSQLite3Wrapper } from '@electric-sql/d2ts/sqlite'
 import Database from 'better-sqlite3'
+import { generateGraph } from './graph'
 
 // Sample data generation
 const generateData = (size: number) => {
@@ -480,9 +481,24 @@ function run({
 
   mapSuite.run()
   mapSuite.printResults()
+
+  return {
+    initialSize,
+    results: [
+      ...joinSuite.getResults(),
+      ...filterSuite.getResults(),
+      ...mapSuite.getResults(),
+    ],
+  }
 }
 
-run({ initialSize: 90, incrementalRuns: 1000 })
-run({ initialSize: 900, incrementalRuns: 1000 })
-run({ initialSize: 9000, incrementalRuns: 1000 })
-run({ initialSize: 90000, incrementalRuns: 1000 })
+// Run benchmarks with different sizes and collect results
+const results = [
+  run({ initialSize: 90, incrementalRuns: 1000 }),
+  run({ initialSize: 900, incrementalRuns: 1000 }),
+  run({ initialSize: 9000, incrementalRuns: 1000 }),
+  run({ initialSize: 90000, incrementalRuns: 1000 }),
+]
+
+// Generate the graph
+generateGraph(results)

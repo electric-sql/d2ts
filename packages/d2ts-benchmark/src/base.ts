@@ -172,6 +172,35 @@ export class Suite {
     console.log(`\nResults for ${this.name}:`)
     console.log(table(data, config))
   }
+
+  getResults(): { name: string; firstRunTime: number; incrementalTime: number; opsPerSec: number }[] {
+    const resultsByBenchmark = new Map<string, RunResult[]>()
+    let i = 0
+    for (const benchmark of this.benchmarks) {
+      resultsByBenchmark.set(
+        benchmark.name,
+        this.results.slice(i * this.totalRuns, (i + 1) * this.totalRuns),
+      )
+      i++
+    }
+
+    return Array.from(resultsByBenchmark.entries()).map(([name, results]) => {
+      const avgIncrementalMs = results.map(
+        (r) =>
+          r.incrementalTimes.reduce((a, b) => a + b, 0) /
+          r.incrementalTimes.length,
+      )
+      const avgFirstRunMs = results.map((r) => r.firstRunTime)
+      const avgOpsPerSec = avgIncrementalMs.map((ms) => 1000 / ms)
+
+      return {
+        name,
+        firstRunTime: avgFirstRunMs.reduce((a, b) => a + b, 0) / avgFirstRunMs.length,
+        incrementalTime: avgIncrementalMs.reduce((a, b) => a + b, 0) / avgIncrementalMs.length,
+        opsPerSec: avgOpsPerSec.reduce((a, b) => a + b, 0) / avgOpsPerSec.length,
+      }
+    })
+  }
 }
 
 function formatAverage(numbers: number[]): string {
