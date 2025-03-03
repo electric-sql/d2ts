@@ -4,19 +4,19 @@ This directory contains examples that demonstrate the capabilities of D2QL, a SQ
 
 ## Examples
 
-1. **Basic SELECT (01_basic_select.ts)**  
+1. **Basic SELECT (basic_select.ts)**  
    A simple example showing how to select specific fields from a dataset.
 
-2. **WHERE Conditions (02_where_conditions.ts)**  
+2. **WHERE Conditions (where_conditions.ts)**  
    Demonstrates filtering data using various comparison operators and logical conditions.
 
-3. **Joins (03_joins.ts)**  
+3. **Joins (joins.ts)**  
    Shows how to join multiple datasets together using different join types.
 
-4. **Functions (04_functions.ts)**  
+4. **Functions (functions.ts)**  
    Illustrates the use of built-in functions like UPPER, LOWER, LENGTH, CONCAT, DATE, and JSON_EXTRACT.
 
-5. **Kitchen Sink (05_kitchen_sink.ts)**  
+5. **Kitchen Sink (kitchen_sink.ts)**  
    A comprehensive example that combines multiple D2QL features:
    - Multiple column selection methods:
      - Direct column references without aliases (e.g., '@e.id')
