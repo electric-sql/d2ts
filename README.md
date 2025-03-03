@@ -139,9 +139,6 @@ graph.run()
 
 D2TS can be used in conjunction with [ElectricSQL](https://electric-sql.com) to build data pipelines on top of [ShapeStreams](https://electric-sql.com/docs/api/clients/typescript#shapestream) that can be executed incrementally.
 
-> [!NOTE]
-> Electric support has not yet been merged to main, you can follow the progress [in this PR](https://github.com/electric-sql/d2ts/pull/11).
-
 Here's an example of how to use D2TS with ElectricSQL:
 
 ```typescript
@@ -180,6 +177,8 @@ const electricStream = new ShapeStream({
 electricStreamToD2Input(electricStream, input)
 ```
 
+There is a complete example in the [./examples/electric](./examples/electric) directory.
+
 ## Examples
 
 There are a number of examples in the [./examples](./examples) directory, covering:
@@ -189,6 +188,7 @@ There are a number of examples in the [./examples](./examples) directory, coveri
 - [Joins between two streams](./examples/join.ts)
 - [Iterative computations](./examples/iterate.ts)
 - [Modeling "includes" using joins](./examples/includes.ts)
+- [ElectricSQL example](./examples/electric/) (using D2TS with ElectricSQL)
 
 ## API
 
