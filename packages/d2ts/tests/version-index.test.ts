@@ -355,40 +355,45 @@ function createIndexTests<
         expect(v1Results).toBeDefined()
         const [v1, m1] = v1Results!
         expect(v1.equals(version1)).toBe(true)
-        
+
         // Check version2 results
         const v2Results = result.find(([v]) => v.equals(version2))
         expect(v2Results).toBeDefined()
         const [v2, m2] = v2Results!
         expect(v2.equals(version2)).toBe(true)
-        
+
         // Just check that the entries contain the expected data and multiplicity
         const entries1 = m1.getInner()
-        expect(entries1.some(e => 
-          e[0][0] === 'key1' && 
-          arraysEqual(e[0][1], [10, 20, 30]) && 
-          e[1] === 1
-        )).toBe(true)
-        
+        expect(
+          entries1.some(
+            (e) =>
+              e[0][0] === 'key1' &&
+              arraysEqual(e[0][1], [10, 20, 30]) &&
+              e[1] === 1,
+          ),
+        ).toBe(true)
+
         const entries2 = m2.getInner()
-        expect(entries2.some(e => 
-          e[0][0] === 'key1' && 
-          arraysEqual(e[0][1], [15, 25, 35]) && 
-          e[1] === 8
-        )).toBe(true)
+        expect(
+          entries2.some(
+            (e) =>
+              e[0][0] === 'key1' &&
+              arraysEqual(e[0][1], [15, 25, 35]) &&
+              e[1] === 8,
+          ),
+        ).toBe(true)
       })
 
       test('joinAll should handle empty other indexes array', () => {
         const version = v([1])
         index.addValue('key1', version, [10, 2])
-        
-        // @ts-expect-error
+
         const result = index.joinAll([])
         expect(result).toHaveLength(1)
-        
+
         const [resultVersion, multiset] = result[0]
         expect(resultVersion).toEqual(version)
-        
+
         const entries = multiset.getInner()
         expect(entries).toHaveLength(1)
         expect(entries[0]).toEqual([['key1', [10]], 2])

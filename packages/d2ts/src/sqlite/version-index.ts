@@ -633,6 +633,210 @@ export class SQLIndex<K, V> {
     return result as [Version, MultiSet<[K, [V | null, V2 | null]]>][]
   }
 
+  /**
+   * Join this index with multiple other indexes
+   * @param others Array of other indexes to join with
+   * @param joinType Type of join to perform (inner or left)
+   * @returns An array of [Version, MultiSet<[K, (V | null)[]]>] tuples
+   */
+  joinAll<V2>(
+    others: SQLIndex<K, V2>[],
+    joinType: 'inner' | 'left' = 'inner',
+  ): [Version, MultiSet<[K, (V | null)[]]>][] {
+    if (others.length === 0) {
+      // If no other indexes, return the current index with array values
+      const collections = new Map<string, [K, (V | null)[], number][]>()
+
+      // Use a simple SQL query to get all records in this index
+      const stmt = this.#db.prepare(`
+        SELECT key, version, value, multiplicity
+        FROM ${this.#tableName}
+      `)
+      const results = stmt.all() as IndexRow[]
+
+      for (const row of results) {
+        const key = JSON.parse(row.key) as K
+        const version = Version.fromJSON(row.version)
+        const val = JSON.parse(row.value) as V
+        const mul = row.multiplicity
+
+        if (mul !== 0) {
+          const versionKey = version.toJSON()
+          if (!collections.has(versionKey)) {
+            collections.set(versionKey, [])
+          }
+          collections.get(versionKey)!.push([key, [val], mul])
+        }
+      }
+
+      const result = Array.from(collections.entries())
+        .filter(([_v, c]) => c.length > 0)
+        .map(([versionJson, data]) => [
+          Version.fromJSON(versionJson),
+          new MultiSet(data.map(([k, v, m]) => [[k, v], m])),
+        ])
+
+      return result as [Version, MultiSet<[K, (V | null)[]]>][]
+    }
+
+    // Build a SQL query that joins all tables
+    const joinTypeSQL = joinType === 'inner' ? 'INNER JOIN' : 'LEFT JOIN'
+    const tableAliases = [
+      'a',
+      ...Array.from(
+        { length: others.length },
+        (_, i) => String.fromCharCode(98 + i), // b, c, d, ...
+      ),
+    ]
+
+    // Create a unique cache key for this specific join configuration
+    const otherTableNames = others.map((o) => o.tableName).join('_')
+    const cacheKey = `join_all_${joinType}_${this.#tableName}_${otherTableNames}`
+
+    let stmt = this.#statementCache.get(cacheKey)
+    if (!stmt) {
+      // Prepare the SELECT part of the query
+      let query = `
+        SELECT 
+          ${
+            joinType === 'inner'
+              ? 'a.key'
+              : 'COALESCE(a.key, ' +
+                tableAliases
+                  .slice(1)
+                  .map((alias) => `${alias}.key`)
+                  .join(', ') +
+                ')'
+          } as key,
+          a.version as base_version,
+          a.value as base_value,
+          a.multiplicity as base_multiplicity
+      `
+
+      // Add columns for each of the other tables
+      for (let i = 0; i < others.length; i++) {
+        const alias = tableAliases[i + 1]
+        query += `,
+          ${alias}.version as other${i + 1}_version,
+          ${alias}.value as other${i + 1}_value,
+          ${alias}.multiplicity as other${i + 1}_multiplicity
+        `
+      }
+
+      // Start with the base table
+      query += `
+        FROM ${this.#tableName} a
+      `
+
+      // Add joins for each other table
+      for (let i = 0; i < others.length; i++) {
+        const alias = tableAliases[i + 1]
+        query += `
+        ${joinTypeSQL} ${others[i].tableName} ${alias} ON a.key = ${alias}.key
+        `
+      }
+
+      stmt = this.#db.prepare(query)
+      this.#statementCache.set(cacheKey, stmt)
+    }
+
+    const results = stmt.all() as any[]
+    const collections = new Map<string, [K, (V | null)[], number][]>()
+
+    for (const row of results) {
+      const key = JSON.parse(row.key) as K
+
+      // Parse base version, value and multiplicity
+      const baseVersion = row.base_version
+        ? Version.fromJSON(row.base_version)
+        : null
+      const baseValue = row.base_value
+        ? (JSON.parse(row.base_value) as V)
+        : null
+      const baseMul = row.base_multiplicity || 0
+
+      // For inner join, skip if base is null
+      if (joinType === 'inner' && !baseVersion) continue
+
+      // Process each of the other tables
+      const otherVersions: (Version | null)[] = []
+      const otherValues: (V2 | null)[] = []
+      const otherMuls: number[] = []
+      let skipRow = false
+
+      for (let i = 0; i < others.length; i++) {
+        const versionField = `other${i + 1}_version`
+        const valueField = `other${i + 1}_value`
+        const mulField = `other${i + 1}_multiplicity`
+
+        const version = row[versionField]
+          ? Version.fromJSON(row[versionField])
+          : null
+        const value = row[valueField]
+          ? (JSON.parse(row[valueField]) as V2)
+          : null
+        const mul = row[mulField] || 0
+
+        // For inner join, skip row if any value is null
+        if (joinType === 'inner' && (version === null || value === null)) {
+          skipRow = true
+          break
+        }
+
+        otherVersions.push(version)
+        otherValues.push(value)
+        otherMuls.push(mul)
+      }
+
+      if (skipRow) continue
+
+      // Calculate result version by joining all versions
+      let resultVersion = baseVersion!
+      for (const version of otherVersions) {
+        if (version !== null) {
+          resultVersion = resultVersion.join(version)
+        }
+      }
+
+      // Calculate result multiplicity
+      let resultMul = baseMul
+      for (const mul of otherMuls) {
+        if (mul !== 0) {
+          resultMul *= mul
+        } else if (joinType === 'inner') {
+          resultMul = 0
+          break
+        }
+      }
+
+      // Skip if multiplicity is zero
+      if (resultMul === 0) continue
+
+      // Build the values array
+      const values: (V | null)[] = [baseValue]
+      for (const value of otherValues) {
+        values.push(value as unknown as V | null)
+      }
+
+      // Store result
+      const versionKey = resultVersion.toJSON()
+      if (!collections.has(versionKey)) {
+        collections.set(versionKey, [])
+      }
+
+      collections.get(versionKey)!.push([key, values, resultMul])
+    }
+
+    const result = Array.from(collections.entries())
+      .filter(([_v, c]) => c.length > 0)
+      .map(([versionJson, data]) => [
+        Version.fromJSON(versionJson),
+        new MultiSet(data.map(([k, v, m]) => [[k, v], m])),
+      ])
+
+    return result as [Version, MultiSet<[K, (V | null)[]]>][]
+  }
+
   compact(compactionFrontier: Antichain, keys: K[] = []): void {
     const existingFrontier = this.getCompactionFrontier()
     if (existingFrontier && !existingFrontier.lessEqual(compactionFrontier)) {
