@@ -5,6 +5,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "bench": "tsx src/index.ts",
+    "bench:join": "tsx bin/join-benchmark.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
