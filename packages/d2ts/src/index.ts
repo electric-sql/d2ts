@@ -6,3 +6,6 @@ export * from './operators/index.js'
 
 export { MessageType } from './types.js'
 export type { DataMessage, FrontierMessage, Message } from './types.js'
+
+// Export our joinAll operator
+export { joinAll } from './operators/join-all.js'
