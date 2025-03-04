@@ -3,23 +3,35 @@ import { map } from './map.js'
 import { reduce } from './reduce.js'
 
 type GroupKey = Record<string, unknown>
+
 type AggregateFunction<T, R, V = unknown> = {
   preMap: (data: T) => V
   reduce: (values: [V, number][]) => V
   postMap?: (result: V) => R
 }
 
+type ExtractAggregateReturnType<T, A> =
+  A extends AggregateFunction<T, infer R, any> ? R : never
+
+type AggregatesReturnType<T, A> = {
+  [K in keyof A]: ExtractAggregateReturnType<T, A[K]>
+}
+
 /**
  * Groups data by key and applies multiple aggregate operations
  * @param keyExtractor Function to extract grouping key from data
  * @param aggregates Object mapping aggregate names to aggregate functions
- * @param postMap Optional function to transform the final result
  */
-export function groupBy<T, K extends GroupKey, R = Record<string, unknown>>(
-  keyExtractor: (data: T) => K,
-  aggregates: Record<string, AggregateFunction<T, any, any>>,
-) {
-  return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<string, R>> => {
+export function groupBy<
+  T,
+  K extends GroupKey,
+  A extends Record<string, AggregateFunction<T, any, any>>,
+>(keyExtractor: (data: T) => K, aggregates: A) {
+  type ResultType = K & AggregatesReturnType<T, A>
+
+  return (
+    stream: IStreamBuilder<T>,
+  ): IStreamBuilder<KeyValue<string, ResultType>> => {
     // Special key to store the original key object
     const KEY_SENTINEL = '__original_key__'
 
@@ -73,7 +85,6 @@ export function groupBy<T, K extends GroupKey, R = Record<string, unknown>>(
 
         // Create intermediate result with key values and aggregate results
         const result: Record<string, unknown> = {}
-        delete result[KEY_SENTINEL]
 
         // Add key properties to result
         Object.assign(result, key)
@@ -88,7 +99,7 @@ export function groupBy<T, K extends GroupKey, R = Record<string, unknown>>(
         }
 
         // Return with the string key instead of the object
-        return [keyString, result] as KeyValue<string, R>
+        return [keyString, result] as KeyValue<string, ResultType>
       }),
     )
   }
