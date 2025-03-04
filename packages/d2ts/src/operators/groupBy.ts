@@ -4,17 +4,31 @@ import { reduce } from './reduce.js'
 
 type GroupKey = Record<string, unknown>
 
-type AggregateFunction<T, R, V = unknown> = {
+type BasicAggregateFunction<T, R, V = unknown> = {
   preMap: (data: T) => V
   reduce: (values: [V, number][]) => V
   postMap?: (result: V) => R
 }
+
+type PipedAggregateFunction<T, R> = {
+  pipe: (stream: IStreamBuilder<T>) => IStreamBuilder<KeyValue<string, R>>
+}
+
+type AggregateFunction<T, R, V = unknown> =
+  | BasicAggregateFunction<T, R, V>
+  | PipedAggregateFunction<T, R>
 
 type ExtractAggregateReturnType<T, A> =
   A extends AggregateFunction<T, infer R, any> ? R : never
 
 type AggregatesReturnType<T, A> = {
   [K in keyof A]: ExtractAggregateReturnType<T, A[K]>
+}
+
+function isPipedAggregateFunction<T, R>(
+  aggregate: AggregateFunction<T, R>,
+): aggregate is PipedAggregateFunction<T, R> {
+  return 'pipe' in aggregate
 }
 
 /**
@@ -28,6 +42,19 @@ export function groupBy<
   A extends Record<string, AggregateFunction<T, any, any>>,
 >(keyExtractor: (data: T) => K, aggregates: A) {
   type ResultType = K & AggregatesReturnType<T, A>
+
+  const basicAggregates = Object.fromEntries(
+    Object.entries(aggregates).filter(
+      ([_, aggregate]) => !isPipedAggregateFunction(aggregate),
+    ),
+  ) as Record<string, BasicAggregateFunction<T, any, any>>
+
+  // @ts-expect-error - TODO: we don't use this yet, but we will
+  const pipedAggregates = Object.fromEntries(
+    Object.entries(aggregates).filter(([_, aggregate]) =>
+      isPipedAggregateFunction(aggregate),
+    ),
+  ) as Record<string, PipedAggregateFunction<T, any>>
 
   return (
     stream: IStreamBuilder<T>,
@@ -48,7 +75,7 @@ export function groupBy<
         values[KEY_SENTINEL] = key
 
         // Add pre-aggregated values
-        for (const [name, aggregate] of Object.entries(aggregates)) {
+        for (const [name, aggregate] of Object.entries(basicAggregates)) {
           values[name] = aggregate.preMap(data)
         }
 
@@ -66,7 +93,7 @@ export function groupBy<
         result[KEY_SENTINEL] = originalKey
 
         // Apply each aggregate function
-        for (const [name, aggregate] of Object.entries(aggregates)) {
+        for (const [name, aggregate] of Object.entries(basicAggregates)) {
           const preValues = values.map(
             ([v, m]) => [v[name], m] as [any, number],
           )
@@ -90,7 +117,7 @@ export function groupBy<
         Object.assign(result, key)
 
         // Apply postMap if provided
-        for (const [name, aggregate] of Object.entries(aggregates)) {
+        for (const [name, aggregate] of Object.entries(basicAggregates)) {
           if (aggregate.postMap) {
             result[name] = aggregate.postMap(values[name])
           } else {

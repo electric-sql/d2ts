@@ -13,7 +13,7 @@ import {
   median,
   mode,
 } from '../../src/operators/groupBy.js'
-import { map, output } from '../../src/operators/index.js'
+import { output } from '../../src/operators/index.js'
 
 describe('Operators', () => {
   describe('GroupBy operation', () => {
