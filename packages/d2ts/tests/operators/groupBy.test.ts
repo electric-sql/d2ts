@@ -162,6 +162,98 @@ describe('Operators', () => {
       ]
 
       expect(latestMessage.collection.getInner()).toEqual(expectedResult)
+
+      // --- Add a new record ---
+      input.sendData(
+        v([3, 0]),
+        new MultiSet([
+          [{ category: 'A', region: 'East', amount: 15 }, 1],
+          [{ category: 'B', region: 'West', amount: 25 }, 1],
+        ]),
+      )
+      input.sendFrontier(new Antichain([v([4, 0])]))
+
+      graph.run()
+
+      const expectedAddResult = [
+        [
+          [
+            '{"category":"A","region":"East"}',
+            {
+              category: 'A',
+              region: 'East',
+              total: 45,
+              count: 3,
+            },
+          ],
+          1,
+        ],
+        [
+          [
+            '{"category":"A","region":"East"}',
+            {
+              category: 'A',
+              region: 'East',
+              total: 30,
+              count: 2,
+            },
+          ],
+          -1,
+        ],
+        [
+          [
+            '{"category":"B","region":"West"}',
+            {
+              category: 'B',
+              region: 'West',
+              total: 25,
+              count: 1,
+            },
+          ],
+          1,
+        ],
+      ]
+
+      expect(latestMessage.collection.getInner()).toEqual(expectedAddResult)
+
+      // --- Delete a record ---
+      input.sendData(
+        v([5, 0]),
+        new MultiSet([
+          [{ category: 'A', region: 'East', amount: 20 }, -1], // Remove one of the A/East records
+        ]),
+      )
+      input.sendFrontier(new Antichain([v([6, 0])]))
+      graph.run()
+
+      const expectedDeleteResult = [
+        [
+          [
+            '{"category":"A","region":"East"}',
+            {
+              category: 'A',
+              region: 'East',
+              total: 25,
+              count: 2,
+            },
+          ],
+          1,
+        ],
+        [
+          [
+            '{"category":"A","region":"East"}',
+            {
+              category: 'A',
+              region: 'East',
+              total: 45,
+              count: 3,
+            },
+          ],
+          -1,
+        ],
+      ]
+
+      expect(latestMessage.collection.getInner()).toEqual(expectedDeleteResult)
     })
 
     test('with avg and count aggregates', () => {
@@ -230,6 +322,92 @@ describe('Operators', () => {
       ]
 
       expect(latestMessage.collection.getInner()).toEqual(expectedResult)
+
+      // --- Add a new record ---
+      input.sendData(
+        v([3, 0]),
+        new MultiSet([
+          [{ category: 'A', amount: 30 }, 1],
+          [{ category: 'C', amount: 50 }, 1],
+        ]),
+      )
+      input.sendFrontier(new Antichain([v([4, 0])]))
+      graph.run()
+
+      const expectedAddResult = [
+        [
+          [
+            '{"category":"A"}',
+            {
+              category: 'A',
+              average: 20,
+              count: 3,
+            },
+          ],
+          1,
+        ],
+        [
+          [
+            '{"category":"A"}',
+            {
+              category: 'A',
+              average: 15,
+              count: 2,
+            },
+          ],
+          -1,
+        ],
+        [
+          [
+            '{"category":"C"}',
+            {
+              category: 'C',
+              average: 50,
+              count: 1,
+            },
+          ],
+          1,
+        ],
+      ]
+
+      expect(latestMessage.collection.getInner()).toEqual(expectedAddResult)
+
+      // --- Delete a record ---
+      input.sendData(
+        v([5, 0]),
+        new MultiSet([
+          [{ category: 'A', amount: 10 }, -1], // Remove the first A record
+        ]),
+      )
+      input.sendFrontier(new Antichain([v([6, 0])]))
+      graph.run()
+
+      const expectedDeleteResult = [
+        [
+          [
+            '{"category":"A"}',
+            {
+              category: 'A',
+              average: 25,
+              count: 2,
+            },
+          ],
+          1,
+        ],
+        [
+          [
+            '{"category":"A"}',
+            {
+              category: 'A',
+              average: 20,
+              count: 3,
+            },
+          ],
+          -1,
+        ],
+      ]
+
+      expect(latestMessage.collection.getInner()).toEqual(expectedDeleteResult)
     })
   })
 })
