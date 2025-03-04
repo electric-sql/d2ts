@@ -156,3 +156,45 @@ export function avg<T>(
     },
   }
 }
+
+/**
+ * Creates a min aggregate function that computes the minimum value in a group
+ * @param valueExtractor Function to extract a numeric value from each data entry
+ */
+export function min<T>(
+  valueExtractor: (value: T) => number = (v) => v as unknown as number,
+): AggregateFunction<T, number, number> {
+  return {
+    preMap: (data: T) => valueExtractor(data),
+    reduce: (values: [number, number][]) => {
+      let minValue = Number.POSITIVE_INFINITY
+      for (const [value, _multiplicity] of values) {
+        if (value < minValue) {
+          minValue = value
+        }
+      }
+      return minValue === Number.POSITIVE_INFINITY ? 0 : minValue
+    },
+  }
+}
+
+/**
+ * Creates a max aggregate function that computes the maximum value in a group
+ * @param valueExtractor Function to extract a numeric value from each data entry
+ */
+export function max<T>(
+  valueExtractor: (value: T) => number = (v) => v as unknown as number,
+): AggregateFunction<T, number, number> {
+  return {
+    preMap: (data: T) => valueExtractor(data),
+    reduce: (values: [number, number][]) => {
+      let maxValue = Number.NEGATIVE_INFINITY
+      for (const [value, _multiplicity] of values) {
+        if (value > maxValue) {
+          maxValue = value
+        }
+      }
+      return maxValue === Number.NEGATIVE_INFINITY ? 0 : maxValue
+    },
+  }
+}

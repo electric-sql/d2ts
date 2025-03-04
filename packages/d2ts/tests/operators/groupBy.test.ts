@@ -3,7 +3,14 @@ import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import { Antichain, v } from '../../src/order.js'
 import { DataMessage, MessageType } from '../../src/types.js'
-import { groupBy, sum, count, avg } from '../../src/operators/groupBy.js'
+import {
+  groupBy,
+  sum,
+  count,
+  avg,
+  min,
+  max,
+} from '../../src/operators/groupBy.js'
 import { output } from '../../src/operators/index.js'
 
 describe('Operators', () => {
@@ -408,6 +415,75 @@ describe('Operators', () => {
       ]
 
       expect(latestMessage.collection.getInner()).toEqual(expectedDeleteResult)
+    })
+
+    test('with min and max aggregates', () => {
+      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const input = graph.newInput<{
+        category: string
+        amount: number
+      }>()
+      let latestMessage: any = null
+
+      input.pipe(
+        groupBy((data) => ({ category: data.category }), {
+          minimum: min((data) => data.amount),
+          maximum: max((data) => data.amount),
+        }),
+        output((message) => {
+          if (message.type === MessageType.DATA) {
+            latestMessage = message.data
+          }
+        }),
+      )
+
+      graph.finalize()
+
+      // Initial data
+      input.sendData(
+        v([1, 0]),
+        new MultiSet([
+          [{ category: 'A', amount: 10 }, 1],
+          [{ category: 'A', amount: 20 }, 1],
+          [{ category: 'A', amount: 5 }, 1],
+          [{ category: 'B', amount: 30 }, 1],
+          [{ category: 'B', amount: 15 }, 1],
+        ]),
+      )
+      // Send a frontier update that is greater than the data version
+      input.sendFrontier(new Antichain([v([2, 0])]))
+
+      // Run the graph to process all messages
+      graph.run()
+
+      expect(latestMessage).not.toBeNull()
+
+      const expectedResult = [
+        [
+          [
+            '{"category":"A"}',
+            {
+              category: 'A',
+              minimum: 5,
+              maximum: 20,
+            },
+          ],
+          1,
+        ],
+        [
+          [
+            '{"category":"B"}',
+            {
+              category: 'B',
+              minimum: 15,
+              maximum: 30,
+            },
+          ],
+          1,
+        ],
+      ]
+
+      expect(latestMessage.collection.getInner()).toEqual(expectedResult)
     })
   })
 })
