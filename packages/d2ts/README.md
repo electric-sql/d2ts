@@ -60,6 +60,7 @@ A D2TS pipeline is also fully type safe, inferring the types at each step of the
   - [`filter`](#filter): Filter elements based on predicates
   - [`iterate`](#iterate): Perform iterative computations
   - [`join`](#join): Join two streams
+  - [`joinAll`](#joinAll): Join multiple streams
   - [`keyBy`](#keyBy): Key a stream by a property
   - [`map`](#map): Transform elements in a stream
   - [`reduce`](#reduce): Aggregate values by key
@@ -484,6 +485,66 @@ When using SQLite persistence, you can supply the database as an additional para
 const db = new BetterSQLite3Wrapper(sqlite)
 const persistedJoin = input.pipe(join(other, 'inner', db))
 ```
+
+#### joinAll
+
+`joinAll(others: IStreamBuilder<T>[], joinType?: JoinType)`
+
+Joins multiple keyed streams based on matching keys. This is similar to the `join` operator but allows joining more than two streams in a single operation. The `joinType` parameter controls how the join behaves:
+
+- `'inner'` (default): Returns only records that have matching keys in all streams
+- `'left'`: Returns all records from the left stream, plus matching records from the other streams (with nulls for non-matches)
+
+```typescript
+const products = graph.newInput<[key: number, value: Product]>()
+const categories = graph.newInput<[key: number, value: Category]>()
+const suppliers = graph.newInput<[key: number, value: Supplier]>()
+
+// Inner join across all three streams
+const innerJoinAll = products.pipe(
+  joinAll([categories, suppliers], 'inner')
+)
+
+// Left join - all products, matching categories and suppliers when available
+const leftJoinAll = products.pipe(
+  joinAll([categories, suppliers], 'left')
+)
+```
+
+The result of the join operation is an array containing the original value from the input stream followed by values from each of the joined streams in the order they were provided:
+
+```typescript
+// Products joined with categories and suppliers
+products.pipe(
+  // Rekey products by their categoryId for joining
+  rekey((product) => product.categoryId),
+  // Join with categories (keyed by id) and suppliers (rekey by id)
+  joinAll([
+    categories.pipe(rekey((category) => category.id)),
+    suppliers.pipe(rekey((supplier) => supplier.id))
+  ], 'left'),
+  map(([key, [product, category, supplier]]) => {
+    // For left joins, category and supplier might be null
+    return {
+      productName: product.name,
+      categoryName: category?.name ?? 'Uncategorized',
+      supplierName: supplier?.name ?? 'Unknown Supplier'
+    }
+  })
+)
+```
+
+When using SQLite persistence, you can supply the database as an additional parameter:
+
+```typescript
+// Using SQLite persistence
+const db = new BetterSQLite3Wrapper(sqlite)
+const persistedJoinAll = products.pipe(
+  joinAll([categories, suppliers], 'inner', db)
+)
+```
+
+The `joinAll` operator performs similarly to multiple `join` operations when used with the same number of streams, but provides a more convenient API and potentially better performance for joining multiple streams in a single operation.
 
 #### map
 
