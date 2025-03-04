@@ -10,6 +10,8 @@ import {
   avg,
   min,
   max,
+  median,
+  mode,
 } from '../../src/operators/groupBy.js'
 import { map, output } from '../../src/operators/index.js'
 
@@ -477,6 +479,84 @@ describe('Operators', () => {
               category: 'B',
               minimum: 15,
               maximum: 30,
+            },
+          ],
+          1,
+        ],
+      ]
+
+      expect(latestMessage.collection.getInner()).toEqual(expectedResult)
+    })
+
+    test('with median and mode aggregates', () => {
+      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const input = graph.newInput<{
+        category: string
+        amount: number
+      }>()
+      let latestMessage: any = null
+
+      input.pipe(
+        groupBy((data) => ({ category: data.category }), {
+          middle: median((data) => data.amount),
+          mostFrequent: mode((data) => data.amount),
+        }),
+        output((message) => {
+          if (message.type === MessageType.DATA) {
+            latestMessage = message.data
+          }
+        }),
+      )
+
+      graph.finalize()
+
+      // Initial data with pattern designed to test median and mode
+      input.sendData(
+        v([1, 0]),
+        new MultiSet([
+          // Category A: [10, 20, 20, 30, 50]
+          // Median: 20, Mode: 20
+          [{ category: 'A', amount: 10 }, 1],
+          [{ category: 'A', amount: 20 }, 2], // Added twice to test mode
+          [{ category: 'A', amount: 30 }, 1],
+          [{ category: 'A', amount: 50 }, 1],
+
+          // Category B: [5, 10, 15, 20]
+          // Median: 12.5 (average of 10 and 15), Mode: 5, 10, 15, 20 (all appear once)
+          [{ category: 'B', amount: 5 }, 1],
+          [{ category: 'B', amount: 10 }, 1],
+          [{ category: 'B', amount: 15 }, 1],
+          [{ category: 'B', amount: 20 }, 1],
+        ]),
+      )
+
+      // Send a frontier update that is greater than the data version
+      input.sendFrontier(new Antichain([v([2, 0])]))
+
+      // Run the graph to process all messages
+      graph.run()
+
+      expect(latestMessage).not.toBeNull()
+
+      const expectedResult = [
+        [
+          [
+            '{"category":"A"}',
+            {
+              category: 'A',
+              middle: 20,
+              mostFrequent: 20,
+            },
+          ],
+          1,
+        ],
+        [
+          [
+            '{"category":"B"}',
+            {
+              category: 'B',
+              middle: 12.5,
+              mostFrequent: 5, // First encountered value with highest frequency (all values appear once)
             },
           ],
           1,

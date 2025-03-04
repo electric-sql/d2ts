@@ -209,3 +209,97 @@ export function max<T>(
     },
   }
 }
+
+/**
+ * Creates a median aggregate function that computes the middle value in a sorted group
+ * If there's an even number of values, returns the average of the two middle values
+ * @param valueExtractor Function to extract a numeric value from each data entry
+ */
+export function median<T>(
+  valueExtractor: (value: T) => number = (v) => v as unknown as number,
+): AggregateFunction<T, number, number[]> {
+  return {
+    preMap: (data: T) => [valueExtractor(data)],
+    reduce: (values: [number[], number][]) => {
+      // Flatten all values, taking multiplicity into account
+      const allValues: number[] = []
+      for (const [valueArray, multiplicity] of values) {
+        for (const value of valueArray) {
+          // Add each value multiple times based on multiplicity
+          for (let i = 0; i < multiplicity; i++) {
+            allValues.push(value)
+          }
+        }
+      }
+
+      // Return empty array if no values
+      if (allValues.length === 0) {
+        return []
+      }
+
+      // Sort values
+      allValues.sort((a, b) => a - b)
+
+      return allValues
+    },
+    postMap: (result: number[]) => {
+      if (result.length === 0) return 0
+
+      const mid = Math.floor(result.length / 2)
+
+      // If even number of values, average the two middle values
+      if (result.length % 2 === 0) {
+        return (result[mid - 1] + result[mid]) / 2
+      }
+
+      // If odd number of values, return the middle value
+      return result[mid]
+    },
+  }
+}
+
+/**
+ * Creates a mode aggregate function that computes the most frequent value in a group
+ * If multiple values have the same highest frequency, returns the first one encountered
+ * @param valueExtractor Function to extract a value from each data entry
+ */
+export function mode<T>(
+  valueExtractor: (value: T) => number = (v) => v as unknown as number,
+): AggregateFunction<T, number, Map<number, number>> {
+  return {
+    preMap: (data: T) => {
+      const value = valueExtractor(data)
+      const map = new Map<number, number>()
+      map.set(value, 1)
+      return map
+    },
+    reduce: (values: [Map<number, number>, number][]) => {
+      // Combine all frequency maps
+      const combinedMap = new Map<number, number>()
+
+      for (const [map, multiplicity] of values) {
+        for (const [value, count] of map.entries()) {
+          const currentCount = combinedMap.get(value) || 0
+          combinedMap.set(value, currentCount + count * multiplicity)
+        }
+      }
+
+      return combinedMap
+    },
+    postMap: (result: Map<number, number>) => {
+      if (result.size === 0) return 0
+
+      let modeValue = 0
+      let maxFrequency = 0
+
+      for (const [value, frequency] of result.entries()) {
+        if (frequency > maxFrequency) {
+          maxFrequency = frequency
+          modeValue = value
+        }
+      }
+
+      return modeValue
+    },
+  }
+}
