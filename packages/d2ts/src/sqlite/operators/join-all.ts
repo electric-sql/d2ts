@@ -28,7 +28,6 @@ export class JoinAllOperatorSQLite<K, V, V2> extends Operator<
   #deltaBase: SQLIndex<K, V>
   #deltaOthers: SQLIndex<K, V2>[] = []
   #joinType: 'inner' | 'left'
-  #db: SQLiteDb
 
   constructor(
     id: number,
@@ -48,7 +47,6 @@ export class JoinAllOperatorSQLite<K, V, V2> extends Operator<
     >[]
     super(id, allInputs, output, initialFrontier)
 
-    this.#db = db
     this.#joinType = joinType
 
     // Create SQLite indexes
