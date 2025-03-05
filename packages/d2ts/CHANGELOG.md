@@ -1,5 +1,14 @@
 # @electric-sql/d2ts
 
+## 0.1.4
+
+### Patch Changes
+
+- 434996c: Add support for wildcard select with a `@*` and `@table_name.*` syntax
+- 24451fc: add support for `group by` clause to D2QL
+- 0e98a5a: new `groupBy` operator with accompanying aggregate functions (`sum`, `count`, `avg`, `min`, `max`, `median`, `mode`)
+- 31d001d: fix the join implementation so that it returns current results
+
 ## 0.1.3
 
 ### Patch Changes
