@@ -1,5 +1,15 @@
 # @electric-sql/d2ts-benchmark
 
+## 0.0.5
+
+### Patch Changes
+
+- Updated dependencies [434996c]
+- Updated dependencies [24451fc]
+- Updated dependencies [0e98a5a]
+- Updated dependencies [31d001d]
+  - @electric-sql/d2ts@0.1.4
+
 ## 0.0.4
 
 ### Patch Changes
