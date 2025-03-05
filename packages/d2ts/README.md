@@ -67,6 +67,14 @@ A D2TS pipeline is also fully type safe, inferring the types at each step of the
   - [`unkey`](#unkey): Remove keys from a keyed stream
   - [`output`](#output): Output the messages of the stream
   - [`pipe`](#pipe): Build a pipeline of operators enabling reuse of combinations of operators
+  - [`groupBy`](#groupby): Group data by key and apply multiple aggregate functions
+    - [`sum`](#sum): Sum values in each group
+    - [`count`](#count): Count items in each group
+    - [`avg`](#avg): Calculate average in each group
+    - [`min`](#min): Find minimum value in each group
+    - [`max`](#max): Find maximum value in each group
+    - [`median`](#median): Calculate median value in each group
+    - [`mode`](#mode): Find most frequent value in each group
 - **SQLite Integration**: Optional SQLite backend for persisting operator state allowing for larger datasets and resumable pipelines
 - **Type Safety**: Full TypeScript type safety and inference through the pipeline API
 
@@ -650,6 +658,168 @@ const issuesWithComments = issuesForProject.pipe(
 )
 ```
 
+#### groupBy
+
+`groupBy(keyExtractor: (data: T) => K, aggregates: Record<string, AggregateFunction<T, any>>)`
+
+Groups data by a key and applies multiple aggregate functions to each group. This is a powerful operator that combines functionality similar to SQL's `GROUP BY` with aggregation functions.
+
+The `keyExtractor` function extracts the grouping key from each data item, and the `aggregates` object maps aggregate names to aggregate functions.
+
+```typescript
+// Group sales data by category and compute multiple aggregates
+const salesAnalytics = salesData.pipe(
+  groupBy(
+    // Key extractor function - what to group by
+    (item) => ({ category: item.category }),
+    // Aggregate functions to apply to each group
+    {
+      total: sum((item) => item.amount),
+      count: count(),
+      average: avg((item) => item.amount),
+      min: min((item) => item.amount),
+      max: max((item) => item.amount),
+    }
+  )
+)
+```
+
+The result will be a stream of objects with the grouping key properties and the computed aggregate values:
+
+```typescript
+// Example output item
+{
+  category: "Electronics",
+  total: 2500,
+  count: 5,
+  average: 500,
+  min: 200,
+  max: 800
+}
+```
+
+##### Aggregate Functions
+
+D2TS provides several built-in aggregate functions for use with `groupBy`:
+
+###### `sum`
+
+`sum<T>(valueExtractor?: (value: T) => number)`
+
+Computes the sum of values in each group.
+
+```typescript
+// Sum the amount field for each category
+groupBy((item) => ({ category: item.category }), {
+  total: sum((item) => item.amount)
+})
+```
+
+###### `count`
+
+`count<T>()`
+
+Counts the number of items in each group.
+
+```typescript
+// Count items in each category
+groupBy((item) => ({ category: item.category }), {
+  itemCount: count()
+})
+```
+
+###### `avg`
+
+`avg<T>(valueExtractor?: (value: T) => number)`
+
+Computes the average of values in each group.
+
+```typescript
+// Calculate average price by category
+groupBy((item) => ({ category: item.category }), {
+  averagePrice: avg((item) => item.price)
+})
+```
+
+###### `min`
+
+`min<T>(valueExtractor?: (value: T) => number)`
+
+Finds the minimum value in each group.
+
+```typescript
+// Find minimum price by category
+groupBy((item) => ({ category: item.category }), {
+  lowestPrice: min((item) => item.price)
+})
+```
+
+###### `max`
+
+`max<T>(valueExtractor?: (value: T) => number)`
+
+Finds the maximum value in each group.
+
+```typescript
+// Find maximum price by category
+groupBy((item) => ({ category: item.category }), {
+  highestPrice: max((item) => item.price)
+})
+```
+
+###### `median`
+
+`median<T>(valueExtractor?: (value: T) => number)`
+
+Computes the median (middle value) in each group. For groups with an even number of values, returns the average of the two middle values.
+
+```typescript
+// Calculate median price by category
+groupBy((item) => ({ category: item.category }), {
+  medianPrice: median((item) => item.price)
+})
+```
+
+###### `mode`
+
+`mode<T>(valueExtractor?: (value: T) => number)`
+
+Finds the most frequent value in each group. If multiple values have the same highest frequency, returns the first one encountered.
+
+```typescript
+// Find most common price point by category
+groupBy((item) => ({ category: item.category }), {
+  mostCommonPrice: mode((item) => item.price)
+})
+```
+
+##### Combining Multiple Aggregates
+
+The power of `groupBy` comes from combining multiple aggregates in a single operation:
+
+```typescript
+// Comprehensive sales analysis by region and product category
+const salesAnalysis = salesData.pipe(
+  groupBy(
+    // Group by both region and category
+    (sale) => ({ 
+      region: sale.region, 
+      category: sale.productCategory 
+    }),
+    // Apply multiple aggregates
+    {
+      totalRevenue: sum((sale) => sale.amount),
+      orderCount: count(),
+      averageOrderValue: avg((sale) => sale.amount),
+      smallestOrder: min((sale) => sale.amount),
+      largestOrder: max((sale) => sale.amount),
+      medianOrder: median((sale) => sale.amount),
+      mostCommonAmount: mode((sale) => sale.amount)
+    }
+  )
+)
+```
+
 ### Using SQLite Backend
 
 For persistence and larger datasets, a number of operators are provided that persist to SQLite:
@@ -660,6 +830,7 @@ For persistence and larger datasets, a number of operators are provided that per
 - `join()`: Joins two collections
 - `map()`: Transforms elements
 - `reduce()`: Aggregates values by key
+- `groupBy()`: Groups data by key and applies multiple aggregate functions
 
 Each take a SQLite database as the final argument, for example:
 
