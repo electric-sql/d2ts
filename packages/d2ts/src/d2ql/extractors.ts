@@ -99,12 +99,21 @@ export function evaluateOperandOnNestedRow(
     const colRef = (operand as { col: unknown }).col
 
     if (typeof colRef === 'string') {
-      return extractValueFromNestedRow(
+      // First try to extract from nested row structure
+      const nestedValue = extractValueFromNestedRow(
         nestedRow,
         colRef,
         mainTableAlias,
         joinedTableAlias,
       )
+      
+      // If not found in nested structure, check if it's a direct property of the row
+      // This is important for HAVING clauses that reference aggregated values
+      if (nestedValue === undefined && colRef in nestedRow) {
+        return nestedRow[colRef]
+      }
+      
+      return nestedValue
     }
 
     return undefined
