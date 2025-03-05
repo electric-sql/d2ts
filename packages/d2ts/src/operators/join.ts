@@ -5,41 +5,41 @@ import {
   MessageType,
   KeyValue,
 } from '../types.js'
-import { MultiSet } from '../multiset.js'
 import {
   DifferenceStreamReader,
   DifferenceStreamWriter,
   BinaryOperator,
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
+import { MultiSet } from '../multiset.js'
 import { Antichain, Version } from '../order.js'
 import { Index } from '../version-index.js'
+import { negate } from './negate.js'
+import { map } from './map.js'
+import { concat } from './concat.js'
 
 /**
  * Type of join to perform
  */
-export type JoinType = 'inner' | 'left' | 'right' | 'full'
+export type JoinType = 'inner' | 'left' | 'right' | 'full' | 'anti'
 
 /**
  * Operator that joins two input streams
  */
 export class JoinOperator<K, V1, V2> extends BinaryOperator<
-  [K, V1] | [K, V2] | [K, [V1 | null, V2 | null]]
+  [K, V1] | [K, V2] | [K, [V1, V2]]
 > {
   #indexA = new Index<K, V1>()
   #indexB = new Index<K, V2>()
-  #joinType: JoinType
 
   constructor(
     id: number,
     inputA: DifferenceStreamReader<[K, V1]>,
     inputB: DifferenceStreamReader<[K, V2]>,
-    output: DifferenceStreamWriter<[K, [V1 | null, V2 | null]]>,
+    output: DifferenceStreamWriter<[K, [V1, V2]]>,
     initialFrontier: Antichain,
-    joinType: JoinType = 'inner',
   ) {
     super(id, inputA, inputB, output, initialFrontier)
-    this.#joinType = joinType
   }
 
   run(): void {
@@ -81,67 +81,32 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
     }
 
     // Process results
-    const results = new Map<Version, MultiSet<[K, [V1 | null, V2 | null]]>>()
+    const results = new Map<Version, MultiSet<[K, [V1, V2]]>>()
 
-    // Add deltaA to the main index
+    // Join deltaA with existing indexB
+    for (const [version, collection] of deltaA.join(this.#indexB)) {
+      const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
+      existing.extend(collection)
+      results.set(version, existing)
+    }
+
+    // Append deltaA to indexA
     this.#indexA.append(deltaA)
 
-    // Add deltaB to the main index
-    this.#indexB.append(deltaB)
-
-    // Use SQL native joins to process the data with the appropriate join type
-    // This handles inner, left, right, and full joins all in one SQL query
-    const joinResults = deltaA.joinWithType(this.#indexB, this.#joinType)
-
-    // Process the results from the SQL join
-    for (const [version, multiset] of joinResults) {
-      if (!results.has(version)) {
-        results.set(version, multiset)
-      } else {
-        results.get(version)!.extend(multiset.getInner())
-      }
-    }
-
-    // Also need to check for any joins between existing data and new data
-    const otherJoinResults = this.#indexA.joinWithType(deltaB, this.#joinType)
-
-    // Only include results for keys that weren't already matched
-    const processedKeys = new Set<K>()
-
-    // Mark keys from first join
-    for (const [_version, multiset] of joinResults) {
-      for (const [[key, _values], _multiplicity] of multiset.getInner()) {
-        processedKeys.add(key)
-      }
-    }
-
-    // Process other join results, skipping already processed keys
-    for (const [version, multiset] of otherJoinResults) {
-      const innerEntries: [[K, [V1 | null, V2 | null]], number][] = []
-
-      for (const [[key, value], multiplicity] of multiset.getInner()) {
-        if (!processedKeys.has(key)) {
-          innerEntries.push([[key, value], multiplicity])
-          processedKeys.add(key)
-        }
-      }
-
-      if (innerEntries.length > 0) {
-        const filteredMultiset = new MultiSet<[K, [V1 | null, V2 | null]]>(
-          innerEntries,
-        )
-        if (!results.has(version)) {
-          results.set(version, filteredMultiset)
-        } else {
-          results.get(version)!.extend(filteredMultiset.getInner())
-        }
-      }
+    // Join existing indexA with deltaB
+    for (const [version, collection] of this.#indexA.join(deltaB)) {
+      const existing = results.get(version) || new MultiSet<[K, [V1, V2]]>()
+      existing.extend(collection)
+      results.set(version, existing)
     }
 
     // Send results
     for (const [version, collection] of results) {
       this.output.sendData(version, collection)
     }
+
+    // Append deltaB to indexB
+    this.#indexB.append(deltaB)
 
     // Update frontiers
     const inputFrontier = this.inputAFrontier().meet(this.inputBFrontier())
@@ -157,64 +122,10 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
   }
 }
 
-// Overload for inner join - no nulls on either side
-export function join<
-  K,
-  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
-  V2,
-  T,
->(
-  other: IStreamBuilder<KeyValue<K, V2>>,
-  joinType: 'inner',
-): PipedOperator<T, KeyValue<K, [V1, V2]>>
-
-// Overload for left join - right side can be null
-export function join<
-  K,
-  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
-  V2,
-  T,
->(
-  other: IStreamBuilder<KeyValue<K, V2>>,
-  joinType: 'left',
-): PipedOperator<T, KeyValue<K, [V1, V2 | null]>>
-
-// Overload for right join - left side can be null
-export function join<
-  K,
-  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
-  V2,
-  T,
->(
-  other: IStreamBuilder<KeyValue<K, V2>>,
-  joinType: 'right',
-): PipedOperator<T, KeyValue<K, [V1 | null, V2]>>
-
-// Overload for full join - both sides can be null
-export function join<
-  K,
-  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
-  V2,
-  T,
->(
-  other: IStreamBuilder<KeyValue<K, V2>>,
-  joinType: 'full',
-): PipedOperator<T, KeyValue<K, [V1 | null, V2 | null]>>
-
-// Default overload for when join type is not specified
-export function join<
-  K,
-  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
-  V2,
-  T,
->(
-  other: IStreamBuilder<KeyValue<K, V2>>,
-): PipedOperator<T, KeyValue<K, [V1, V2]>>
-
 /**
  * Joins two input streams
  * @param other - The other stream to join with
- * @param joinType - Type of join to perform (inner, left, right, full)
+ * @param type - The type of join to perform
  */
 export function join<
   K,
@@ -223,17 +134,43 @@ export function join<
   T,
 >(
   other: IStreamBuilder<KeyValue<K, V2>>,
-  joinType: JoinType = 'inner',
+  type: JoinType = 'inner',
 ): PipedOperator<T, KeyValue<K, [V1 | null, V2 | null]>> {
-  return (
-    stream: IStreamBuilder<T>,
-  ): IStreamBuilder<KeyValue<K, [V1 | null, V2 | null]>> => {
+  switch (type) {
+    case 'inner':
+      return innerJoin(other) as PipedOperator<T, KeyValue<K, [V1, V2]>>
+    case 'anti':
+      return antiJoin(other) as PipedOperator<T, KeyValue<K, [V1, null]>>
+    case 'left':
+      return leftJoin(other) as PipedOperator<T, KeyValue<K, [V1, V2 | null]>>
+    case 'right':
+      return rightJoin(other)
+    case 'full':
+      return fullJoin(other)
+    default:
+      throw new Error(`Join type ${type} is invalid`)
+  }
+}
+
+/**
+ * Joins two input streams
+ * @param other - The other stream to join with
+ */
+export function innerJoin<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T,
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+): PipedOperator<T, KeyValue<K, [V1, V2]>> {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, [V1, V2]>> => {
     if (stream.graph !== other.graph) {
       throw new Error('Cannot join streams from different graphs')
     }
-    const output = new StreamBuilder<KeyValue<K, [V1 | null, V2 | null]>>(
+    const output = new StreamBuilder<KeyValue<K, [V1, V2]>>(
       stream.graph,
-      new DifferenceStreamWriter<KeyValue<K, [V1 | null, V2 | null]>>(),
+      new DifferenceStreamWriter<KeyValue<K, [V1, V2]>>(),
     )
     const operator = new JoinOperator<K, V1, V2>(
       stream.graph.getNextOperatorId(),
@@ -241,10 +178,119 @@ export function join<
       other.connectReader() as DifferenceStreamReader<KeyValue<K, V2>>,
       output.writer,
       stream.graph.frontier(),
-      joinType,
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())
     return output
+  }
+}
+
+/**
+ * Joins two input streams
+ * @param other - The other stream to join with
+ */
+export function antiJoin<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T,
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+): PipedOperator<T, KeyValue<K, [V1, null]>> {
+  return (
+    stream: IStreamBuilder<T>,
+  ): IStreamBuilder<KeyValue<K, [V1, null]>> => {
+    const matchedLeft = stream.pipe(
+      innerJoin(other),
+      map(([key, [valueLeft, _valueRight]]) => [key, valueLeft]),
+    )
+    const anti = stream.pipe(
+      concat(matchedLeft.pipe(negate())),
+      // @ts-ignore TODO: fix this
+      map(([key, value]) => [key, [value, null]]),
+    )
+    return anti as IStreamBuilder<KeyValue<K, [V1, null]>>
+  }
+}
+
+/**
+ * Joins two input streams
+ * @param other - The other stream to join with
+ */
+export function leftJoin<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T,
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+): PipedOperator<T, KeyValue<K, [V1, V2 | null]>> {
+  return (
+    stream: IStreamBuilder<T>,
+  ): IStreamBuilder<KeyValue<K, [V1, V2 | null]>> => {
+    const left = stream
+    const right = other
+    const inner = left.pipe(innerJoin(right))
+    const anti = left.pipe(antiJoin(right))
+    return inner.pipe(concat(anti)) as IStreamBuilder<
+      KeyValue<K, [V1, V2 | null]>
+    >
+  }
+}
+
+/**
+ * Joins two input streams
+ * @param other - The other stream to join with
+ */
+export function rightJoin<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T,
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+): PipedOperator<T, KeyValue<K, [V1 | null, V2]>> {
+  return (
+    stream: IStreamBuilder<T>,
+  ): IStreamBuilder<KeyValue<K, [V1 | null, V2]>> => {
+    const left = stream as IStreamBuilder<KeyValue<K, V1>>
+    const right = other
+    const inner = left.pipe(innerJoin(right))
+    const anti = right.pipe(
+      antiJoin(left),
+      map(([key, [a, b]]) => [key, [b, a]]),
+    )
+    return inner.pipe(concat(anti)) as IStreamBuilder<
+      KeyValue<K, [V1 | null, V2]>
+    >
+  }
+}
+
+/**
+ * Joins two input streams
+ * @param other - The other stream to join with
+ */
+export function fullJoin<
+  K,
+  V1 extends T extends KeyValue<infer _KT, infer VT> ? VT : never,
+  V2,
+  T,
+>(
+  other: IStreamBuilder<KeyValue<K, V2>>,
+): PipedOperator<T, KeyValue<K, [V1 | null, V2 | null]>> {
+  return (
+    stream: IStreamBuilder<T>,
+  ): IStreamBuilder<KeyValue<K, [V1 | null, V2 | null]>> => {
+    const left = stream as IStreamBuilder<KeyValue<K, V1>>
+    const right = other
+    const inner = left.pipe(innerJoin(right))
+    const antiLeft = left.pipe(antiJoin(right))
+    const antiRight = right.pipe(
+      antiJoin(left),
+      map(([key, [a, b]]) => [key, [b, a]]),
+    )
+    return inner.pipe(concat(antiLeft), concat(antiRight)) as IStreamBuilder<
+      KeyValue<K, [V1 | null, V2 | null]>
+    >
   }
 }
