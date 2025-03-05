@@ -276,7 +276,7 @@ describe('electricStreamToD2Input', () => {
 
   it('should run graph on up-to-date control message when runOn is up-to-date', () => {
     const runSpy = vi.spyOn(d2, 'run')
-    
+
     electricStreamToD2Input({
       graph: d2,
       stream: mockStream,
@@ -299,7 +299,7 @@ describe('electricStreamToD2Input', () => {
 
   it('should run graph on lsn advance when runOn is lsn-advance', () => {
     const runSpy = vi.spyOn(d2, 'run')
-    
+
     electricStreamToD2Input({
       graph: d2,
       stream: mockStream,
@@ -352,7 +352,7 @@ describe('electricStreamToD2Input', () => {
 
   it('should handle debug logging when enabled', () => {
     const consoleSpy = vi.spyOn(console, 'log')
-    
+
     electricStreamToD2Input({
       graph: d2,
       stream: mockStream,
@@ -381,7 +381,7 @@ describe('electricStreamToD2Input', () => {
 
   it('should handle custom debug logging function', () => {
     const customLogger = vi.fn()
-    
+
     electricStreamToD2Input({
       graph: d2,
       stream: mockStream,

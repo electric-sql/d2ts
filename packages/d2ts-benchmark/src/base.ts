@@ -45,6 +45,10 @@ export class Suite {
     this.benchmarks.push(benchmark as Benchmark<unknown>)
   }
 
+  skip(_benchmark: any) {
+    // skip
+  }
+
   runTest(benchmark: Benchmark<unknown>): RunResult {
     const result: RunResult = {
       startupTime: 0,

@@ -1,6 +1,6 @@
 import { Suite } from './base'
-import { D2, MultiSet, map, join, filter, v, output } from '@electric-sql/d2ts'
-import { join as joinSql } from '@electric-sql/d2ts/sqlite'
+import { D2, MultiSet, map, innerJoin as join, filter, v, output } from '@electric-sql/d2ts'
+import { innerJoin as joinSql } from '@electric-sql/d2ts/sqlite'
 import { BetterSQLite3Wrapper } from '@electric-sql/d2ts/sqlite'
 import Database from 'better-sqlite3'
 import { generateGraph } from './graph'

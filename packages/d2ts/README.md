@@ -449,7 +449,7 @@ const rightJoin = input.pipe(join(other, 'right'))
 const fullJoin = input.pipe(join(other, 'full'))
 ```
 
-The join operation is type-safe, with appropriate nullable types for the different join types:
+Additionally there are type-safe variant of the join operator (`leftJoin`, `rightJoin`, `fullJoin`, `antiJoin`), with appropriate nullable types for the different join types:
 
 ```typescript
 // The two streams are initially keyed by the userId and commentId respectively
@@ -463,7 +463,7 @@ const commentsByUser = comments.pipe(
 
 // Left join - keeps all comments, even those without matching users
 const output = commentsByUser.pipe(
-  join(users, 'left'),
+  leftJoin(users),
   map(([userId, [comment, user]]) => {
     // user can be null in a left join if there's no matching user
     return [
