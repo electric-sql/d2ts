@@ -68,13 +68,136 @@ The current implementation supports:
   - Date function for handling date values
   - COALESCE for handling null values
   - JSON_EXTRACT for working with JSON data
+- GROUP BY and HAVING clauses with aggregate functions:
+  - SUM, COUNT, AVG, MIN, MAX, MEDIAN, MODE
 
 ## Planned Features
 
 Future versions will support:
 
-- GROUP BY and HAVING clauses
 - ORDER BY, LIMIT, and OFFSET clauses
+
+## GROUP BY and Aggregation
+
+D2QL supports grouping data and performing aggregate operations using the `GROUP BY` clause. This allows you to summarize data across groups and calculate statistics.
+
+### Basic GROUP BY Example
+
+```typescript
+const query: Query = {
+  select: [
+    '@customer_id',
+    { total_amount: { SUM: '@amount' } },
+    { order_count: { COUNT: '@order_id' } }
+  ],
+  from: 'orders',
+  groupBy: ['@customer_id']
+};
+```
+
+This query groups orders by customer_id and calculates the total amount and count of orders for each customer.
+
+### Multiple Columns in GROUP BY
+
+You can group by multiple columns to create more specific groups:
+
+```typescript
+const query: Query = {
+  select: [
+    '@customer_id',
+    '@status',
+    { total_amount: { SUM: '@amount' } },
+    { order_count: { COUNT: '@order_id' } }
+  ],
+  from: 'orders',
+  groupBy: ['@customer_id', '@status']
+};
+```
+
+This groups orders by both customer_id and status, giving you totals for each combination.
+
+### Using HAVING to Filter Groups
+
+The `HAVING` clause allows you to filter groups based on aggregate values:
+
+```typescript
+const query: Query = {
+  select: [
+    '@customer_id',
+    '@status',
+    { total_amount: { SUM: '@amount' } },
+    { order_count: { COUNT: '@order_id' } }
+  ],
+  from: 'orders',
+  groupBy: ['@customer_id', '@status'],
+  having: [{ col: 'total_amount' }, '>', 200]
+};
+```
+
+This query only returns groups where the total_amount is greater than 200.
+
+### Supported Aggregate Functions
+
+D2QL supports the following aggregate functions:
+
+- **SUM**: Calculates the sum of values in a group
+  ```typescript
+  { total_amount: { SUM: '@amount' } }
+  ```
+
+- **COUNT**: Counts the number of rows in a group
+  ```typescript
+  { order_count: { COUNT: '@order_id' } }
+  ```
+
+- **AVG**: Calculates the average of values in a group
+  ```typescript
+  { avg_amount: { AVG: '@amount' } }
+  ```
+
+- **MIN**: Finds the minimum value in a group
+  ```typescript
+  { min_amount: { MIN: '@amount' } }
+  ```
+
+- **MAX**: Finds the maximum value in a group
+  ```typescript
+  { max_amount: { MAX: '@amount' } }
+  ```
+
+- **MEDIAN**: Calculates the median value in a group
+  ```typescript
+  { median_amount: { MEDIAN: '@amount' } }
+  ```
+
+- **MODE**: Finds the most common value in a group
+  ```typescript
+  { most_common_status: { MODE: '@status' } }
+  ```
+
+### Combining WHERE and GROUP BY
+
+You can use WHERE to filter rows before grouping and HAVING to filter groups after aggregation:
+
+```typescript
+const query: Query = {
+  select: [
+    '@customer_id',
+    { total_amount: { SUM: '@amount' } },
+    { order_count: { COUNT: '@order_id' } }
+  ],
+  from: 'orders',
+  where: ['@status', '=', 'completed'],
+  groupBy: ['@customer_id'],
+  having: [{ col: 'total_amount' }, '>', 500]
+};
+```
+
+This query:
+1. Filters to include only completed orders
+2. Groups the filtered orders by customer_id
+3. Calculates total_amount and order_count for each customer
+4. Returns only groups where the total_amount exceeds 500
 
 ## Kitchen Sink Example
 
@@ -147,6 +270,33 @@ const query: Query = {
       UPPER: '@d.name'
     }, '=', 'ENGINEERING']
   ]
+};
+
+// Example with GROUP BY and aggregations
+const groupByQuery: Query = {
+  select: [
+    '@d.name',
+    { 
+      avg_salary: { AVG: '@e.salary' },
+      total_salary: { SUM: '@e.salary' },
+      employee_count: { COUNT: '@e.id' },
+      max_salary: { MAX: '@e.salary' },
+      min_salary: { MIN: '@e.salary' }
+    }
+  ],
+  from: 'employees',
+  as: 'e',
+  join: [
+    {
+      type: 'inner',
+      from: 'departments',
+      as: 'd',
+      on: ['@e.department_id', '=', '@d.id']
+    }
+  ],
+  where: ['@e.active', '=', true],
+  groupBy: ['@d.name'],
+  having: [{ col: 'employee_count' }, '>=', 2]
 };
 
 // Create a D2 graph
@@ -233,6 +383,13 @@ This example shows:
 3. Function calls in SELECT clauses (UPPER, JSON_EXTRACT, DATE)
 4. LEFT JOIN between employees and departments
 5. Complex WHERE conditions with AND/OR logic and function calls
+
+The GROUP BY example demonstrates:
+1. Grouping by department name to analyze employee data by department
+2. Multiple aggregate functions (AVG, SUM, COUNT, MAX, MIN) in a single query
+3. INNER JOIN to ensure only employees with valid departments are included
+4. WHERE clause to filter active employees before grouping
+5. HAVING clause to filter groups with at least 2 employees
 
 ## Query Schema
 

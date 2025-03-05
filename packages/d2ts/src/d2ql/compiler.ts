@@ -5,8 +5,9 @@ import {
   JoinType,
   consolidate,
 } from '../operators/index.js'
+import { groupBy, sum, count, avg, min, max, median, mode } from '../operators/groupBy.js'
 import { IStreamBuilder } from '../types.js'
-import { Query, Condition, ConditionOperand } from './schema.js'
+import { Query, Condition, ConditionOperand, FunctionCall } from './schema.js'
 import {
   extractValueFromNestedRow,
   extractJoinKey,
@@ -14,6 +15,52 @@ import {
 } from './extractors.js'
 import { evaluateConditionOnNestedRow } from './evaluators.js'
 import { processJoinResults } from './joins.js'
+
+// Helper function to determine if an object is a function call with an aggregate function
+function isAggregateFunctionCall(obj: any): boolean {
+  if (!obj || typeof obj !== 'object') return false
+  
+  const aggregateFunctions = ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX', 'MEDIAN', 'MODE'];
+  const keys = Object.keys(obj);
+  
+  return keys.length === 1 && aggregateFunctions.includes(keys[0]);
+}
+
+// Helper function to get the appropriate aggregate function
+function getAggregateFunction(functionName: string, columnRef: string | ConditionOperand, mainTableAlias: string) {
+  // Convert the function name to lowercase to match our operator functions
+  const fnName = functionName.toLowerCase();
+  
+  // Create a value extractor function that will extract the value from the nested row
+  const valueExtractor = (nestedRow: Record<string, unknown>) => {
+    if (typeof columnRef === 'string' && columnRef.startsWith('@')) {
+      const colRef = columnRef.substring(1);
+      return extractValueFromNestedRow(nestedRow, colRef, mainTableAlias) as number;
+    } else {
+      return evaluateOperandOnNestedRow(nestedRow, columnRef as ConditionOperand, mainTableAlias) as number;
+    }
+  };
+  
+  // Return the appropriate aggregate function
+  switch (fnName) {
+    case 'sum':
+      return sum(valueExtractor);
+    case 'count':
+      return count();
+    case 'avg':
+      return avg(valueExtractor);
+    case 'min':
+      return min(valueExtractor);
+    case 'max':
+      return max(valueExtractor);
+    case 'median':
+      return median(valueExtractor);
+    case 'mode':
+      return mode(valueExtractor);
+    default:
+      throw new Error(`Unsupported aggregate function: ${functionName}`);
+  }
+}
 
 /**
  * Compiles a D2QL query into a D2 pipeline
@@ -161,19 +208,89 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
     )
   }
 
-  // Note: In the future, GROUP BY would be implemented here
+  // Process the GROUP BY clause if it exists
+  if (query.groupBy) {
+    // Normalize groupBy to an array of column references
+    const groupByColumns = Array.isArray(query.groupBy) 
+      ? query.groupBy 
+      : [query.groupBy];
+    
+    // Create a key extractor function for the groupBy operator
+    const keyExtractor = (nestedRow: Record<string, unknown>) => {
+      const key: Record<string, unknown> = {};
+      
+      // Extract each groupBy column value
+      for (const column of groupByColumns) {
+        if (typeof column === 'string' && column.startsWith('@')) {
+          const columnRef = column.substring(1);
+          const columnName = columnRef.includes('.') 
+            ? columnRef.split('.')[1] 
+            : columnRef;
+          
+          key[columnName] = extractValueFromNestedRow(
+            nestedRow,
+            columnRef,
+            mainTableAlias
+          );
+        }
+      }
+      
+      return key;
+    };
+    
+    // Create aggregate functions for any aggregated columns in the SELECT clause
+    const aggregates: Record<string, any> = {};
+    
+    // Scan the SELECT clause for aggregate functions
+    for (const item of query.select) {
+      if (typeof item === 'object') {
+        for (const [alias, expr] of Object.entries(item)) {
+          if (typeof expr === 'object' && isAggregateFunctionCall(expr)) {
+            // Get the function name (the only key in the object)
+            const functionName = Object.keys(expr)[0];
+            // Get the column reference or expression to aggregate
+            const columnRef = (expr as FunctionCall)[functionName as keyof FunctionCall];
+            
+            // Add the aggregate function to our aggregates object
+            aggregates[alias] = getAggregateFunction(functionName, columnRef, mainTableAlias);
+          }
+        }
+      }
+    }
+    
+    // Apply the groupBy operator if we have any aggregates
+    if (Object.keys(aggregates).length > 0) {
+      pipeline = pipeline.pipe(
+        groupBy(keyExtractor, aggregates),
+        // Convert KeyValue<string, ResultType> to Record<string, unknown>
+        map(([_key, value]) => {
+          // After groupBy, the value already contains both the key fields and aggregate results
+          // We need to return it as is, not wrapped in a nested structure
+          return value as Record<string, unknown>
+        })
+      );
+    }
+  }
 
   // Process the HAVING clause if it exists
   // This works similarly to WHERE but is applied after any aggregations
   if (query.having) {
     pipeline = pipeline.pipe(
-      filter((nestedRow) => {
-        const result = evaluateConditionOnNestedRow(
-          nestedRow as Record<string, unknown>,
-          query.having as Condition,
-          mainTableAlias,
-        )
-        return result
+      filter((row) => {
+        try {
+          // For HAVING, we're working with the flattened row that contains both
+          // the group by keys and the aggregate results directly
+          const result = evaluateConditionOnNestedRow(
+            { [mainTableAlias]: row, ...row } as Record<string, unknown>,
+            query.having as Condition,
+            mainTableAlias,
+          )
+          return result
+        } catch (error) {
+          // If there's an error evaluating the condition, log it and filter out the row
+          console.error('Error evaluating HAVING condition:', error)
+          return false
+        }
       }),
     )
   }
@@ -183,6 +300,14 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
     map((nestedRow: Record<string, unknown>) => {
       const result: Record<string, unknown> = {}
 
+      // Check if this is a grouped result (has no nested table structure)
+      // If it's a grouped result, we need to handle it differently
+      const isGroupedResult = query.groupBy && 
+        Object.keys(nestedRow).some(key => 
+          !Object.keys(inputs).includes(key) && 
+          typeof nestedRow[key] !== 'object'
+        );
+
       for (const item of query.select) {
         if (typeof item === 'string') {
           // Handle simple column references like "@table.column" or "@column"
@@ -191,13 +316,18 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
             const columnRef = parts[0].substring(1)
             const alias = parts.length > 1 ? parts[1].trim() : columnRef
 
-            // Extract the value from the nested structure
-            result[alias] = extractValueFromNestedRow(
-              nestedRow,
-              columnRef,
-              mainTableAlias,
-              undefined,
-            )
+            // For grouped results, check if the column is directly in the row first
+            if (isGroupedResult && columnRef in nestedRow) {
+              result[alias] = nestedRow[columnRef];
+            } else {
+              // Extract the value from the nested structure
+              result[alias] = extractValueFromNestedRow(
+                nestedRow,
+                columnRef,
+                mainTableAlias,
+                undefined,
+              )
+            }
 
             // If the alias contains a dot (table.column) and there's no explicit 'as',
             // use just the column part as the field name
@@ -212,25 +342,36 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
           for (const [alias, expr] of Object.entries(item)) {
             if (typeof expr === 'string' && expr.startsWith('@')) {
               const columnRef = expr.substring(1)
-              // Extract the value from the nested structure
-              result[alias] = extractValueFromNestedRow(
-                nestedRow,
-                columnRef,
-                mainTableAlias,
-                undefined,
-              )
+              
+              // For grouped results, check if the column is directly in the row first
+              if (isGroupedResult && columnRef in nestedRow) {
+                result[alias] = nestedRow[columnRef];
+              } else {
+                // Extract the value from the nested structure
+                result[alias] = extractValueFromNestedRow(
+                  nestedRow,
+                  columnRef,
+                  mainTableAlias,
+                  undefined,
+                )
+              }
             } else if (typeof expr === 'string' && !expr.startsWith('@')) {
               // Handle expressions like "table1.col * table2.col"
               // This would need more advanced parsing - for now just log
               // Future: Parse and evaluate the expression
             } else if (typeof expr === 'object') {
-              // This might be a function call
-              result[alias] = evaluateOperandOnNestedRow(
-                nestedRow,
-                expr as ConditionOperand,
-                mainTableAlias,
-                undefined,
-              )
+              // For grouped results, the aggregate results are already in the row
+              if (isGroupedResult && alias in nestedRow) {
+                result[alias] = nestedRow[alias];
+              } else {
+                // This might be a function call
+                result[alias] = evaluateOperandOnNestedRow(
+                  nestedRow,
+                  expr as ConditionOperand,
+                  mainTableAlias,
+                  undefined,
+                )
+              }
             }
           }
         }
