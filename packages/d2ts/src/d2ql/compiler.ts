@@ -3,6 +3,7 @@ import {
   map,
   join as joinOperator,
   JoinType,
+  consolidate,
 } from '../operators/index.js'
 import { IStreamBuilder } from '../types.js'
 import { Query, Condition, ConditionOperand } from './schema.js'
@@ -111,30 +112,35 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
         case 'inner':
           pipeline = mainPipeline.pipe(
             joinOperator(joinedPipeline, 'inner'),
+            consolidate(),
             processJoinResults(mainTableAlias, joinedTableAlias, joinClause),
           )
           break
         case 'left':
           pipeline = mainPipeline.pipe(
             joinOperator(joinedPipeline, 'left'),
+            consolidate(),
             processJoinResults(mainTableAlias, joinedTableAlias, joinClause),
           )
           break
         case 'right':
           pipeline = mainPipeline.pipe(
             joinOperator(joinedPipeline, 'right'),
+            consolidate(),
             processJoinResults(mainTableAlias, joinedTableAlias, joinClause),
           )
           break
         case 'full':
           pipeline = mainPipeline.pipe(
             joinOperator(joinedPipeline, 'full'),
+            consolidate(),
             processJoinResults(mainTableAlias, joinedTableAlias, joinClause),
           )
           break
         default:
           pipeline = mainPipeline.pipe(
             joinOperator(joinedPipeline, 'inner'),
+            consolidate(),
             processJoinResults(mainTableAlias, joinedTableAlias, joinClause),
           )
       }
