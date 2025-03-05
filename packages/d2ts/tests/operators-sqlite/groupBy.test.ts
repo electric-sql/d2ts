@@ -39,9 +39,13 @@ describe('SQLite Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        groupBy((data) => ({ category: data.category }), {
-          total: sum((data) => data.amount),
-        }, db),
+        groupBy(
+          (data) => ({ category: data.category }),
+          {
+            total: sum((data) => data.amount),
+          },
+          db,
+        ),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -116,7 +120,7 @@ describe('SQLite Operators', () => {
             total: sum((data) => data.amount),
             count: count(),
           },
-          db
+          db,
         ),
         output((message) => {
           if (message.type === MessageType.DATA) {
@@ -289,10 +293,14 @@ describe('SQLite Operators', () => {
       const messages: DataMessage<any>[] = []
 
       input.pipe(
-        groupBy((data) => ({ category: data.category }), {
-          average: avg((data) => data.amount),
-          count: count(),
-        }, db),
+        groupBy(
+          (data) => ({ category: data.category }),
+          {
+            average: avg((data) => data.amount),
+            count: count(),
+          },
+          db,
+        ),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -442,10 +450,14 @@ describe('SQLite Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        groupBy((data) => ({ category: data.category }), {
-          minimum: min((data) => data.amount),
-          maximum: max((data) => data.amount),
-        }, db),
+        groupBy(
+          (data) => ({ category: data.category }),
+          {
+            minimum: min((data) => data.amount),
+            maximum: max((data) => data.amount),
+          },
+          db,
+        ),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -511,10 +523,14 @@ describe('SQLite Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        groupBy((data) => ({ category: data.category }), {
-          middle: median((data) => data.amount),
-          mostFrequent: mode((data) => data.amount),
-        }, db),
+        groupBy(
+          (data) => ({ category: data.category }),
+          {
+            middle: median((data) => data.amount),
+            mostFrequent: mode((data) => data.amount),
+          },
+          db,
+        ),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data

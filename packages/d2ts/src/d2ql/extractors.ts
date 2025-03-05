@@ -106,13 +106,13 @@ export function evaluateOperandOnNestedRow(
         mainTableAlias,
         joinedTableAlias,
       )
-      
+
       // If not found in nested structure, check if it's a direct property of the row
       // This is important for HAVING clauses that reference aggregated values
       if (nestedValue === undefined && colRef in nestedRow) {
         return nestedRow[colRef]
       }
-      
+
       return nestedValue
     }
 

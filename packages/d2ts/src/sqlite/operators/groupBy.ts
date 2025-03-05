@@ -5,14 +5,7 @@ import { SQLiteDb } from '../database.js'
 
 // Re-export most of the aggregate functions from the main implementation
 // since they are compatible with both versions
-export {
-  sum,
-  count,
-  avg,
-  min,
-  max,
-  median,
-} from '../../operators/groupBy.js'
+export { sum, count, avg, min, max, median } from '../../operators/groupBy.js'
 
 // Define types locally since they're not exported from the main implementation
 type GroupKey = Record<string, unknown>
