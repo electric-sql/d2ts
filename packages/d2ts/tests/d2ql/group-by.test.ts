@@ -173,19 +173,39 @@ describe('D2QL GROUP BY', () => {
 
     const expected = [
       [
-        { customer_id: 1, status: 'completed', total_amount: 300, order_count: 2 },
+        {
+          customer_id: 1,
+          status: 'completed',
+          total_amount: 300,
+          order_count: 2,
+        },
         1,
       ],
       [
-        { customer_id: 2, status: 'completed', total_amount: 300, order_count: 1 },
+        {
+          customer_id: 2,
+          status: 'completed',
+          total_amount: 300,
+          order_count: 1,
+        },
         1,
       ],
       [
-        { customer_id: 2, status: 'pending', total_amount: 150, order_count: 1 },
+        {
+          customer_id: 2,
+          status: 'pending',
+          total_amount: 150,
+          order_count: 1,
+        },
         1,
       ],
       [
-        { customer_id: 3, status: 'pending', total_amount: 250, order_count: 1 },
+        {
+          customer_id: 3,
+          status: 'pending',
+          total_amount: 250,
+          order_count: 1,
+        },
         1,
       ],
     ]
@@ -220,15 +240,30 @@ describe('D2QL GROUP BY', () => {
 
     const expected = [
       [
-        { customer_id: 1, status: 'completed', total_amount: 300, order_count: 2 },
+        {
+          customer_id: 1,
+          status: 'completed',
+          total_amount: 300,
+          order_count: 2,
+        },
         1,
       ],
       [
-        { customer_id: 2, status: 'completed', total_amount: 300, order_count: 1 },
+        {
+          customer_id: 2,
+          status: 'completed',
+          total_amount: 300,
+          order_count: 1,
+        },
         1,
       ],
       [
-        { customer_id: 3, status: 'pending', total_amount: 250, order_count: 1 },
+        {
+          customer_id: 3,
+          status: 'pending',
+          total_amount: 250,
+          order_count: 1,
+        },
         1,
       ],
     ]
@@ -259,9 +294,9 @@ describe('D2QL GROUP BY', () => {
     // Verify we got at least one data message
     const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
     expect(dataMessages.length).toBeGreaterThan(0)
-    
+
     const result = dataMessages[0].data.collection.getInner()
-    
+
     const expected = [
       [
         {
@@ -297,10 +332,10 @@ describe('D2QL GROUP BY', () => {
         1,
       ],
     ]
-    
+
     // Sort by customer_id for consistent comparison
     result.sort((a, b) => a[0].customer_id - b[0].customer_id)
-    
+
     expect(result).toEqual(expected)
   })
 
@@ -321,9 +356,9 @@ describe('D2QL GROUP BY', () => {
     // Verify we got at least one data message
     const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
     expect(dataMessages.length).toBeGreaterThan(0)
-    
+
     const result = dataMessages[0].data.collection.getInner()
-    
+
     const expected = [
       [
         {
@@ -342,10 +377,10 @@ describe('D2QL GROUP BY', () => {
         1,
       ],
     ]
-    
+
     // Sort by customer_id for consistent comparison
     result.sort((a, b) => a[0].customer_id - b[0].customer_id)
-    
+
     expect(result).toEqual(expected)
   })
 
@@ -365,9 +400,9 @@ describe('D2QL GROUP BY', () => {
     // Verify we got at least one data message
     const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
     expect(dataMessages.length).toBeGreaterThan(0)
-    
+
     const result = dataMessages[0].data.collection.getInner()
-    
+
     const expected = [
       [
         {
@@ -386,10 +421,10 @@ describe('D2QL GROUP BY', () => {
         1,
       ],
     ]
-    
+
     // Sort by status for consistent comparison
     result.sort((a, b) => a[0].status.localeCompare(b[0].status))
-    
+
     expect(result).toEqual(expected)
   })
 })

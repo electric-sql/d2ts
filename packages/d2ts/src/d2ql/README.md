@@ -61,6 +61,7 @@ The current implementation supports:
 
 - Selecting from a single input
 - Selecting columns (with or without aliases)
+- Wildcard selects (`@*` and `@table.*`) to select all columns
 - Simple and complex WHERE clauses with AND/OR logic
 - JOIN operations (INNER, LEFT, RIGHT, and FULL)
 - Function calls in SELECT and WHERE clauses, including:
@@ -199,6 +200,43 @@ This query:
 3. Calculates total_amount and order_count for each customer
 4. Returns only groups where the total_amount exceeds 500
 
+## Wildcard Selects
+
+D2QL supports wildcard selects to easily retrieve all columns from tables:
+
+```typescript
+// Select all columns from all tables
+const query1: Query = {
+  select: ['@*'],
+  from: 'users'
+};
+
+// Select all columns from a specific table
+const query2: Query = {
+  select: ['@users.*'],
+  from: 'users',
+  as: 'users'
+};
+
+// In joins, select all columns from specific tables
+const query3: Query = {
+  select: [
+    '@u.*',                   // All columns from users
+    { 'order_id': '@o.id' }   // Just the id from orders
+  ],
+  from: 'users',
+  as: 'u',
+  join: [
+    {
+      type: 'inner',
+      from: 'orders',
+      as: 'o',
+      on: ['@u.id', '=', '@o.userId']
+    }
+  ]
+};
+```
+
 ## Kitchen Sink Example
 
 Here's a comprehensive example demonstrating many of D2QL's current capabilities in a single query:
@@ -270,6 +308,15 @@ const query: Query = {
       UPPER: '@d.name'
     }, '=', 'ENGINEERING']
   ]
+};
+
+// Example with wildcard select
+const wildcardQuery: Query = {
+  select: ['@e.*', '@d.name', { budget: '@d.budget' }],
+  from: 'employees',
+  as: 'e',
+  join: [{ type: 'inner', from: 'departments', as: 'd', on: ['@e.department_id', '=', '@d.id'] }],
+  where: ['@e.active', '=', true]
 };
 
 // Example with GROUP BY and aggregations

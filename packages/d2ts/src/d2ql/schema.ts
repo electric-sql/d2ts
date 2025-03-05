@@ -117,6 +117,8 @@ export type OrderBy =
 export interface Query {
   // The select clause is an array of either plain strings or objects mapping alias names
   // to expressions. Plain strings starting with "@" denote column references.
+  // Plain string "@*" denotes all columns from all tables.
+  // Plain string "@table.*" denotes all columns from a specific table.
   select: Array<string | { [alias: string]: string | FunctionCall }>
   as?: string
   from: string
