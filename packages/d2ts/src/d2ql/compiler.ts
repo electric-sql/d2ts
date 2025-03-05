@@ -263,7 +263,11 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
       pipeline = pipeline.pipe(
         groupBy(keyExtractor, aggregates),
         // Convert KeyValue<string, ResultType> to Record<string, unknown>
-        map(([_key, value]) => value as Record<string, unknown>)
+        map(([_key, value]) => {
+          // After groupBy, the value already contains both the key fields and aggregate results
+          // We need to return it as is, not wrapped in a nested structure
+          return value as Record<string, unknown>
+        })
       );
     }
   }
@@ -272,10 +276,12 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
   // This works similarly to WHERE but is applied after any aggregations
   if (query.having) {
     pipeline = pipeline.pipe(
-      filter((nestedRow) => {
+      filter((row) => {
         try {
+          // For HAVING, we're working with the flattened row that contains both
+          // the group by keys and the aggregate results directly
           const result = evaluateConditionOnNestedRow(
-            nestedRow as Record<string, unknown>,
+            { [mainTableAlias]: row, ...row } as Record<string, unknown>,
             query.having as Condition,
             mainTableAlias,
           )
@@ -294,6 +300,14 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
     map((nestedRow: Record<string, unknown>) => {
       const result: Record<string, unknown> = {}
 
+      // Check if this is a grouped result (has no nested table structure)
+      // If it's a grouped result, we need to handle it differently
+      const isGroupedResult = query.groupBy && 
+        Object.keys(nestedRow).some(key => 
+          !Object.keys(inputs).includes(key) && 
+          typeof nestedRow[key] !== 'object'
+        );
+
       for (const item of query.select) {
         if (typeof item === 'string') {
           // Handle simple column references like "@table.column" or "@column"
@@ -302,13 +316,18 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
             const columnRef = parts[0].substring(1)
             const alias = parts.length > 1 ? parts[1].trim() : columnRef
 
-            // Extract the value from the nested structure
-            result[alias] = extractValueFromNestedRow(
-              nestedRow,
-              columnRef,
-              mainTableAlias,
-              undefined,
-            )
+            // For grouped results, check if the column is directly in the row first
+            if (isGroupedResult && columnRef in nestedRow) {
+              result[alias] = nestedRow[columnRef];
+            } else {
+              // Extract the value from the nested structure
+              result[alias] = extractValueFromNestedRow(
+                nestedRow,
+                columnRef,
+                mainTableAlias,
+                undefined,
+              )
+            }
 
             // If the alias contains a dot (table.column) and there's no explicit 'as',
             // use just the column part as the field name
@@ -323,25 +342,36 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
           for (const [alias, expr] of Object.entries(item)) {
             if (typeof expr === 'string' && expr.startsWith('@')) {
               const columnRef = expr.substring(1)
-              // Extract the value from the nested structure
-              result[alias] = extractValueFromNestedRow(
-                nestedRow,
-                columnRef,
-                mainTableAlias,
-                undefined,
-              )
+              
+              // For grouped results, check if the column is directly in the row first
+              if (isGroupedResult && columnRef in nestedRow) {
+                result[alias] = nestedRow[columnRef];
+              } else {
+                // Extract the value from the nested structure
+                result[alias] = extractValueFromNestedRow(
+                  nestedRow,
+                  columnRef,
+                  mainTableAlias,
+                  undefined,
+                )
+              }
             } else if (typeof expr === 'string' && !expr.startsWith('@')) {
               // Handle expressions like "table1.col * table2.col"
               // This would need more advanced parsing - for now just log
               // Future: Parse and evaluate the expression
             } else if (typeof expr === 'object') {
-              // This might be a function call
-              result[alias] = evaluateOperandOnNestedRow(
-                nestedRow,
-                expr as ConditionOperand,
-                mainTableAlias,
-                undefined,
-              )
+              // For grouped results, the aggregate results are already in the row
+              if (isGroupedResult && alias in nestedRow) {
+                result[alias] = nestedRow[alias];
+              } else {
+                // This might be a function call
+                result[alias] = evaluateOperandOnNestedRow(
+                  nestedRow,
+                  expr as ConditionOperand,
+                  mainTableAlias,
+                  undefined,
+                )
+              }
             }
           }
         }

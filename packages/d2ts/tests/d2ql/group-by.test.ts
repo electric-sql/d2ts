@@ -23,11 +23,41 @@ describe('D2QL GROUP BY', () => {
 
   // Sample data for testing
   const orders: OrderRecord[] = [
-    { order_id: 1, customer_id: 1, amount: 100, status: 'completed', date: new Date('2023-01-01') },
-    { order_id: 2, customer_id: 1, amount: 200, status: 'completed', date: new Date('2023-01-15') },
-    { order_id: 3, customer_id: 2, amount: 150, status: 'pending', date: new Date('2023-01-20') },
-    { order_id: 4, customer_id: 2, amount: 300, status: 'completed', date: new Date('2023-02-01') },
-    { order_id: 5, customer_id: 3, amount: 250, status: 'pending', date: new Date('2023-02-10') },
+    {
+      order_id: 1,
+      customer_id: 1,
+      amount: 100,
+      status: 'completed',
+      date: new Date('2023-01-01'),
+    },
+    {
+      order_id: 2,
+      customer_id: 1,
+      amount: 200,
+      status: 'completed',
+      date: new Date('2023-01-15'),
+    },
+    {
+      order_id: 3,
+      customer_id: 2,
+      amount: 150,
+      status: 'pending',
+      date: new Date('2023-01-20'),
+    },
+    {
+      order_id: 4,
+      customer_id: 2,
+      amount: 300,
+      status: 'completed',
+      date: new Date('2023-02-01'),
+    },
+    {
+      order_id: 5,
+      customer_id: 3,
+      amount: 250,
+      status: 'pending',
+      date: new Date('2023-02-10'),
+    },
   ]
 
   beforeEach(() => {
@@ -46,7 +76,7 @@ describe('D2QL GROUP BY', () => {
     const outputOp = output<any>((message) => {
       messages.push(message)
     })
-    
+
     pipeline.pipe(outputOp)
 
     // Finalize the graph
@@ -70,22 +100,55 @@ describe('D2QL GROUP BY', () => {
     const query: Query = {
       select: [
         '@customer_id',
-        { total_amount: { 'SUM': '@amount' } as any },
-        { order_count: { 'COUNT': '@order_id' } as any }
+        { total_amount: { SUM: '@amount' } as any },
+        { order_count: { COUNT: '@order_id' } as any },
       ],
       from: 'orders',
-      groupBy: ['@customer_id']
+      groupBy: ['@customer_id'],
     }
 
     const messages = runQuery(query)
 
     // Verify we got at least one data message
-    const dataMessages = messages.filter(m => m.type === MessageType.DATA)
-    expect(dataMessages.length).toBeGreaterThan(0)
-    
+    const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
+    expect(dataMessages.length).toBe(1)
+
     // Verify we got a frontier message
-    const frontierMessages = messages.filter(m => m.type === MessageType.FRONTIER)
+    const frontierMessages = messages.filter(
+      (m) => m.type === MessageType.FRONTIER,
+    )
     expect(frontierMessages.length).toBeGreaterThan(0)
+
+    const result = dataMessages[0].data.collection.getInner()
+
+    const expected = [
+      [
+        {
+          customer_id: 1,
+          total_amount: 300,
+          order_count: 2,
+        },
+        1,
+      ],
+      [
+        {
+          customer_id: 2,
+          total_amount: 450,
+          order_count: 2,
+        },
+        1,
+      ],
+      [
+        {
+          customer_id: 3,
+          total_amount: 250,
+          order_count: 1,
+        },
+        1,
+      ],
+    ]
+
+    expect(result).toEqual(expected)
   })
 
   test('should group by multiple columns', () => {
@@ -93,18 +156,45 @@ describe('D2QL GROUP BY', () => {
       select: [
         '@customer_id',
         '@status',
-        { total_amount: { 'SUM': '@amount' } as any },
-        { order_count: { 'COUNT': '@order_id' } as any }
+        { total_amount: { SUM: '@amount' } as any },
+        { order_count: { COUNT: '@order_id' } as any },
       ],
       from: 'orders',
-      groupBy: ['@customer_id', '@status']
+      groupBy: ['@customer_id', '@status'],
     }
 
     const messages = runQuery(query)
 
     // Verify we got at least one data message
-    const dataMessages = messages.filter(m => m.type === MessageType.DATA)
+    const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
     expect(dataMessages.length).toBeGreaterThan(0)
+
+    const result = dataMessages[0].data.collection.getInner()
+
+    const expected = [
+      [
+        { customer_id: 1, status: 'completed', total_amount: 300, order_count: 2 },
+        1,
+      ],
+      [
+        { customer_id: 2, status: 'completed', total_amount: 300, order_count: 1 },
+        1,
+      ],
+      [
+        { customer_id: 2, status: 'pending', total_amount: 150, order_count: 1 },
+        1,
+      ],
+      [
+        { customer_id: 3, status: 'pending', total_amount: 250, order_count: 1 },
+        1,
+      ],
+    ]
+
+    result
+      .sort((a, b) => a[0].customer_id - b[0].customer_id)
+      .sort((a, b) => a[0].status.localeCompare(b[0].status))
+
+    expect(result).toEqual(expected)
   })
 
   test('should apply HAVING clause after grouping', () => {
@@ -112,84 +202,194 @@ describe('D2QL GROUP BY', () => {
       select: [
         '@customer_id',
         '@status',
-        { total_amount: { 'SUM': '@amount' } as any },
-        { order_count: { 'COUNT': '@order_id' } as any }
+        { total_amount: { SUM: '@amount' } as any },
+        { order_count: { COUNT: '@order_id' } as any },
       ],
       from: 'orders',
       groupBy: ['@customer_id', '@status'],
-      having: [
-        { col: 'total_amount' },
-        '>',
-        200
-      ]
+      having: [{ col: 'total_amount' }, '>', 200],
     }
 
     const messages = runQuery(query)
 
     // Verify we got at least one data message
-    const dataMessages = messages.filter(m => m.type === MessageType.DATA)
+    const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
     expect(dataMessages.length).toBeGreaterThan(0)
+
+    const result = dataMessages[0].data.collection.getInner()
+
+    const expected = [
+      [
+        { customer_id: 1, status: 'completed', total_amount: 300, order_count: 2 },
+        1,
+      ],
+      [
+        { customer_id: 2, status: 'completed', total_amount: 300, order_count: 1 },
+        1,
+      ],
+      [
+        { customer_id: 3, status: 'pending', total_amount: 250, order_count: 1 },
+        1,
+      ],
+    ]
+
+    result
+      .sort((a, b) => a[0].customer_id - b[0].customer_id)
+      .sort((a, b) => a[0].status.localeCompare(b[0].status))
+
+    expect(result).toEqual(expected)
   })
 
   test('should work with different aggregate functions', () => {
     const query: Query = {
       select: [
         '@customer_id',
-        { total_amount: { 'SUM': '@amount' } as any },
-        { avg_amount: { 'AVG': '@amount' } as any },
-        { min_amount: { 'MIN': '@amount' } as any },
-        { max_amount: { 'MAX': '@amount' } as any },
-        { order_count: { 'COUNT': '@order_id' } as any }
+        { total_amount: { SUM: '@amount' } as any },
+        { avg_amount: { AVG: '@amount' } as any },
+        { min_amount: { MIN: '@amount' } as any },
+        { max_amount: { MAX: '@amount' } as any },
+        { order_count: { COUNT: '@order_id' } as any },
       ],
       from: 'orders',
-      groupBy: ['@customer_id']
+      groupBy: ['@customer_id'],
     }
 
     const messages = runQuery(query)
 
     // Verify we got at least one data message
-    const dataMessages = messages.filter(m => m.type === MessageType.DATA)
+    const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
     expect(dataMessages.length).toBeGreaterThan(0)
+    
+    const result = dataMessages[0].data.collection.getInner()
+    
+    const expected = [
+      [
+        {
+          customer_id: 1,
+          total_amount: 300,
+          avg_amount: 150,
+          min_amount: 100,
+          max_amount: 200,
+          order_count: 2,
+        },
+        1,
+      ],
+      [
+        {
+          customer_id: 2,
+          total_amount: 450,
+          avg_amount: 225,
+          min_amount: 150,
+          max_amount: 300,
+          order_count: 2,
+        },
+        1,
+      ],
+      [
+        {
+          customer_id: 3,
+          total_amount: 250,
+          avg_amount: 250,
+          min_amount: 250,
+          max_amount: 250,
+          order_count: 1,
+        },
+        1,
+      ],
+    ]
+    
+    // Sort by customer_id for consistent comparison
+    result.sort((a, b) => a[0].customer_id - b[0].customer_id)
+    
+    expect(result).toEqual(expected)
   })
 
   test('should work with WHERE and GROUP BY together', () => {
     const query: Query = {
       select: [
         '@customer_id',
-        { total_amount: { 'SUM': '@amount' } as any },
-        { order_count: { 'COUNT': '@order_id' } as any }
+        { total_amount: { SUM: '@amount' } as any },
+        { order_count: { COUNT: '@order_id' } as any },
       ],
       from: 'orders',
-      where: [
-        '@status',
-        '=',
-        'completed'
-      ],
-      groupBy: ['@customer_id']
+      where: ['@status', '=', 'completed'],
+      groupBy: ['@customer_id'],
     }
 
     const messages = runQuery(query)
 
     // Verify we got at least one data message
-    const dataMessages = messages.filter(m => m.type === MessageType.DATA)
+    const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
     expect(dataMessages.length).toBeGreaterThan(0)
+    
+    const result = dataMessages[0].data.collection.getInner()
+    
+    const expected = [
+      [
+        {
+          customer_id: 1,
+          total_amount: 300,
+          order_count: 2,
+        },
+        1,
+      ],
+      [
+        {
+          customer_id: 2,
+          total_amount: 300,
+          order_count: 1,
+        },
+        1,
+      ],
+    ]
+    
+    // Sort by customer_id for consistent comparison
+    result.sort((a, b) => a[0].customer_id - b[0].customer_id)
+    
+    expect(result).toEqual(expected)
   })
 
   test('should handle a single string in groupBy', () => {
     const query: Query = {
       select: [
         '@status',
-        { total_amount: { 'SUM': '@amount' } as any },
-        { order_count: { 'COUNT': '@order_id' } as any }
+        { total_amount: { SUM: '@amount' } as any },
+        { order_count: { COUNT: '@order_id' } as any },
       ],
       from: 'orders',
-      groupBy: '@status' // Single string instead of array
+      groupBy: '@status', // Single string instead of array
     }
 
     const messages = runQuery(query)
 
     // Verify we got at least one data message
-    const dataMessages = messages.filter(m => m.type === MessageType.DATA)
+    const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
     expect(dataMessages.length).toBeGreaterThan(0)
+    
+    const result = dataMessages[0].data.collection.getInner()
+    
+    const expected = [
+      [
+        {
+          status: 'completed',
+          total_amount: 600,
+          order_count: 3,
+        },
+        1,
+      ],
+      [
+        {
+          status: 'pending',
+          total_amount: 400,
+          order_count: 2,
+        },
+        1,
+      ],
+    ]
+    
+    // Sort by status for consistent comparison
+    result.sort((a, b) => a[0].status.localeCompare(b[0].status))
+    
+    expect(result).toEqual(expected)
   })
-}) 
+})
