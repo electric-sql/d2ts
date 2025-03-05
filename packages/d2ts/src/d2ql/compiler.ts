@@ -6,7 +6,7 @@ import {
   consolidate,
 } from '../operators/index.js'
 import { groupBy, sum, count, avg, min, max, median, mode } from '../operators/groupBy.js'
-import { IStreamBuilder, KeyValue } from '../types.js'
+import { IStreamBuilder } from '../types.js'
 import { Query, Condition, ConditionOperand, FunctionCall } from './schema.js'
 import {
   extractValueFromNestedRow,
