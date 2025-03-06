@@ -1,6 +1,6 @@
 import { output } from './operators/output'
 import { MessageType, IStreamBuilder } from './types'
-import { D2 } from './d2'
+import { D2, RootStreamBuilder } from './d2'
 import { MultiSet, MultiSetArray } from './multiset'
 
 export type ChangeInsert<K, V> = {
@@ -217,38 +217,10 @@ export class Store<K, V> {
 
     const unsubscribes: (() => void)[] = []
 
-    for (let i = 0; i < stores.length; i++) {
-      const store = stores[i]
-      const input = inputs[i]
-      const unsubscribe = store.subscribe((rawChanges) => {
-        const changes: MultiSetArray<[K, V]> = []
-        for (const change of rawChanges) {
-          switch (change.type) {
-            case 'insert':
-              changes.push([[change.key, change.value], 1])
-              break
-            case 'delete':
-              changes.push([[change.key, change.previousValue!], -1])
-              break
-            case 'update':
-              changes.push([[change.key, change.value], 1])
-              changes.push([[change.key, change.previousValue!], -1])
-              break
-          }
-        }
-        input.sendData(time, new MultiSet(changes))
-        input.sendFrontier(++time)
-        graph.step()
-        time++
-      })
-      unsubscribes.push(unsubscribe)
-    }
-
-    // Send the initial data
-    for (let i = 0; i < stores.length; i++) {
-      const store = stores[i]
-      const input = inputs[i]
-      const rawChanges = store.entriesAsChanges()
+    const sendChanges = (
+      input: RootStreamBuilder<[K, V]>,
+      rawChanges: ChangeSet<K, V>,
+    ) => {
       const changes: MultiSetArray<[K, V]> = []
       for (const change of rawChanges) {
         switch (change.type) {
@@ -266,6 +238,25 @@ export class Store<K, V> {
       }
       input.sendData(time, new MultiSet(changes))
       input.sendFrontier(++time)
+    }
+
+    for (let i = 0; i < stores.length; i++) {
+      const store = stores[i]
+      const input = inputs[i]
+      const unsubscribe = store.subscribe((rawChanges) => {
+        sendChanges(input, rawChanges)
+        graph.step()
+        time++
+      })
+      unsubscribes.push(unsubscribe)
+    }
+
+    // Send the initial data
+    for (let i = 0; i < stores.length; i++) {
+      const store = stores[i]
+      const input = inputs[i]
+      const rawChanges = store.entriesAsChanges()
+      sendChanges(input, rawChanges)
       graph.step()
     }
 
