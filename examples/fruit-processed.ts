@@ -9,54 +9,60 @@ type FruitOrder = {
 }
 
 const fruitOrders = new Store<string, FruitOrder>()
+const fruitOrders2 = new Store<string, { name: string; quantity: number }>()
 
-const { materializedStatus, materializedProcessed } = Store.queryAll(
-  [fruitOrders],
-  ([fruitStream]) => {
-    const statusStream = fruitStream.pipe(
-      // debug('Raw Input'),
-      map(
-        ([orderId, order]) =>
-          [`${order.name}-${order.status}`, order.quantity] as [string, number],
-      ),
-      // debug('After Map'),
-      reduce((values) => {
-        // The reduce function receives an array of [quantity, diff] for each key
-        // `diff` being the change in number of occurrences of the specific quantity
-        // It is not aware of the key, just that everything it is receiving is for the same key
-        // Here we want to sum the quantity for each key, so a sum of num * diff
-        let count = 0
-        for (const [num, diff] of values) {
-          count += num * diff
-        }
-        return [[count, 1]]
-      }),
-      // debug('Status Totals'),
-      consolidate(),
-    )
-    const processedStream = fruitStream.pipe(
-      // debug('Raw Input'),
-      map(
-        ([orderId, order]) => [order.name, order.quantity] as [string, number],
-      ),
-      // debug('After Map'),
-      reduce((values) => {
-        // Count the total number of each fruit processed
-        let count = 0
-        for (const [num, diff] of values) {
-          count += num * diff
-        }
-        return [[count, 1]]
-      }),
-      // debug('Total Processed'),
-      consolidate(),
-    )
+const [{ materializedStatus, materializedProcessed }, _unsubscribe] =
+  Store.pipeAll(
+    { fruitOrders, fruitOrders2 },
+    ({ fruitOrders, fruitOrders2 }) => {
+      const statusStream = fruitOrders.pipe(
+        // debug('Raw Input'),
+        map(
+          ([orderId, order]) =>
+            [`${order.name}-${order.status}`, order.quantity] as [
+              string,
+              number,
+            ],
+        ),
+        // debug('After Map'),
+        reduce((values) => {
+          // The reduce function receives an array of [quantity, diff] for each key
+          // `diff` being the change in number of occurrences of the specific quantity
+          // It is not aware of the key, just that everything it is receiving is for the same key
+          // Here we want to sum the quantity for each key, so a sum of num * diff
+          let count = 0
+          for (const [num, diff] of values) {
+            count += num * diff
+          }
+          return [[count, 1]]
+        }),
+        // debug('Status Totals'),
+        consolidate(),
+      )
+      const processedStream = fruitOrders.pipe(
+        // debug('Raw Input'),
+        map(
+          ([orderId, order]) =>
+            [order.name, order.quantity] as [string, number],
+        ),
+        // debug('After Map'),
+        reduce((values) => {
+          // Count the total number of each fruit processed
+          let count = 0
+          for (const [num, diff] of values) {
+            count += num * diff
+          }
+          return [[count, 1]]
+        }),
+        // debug('Total Processed'),
+        consolidate(),
+      )
 
-    const materializedStatus = Store.materialize(statusStream)
-    const materializedProcessed = Store.materialize(processedStream)
-    return { materializedStatus, materializedProcessed }
-  },
-)
+      const materializedStatus = Store.materialize(statusStream)
+      const materializedProcessed = Store.materialize(processedStream)
+      return { materializedStatus, materializedProcessed }
+    },
+  )
 
 function showStatus() {
   const obj = Object.fromEntries(materializedStatus.entries())
