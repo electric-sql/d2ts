@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { Store } from '../src/store'
 import type { ChangeSet } from '../src/store'
 import { map, reduce, concat } from '../src/operators'
+import { Query, SimpleCondition, JoinClause } from '../src/d2ql/schema'
 
 describe('Store', () => {
   let store: Store<string, number>
@@ -393,6 +394,96 @@ describe('Store', () => {
         ['b', 4],
         ['c', 6],
       ])
+    })
+  })
+
+  describe('query', () => {
+    it('should allow querying a single store with D2QL', () => {
+      type FruitOrder = {
+        name: string
+        quantity: number
+        status: 'packed' | 'shipped'
+      }
+
+      const store = new Store<string, FruitOrder>(
+        new Map([
+          ['order1', { name: 'apple', quantity: 50, status: 'packed' }],
+          ['order2', { name: 'banana', quantity: 30, status: 'shipped' }],
+          ['order3', { name: 'apple', quantity: 20, status: 'packed' }],
+        ]),
+      )
+
+      const query: Query = {
+        select: ['@name', '@quantity'],
+        from: 'orders',
+        where: ['@name', '=', 'apple'],
+      }
+
+      const [result, unsubscribe] = store.query(query)
+
+      // Check that the result contains only apple orders
+      expect(Array.from(result.entries()).length).toBe(2)
+      expect(
+        Array.from(result.entries()).every(
+          ([_, value]) => value.name === 'apple',
+        ),
+      ).toBe(true)
+
+      // Add a new apple order and check that it's reflected in the result
+      store.set('order4', { name: 'apple', quantity: 10, status: 'packed' })
+      expect(Array.from(result.entries()).length).toBe(3)
+
+      // Clean up
+      unsubscribe()
+    })
+  })
+
+  describe('queryAll', () => {
+    it('should allow querying multiple stores with D2QL', () => {
+      type Order = {
+        productId: string
+        quantity: number
+      }
+
+      type Product = {
+        name: string
+        price: number
+      }
+
+      const orders = new Store<string, Order>(
+        new Map([
+          ['order1', { productId: 'prod1', quantity: 5 }],
+          ['order2', { productId: 'prod2', quantity: 3 }],
+          ['order3', { productId: 'prod1', quantity: 2 }],
+        ]),
+      )
+
+      const products = new Store<string, Product>(
+        new Map([
+          ['prod1', { name: 'Apple', price: 1.2 }],
+          ['prod2', { name: 'Banana', price: 0.8 }],
+        ]),
+      )
+
+      const query: Query = {
+        select: ['@orders.quantity', '@products.price'],
+        from: 'orders',
+        join: [
+          {
+            type: 'inner',
+            from: 'products',
+            on: ['@orders.productId', '=', '@products.@id'],
+          },
+        ],
+      }
+
+      const [result, unsubscribe] = Store.queryAll({ orders, products }, query)
+
+      // Check that the result contains all orders with their prices
+      expect(Array.from(result.entries()).length).toBe(3)
+
+      // Clean up
+      unsubscribe()
     })
   })
 
