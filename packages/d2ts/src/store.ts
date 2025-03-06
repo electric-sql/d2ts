@@ -142,7 +142,9 @@ export class Store<K, V> {
   }
 
   pipe<R>(fn: (stream: IStreamBuilder<[K, V]>) => R): [R, () => void] {
-    return Store.pipeAll([this], ([stream]) => fn(stream))
+    return Store.pipeAll({ single: this as Store<K, V> }, ({ single }) =>
+      fn(single as IStreamBuilder<[K, V]>),
+    )
   }
 
   update(key: K, fn: (value: V | undefined) => V): void {
@@ -205,22 +207,35 @@ export class Store<K, V> {
     return store
   }
 
-  static pipeAll<K extends unknown, V extends unknown, R>(
-    stores: Store<K, V>[],
-    fn: (streams: IStreamBuilder<[K, V]>[]) => R,
+  static pipeAll<StoreMap extends Record<string, Store<any, any>>, R>(
+    stores: StoreMap,
+    fn: (streams: {
+      [K in keyof StoreMap]: StoreMap[K] extends Store<infer KT, infer VT>
+        ? IStreamBuilder<[KT, VT]>
+        : never
+    }) => R,
   ): [R, () => void] {
     let time = 0
     const graph = new D2({ initialFrontier: time })
-    const inputs = stores.map(() => graph.newInput<[K, V]>())
-    const ret = fn(inputs)
+    const inputs: Record<string, RootStreamBuilder<unknown>> = {}
+    for (const name of Object.keys(stores)) {
+      inputs[name] = graph.newInput<unknown>()
+    }
+    const ret = fn(
+      inputs as unknown as {
+        [K in keyof StoreMap]: StoreMap[K] extends Store<infer KT, infer VT>
+          ? IStreamBuilder<[KT, VT]>
+          : never
+      },
+    )
     graph.finalize()
 
     const unsubscribes: (() => void)[] = []
 
-    const sendChanges = (
-      input: RootStreamBuilder<[K, V]>,
+    function sendChanges<K, V>(
+      input: RootStreamBuilder<unknown>,
       rawChanges: ChangeSet<K, V>,
-    ) => {
+    ): void {
       const changes: MultiSetArray<[K, V]> = []
       for (const change of rawChanges) {
         switch (change.type) {
@@ -236,13 +251,16 @@ export class Store<K, V> {
             break
         }
       }
-      input.sendData(time, new MultiSet(changes))
+      input.sendData(
+        time,
+        new MultiSet(changes as unknown as MultiSetArray<unknown>),
+      )
       input.sendFrontier(++time)
     }
 
-    for (let i = 0; i < stores.length; i++) {
-      const store = stores[i]
-      const input = inputs[i]
+    for (const name of Object.keys(stores)) {
+      const store = stores[name]
+      const input = inputs[name]
       const unsubscribe = store.subscribe((rawChanges) => {
         sendChanges(input, rawChanges)
         graph.step()
@@ -251,10 +269,9 @@ export class Store<K, V> {
       unsubscribes.push(unsubscribe)
     }
 
-    // Send the initial data
-    for (let i = 0; i < stores.length; i++) {
-      const store = stores[i]
-      const input = inputs[i]
+    for (const name of Object.keys(stores)) {
+      const store = stores[name]
+      const input = inputs[name]
       const rawChanges = store.entriesAsChanges()
       sendChanges(input, rawChanges)
       graph.step()
