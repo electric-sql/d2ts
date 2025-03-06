@@ -131,6 +131,16 @@ export interface Query {
   limit?: number
   offset?: number
   keyBy?: string | string[]
+  with?: WithQuery[]
+}
+
+// A WithQuery is a query that is used as a Common Table Expression (CTE)
+// It cannot be keyed and must have an alias (as)
+// There is no support for recursive CTEs
+export interface WithQuery extends Query {
+  keyBy: undefined
+  as: string
+  with: undefined
 }
 
 // A keyed query is a query that has a keyBy clause, and so the result is always
