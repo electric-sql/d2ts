@@ -124,6 +124,23 @@
         { "type": "string" },
         { "type": "array", "items": { "type": "string" } }
       ]
+    },
+    "with": {
+      "description": "An array of Common Table Expressions (CTEs) that can be referenced in the main query or in other CTEs. Each CTE must have an 'as' property that defines its name and cannot have a 'keyBy' property.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "allOf": [
+          { "$ref": "#" },
+          {
+            "required": ["as"],
+            "properties": {
+              "keyBy": { "type": "null" },
+              "with": { "type": "null" }
+            }
+          }
+        ]
+      }
     }
   },
   "required": ["select", "from"],

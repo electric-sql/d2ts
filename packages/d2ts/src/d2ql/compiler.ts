@@ -144,14 +144,51 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
   query: Query,
   inputs: Record<string, IStreamBuilder<Record<string, unknown>>>,
 ): T {
+  // Create a copy of the inputs map to avoid modifying the original
+  const allInputs = { ...inputs }
+
+  // Process WITH queries if they exist
+  if (query.with && query.with.length > 0) {
+    // Process each WITH query in order
+    for (const withQuery of query.with) {
+      // Ensure the WITH query has an alias
+      if (!withQuery.as) {
+        throw new Error('WITH query must have an "as" property')
+      }
+
+      // Ensure the WITH query is not keyed
+      if (withQuery.keyBy !== undefined) {
+        throw new Error('WITH query cannot have a "keyBy" property')
+      }
+
+      // Check if this CTE name already exists in the inputs
+      if (allInputs[withQuery.as]) {
+        throw new Error(`CTE with name "${withQuery.as}" already exists`)
+      }
+
+      // Create a new query without the 'with' property to avoid circular references
+      const withQueryWithoutWith = { ...withQuery, with: undefined }
+
+      // Compile the WITH query using the current set of inputs
+      // (which includes previously compiled WITH queries)
+      const compiledWithQuery = compileQuery(
+        withQueryWithoutWith,
+        allInputs,
+      ) as IStreamBuilder<Record<string, unknown>>
+
+      // Add the compiled query to the inputs map using its alias
+      allInputs[withQuery.as] = compiledWithQuery
+    }
+  }
+
   // Create a map of table aliases to inputs
   const tables: Record<string, IStreamBuilder<Record<string, unknown>>> = {}
 
   // The main table is the one in the FROM clause
   const mainTableAlias = query.as || query.from
 
-  // Get the main input from the inputs map
-  const input = inputs[query.from]
+  // Get the main input from the inputs map (now including CTEs)
+  const input = allInputs[query.from]
   if (!input) {
     throw new Error(`Input for table "${query.from}" not found in inputs map`)
   }
@@ -198,9 +235,9 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
       // Get the joined table input from the inputs map
       let joinedTableInput: IStreamBuilder<Record<string, unknown>>
 
-      if (inputs[joinClause.from]) {
+      if (allInputs[joinClause.from]) {
         // Use the provided input if available
-        joinedTableInput = inputs[joinClause.from]
+        joinedTableInput = allInputs[joinClause.from]
       } else {
         // Create a new input if not provided
         joinedTableInput = input.graph.newInput<Record<string, unknown>>()

@@ -71,6 +71,68 @@ The current implementation supports:
   - JSON_EXTRACT for working with JSON data
 - GROUP BY and HAVING clauses with aggregate functions:
   - SUM, COUNT, AVG, MIN, MAX, MEDIAN, MODE
+- Common Table Expressions (CTEs) using the WITH clause
+
+## Common Table Expressions (CTEs)
+
+D2QL supports SQL-like Common Table Expressions (CTEs) using the `WITH` clause. CTEs allow you to define temporary result sets that can be referenced in the main query or in other CTEs.
+
+### Basic CTE Example
+
+```typescript
+const query: Query = {
+  with: [
+    {
+      select: ['@id', '@name', '@age'],
+      from: 'users',
+      where: ['@age', '>', 21],
+      as: 'adult_users'
+    }
+  ],
+  select: ['@id', '@name'],
+  from: 'adult_users',
+  where: ['@name', 'like', 'A%']
+};
+```
+
+### Multiple CTEs Example
+
+You can define multiple CTEs and reference earlier CTEs in later ones:
+
+```typescript
+const query: Query = {
+  with: [
+    {
+      select: ['@id', '@name', '@age'],
+      from: 'users',
+      where: ['@age', '>', 21],
+      as: 'adult_users'
+    },
+    {
+      select: ['@id', '@name', { order_count: 'COUNT(@order_id)' }],
+      from: 'adult_users',
+      join: [
+        {
+          type: 'left',
+          from: 'orders',
+          on: ['@adult_users.id', '=', '@orders.user_id']
+        }
+      ],
+      groupBy: ['@id', '@name'],
+      as: 'user_order_counts'
+    }
+  ],
+  select: ['@id', '@name', '@order_count'],
+  from: 'user_order_counts',
+  where: ['@order_count', '>', 0]
+};
+```
+
+### CTE Requirements
+
+- Each CTE must have an `as` property that defines its name
+- CTEs cannot have a `keyBy` property (they cannot be keyed)
+- CTEs can reference other CTEs defined earlier in the `with` array
 
 ## Planned Features
 
