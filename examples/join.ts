@@ -1,4 +1,4 @@
-import { D2, map, join, distinct, debug, rekey } from '@electric-sql/d2ts'
+import { D2, map, innerJoin, distinct, debug, rekey } from '@electric-sql/d2ts'
 
 type Issue = {
   id: number
@@ -103,7 +103,7 @@ const usersStream = inputUsers.pipe(
 
 // Join streams and transform to desired output format
 const joinedStream = issuesStream.pipe(
-  join(usersStream),
+  innerJoin(usersStream),
   // debug('join'),
   map(([_key, [issue, user]]) => [
     issue.id,

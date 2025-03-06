@@ -2,7 +2,7 @@ import {
   D2,
   map,
   filter,
-  join,
+  innerJoin,
   concat,
   distinct,
   debug,
@@ -54,7 +54,7 @@ const issueIds = issuesForProject.pipe(
 
 // Join comments and map back to just the comment
 const commentsForProject = commentsByIssue.pipe(
-  join(issueIds),
+  innerJoin(issueIds),
   map(([id, [comment, _]]) => [comment.id, comment] as [number, Comment]),
 )
 
@@ -67,7 +67,7 @@ const usersIdsForComments = commentsForProject.pipe(
 )
 const usersIds = usersIdsForIssues.pipe(concat(usersIdsForComments))
 const users = usersIds.pipe(
-  join(inputUsers),
+  innerJoin(inputUsers),
   map(([id, [_, user]]) => [id, user] as [number, User]),
   distinct(),
 )

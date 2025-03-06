@@ -3,7 +3,7 @@ import { IssuePriority, IssueStatus, Issue, User, Comment } from './types'
 import {
   D2,
   map,
-  join,
+  innerJoin,
   reduce,
   consolidate,
   concat,
@@ -78,7 +78,7 @@ const usersForJoin = usersInput.pipe(
 // Join issues with users
 // We join the issues with the users so that we can get the users details for each issue
 const issuesWithUsers = issuesForJoin.pipe(
-  join(usersForJoin),
+  innerJoin(usersForJoin),
   map(
     ([_key, [issue, user]]) =>
       [issue.id, { issue, user }] as [string, { issue: Issue; user: User }],
@@ -89,7 +89,7 @@ const issuesWithUsers = issuesForJoin.pipe(
 // We join the issues with the comment counts so that we can get the comment count for
 // each issue and then map to the final structure
 const finalStream = issuesWithUsers.pipe(
-  join(commentCounts),
+  innerJoin(commentCounts),
   map(([_key, [data, commentCount]]) => {
     const { issue, user } = data
     return [
