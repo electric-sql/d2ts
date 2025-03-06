@@ -1,7 +1,5 @@
-import { MessageType } from './types'
-
 import { output } from './operators/output'
-import { IStreamBuilder } from './types'
+import { MessageType, IStreamBuilder } from './types'
 import { D2 } from './d2'
 import { MultiSet, MultiSetArray } from './multiset'
 
@@ -143,8 +141,8 @@ export class Store<K, V> {
     this.#emitChanges()
   }
 
-  query<R>(fn: (stream: IStreamBuilder<[K, V]>) => R): R {
-    return Store.queryAll([this], ([stream]) => fn(stream))
+  pipe<R>(fn: (stream: IStreamBuilder<[K, V]>) => R): [R, () => void] {
+    return Store.pipeAll([this], ([stream]) => fn(stream))
   }
 
   update(key: K, fn: (value: V | undefined) => V): void {
@@ -207,20 +205,22 @@ export class Store<K, V> {
     return store
   }
 
-  static queryAll<K extends unknown, V extends unknown, R>(
+  static pipeAll<K extends unknown, V extends unknown, R>(
     stores: Store<K, V>[],
     fn: (streams: IStreamBuilder<[K, V]>[]) => R,
-  ): R {
+  ): [R, () => void] {
     let time = 0
     const graph = new D2({ initialFrontier: time })
     const inputs = stores.map(() => graph.newInput<[K, V]>())
     const ret = fn(inputs)
     graph.finalize()
 
+    const unsubscribes: (() => void)[] = []
+
     for (let i = 0; i < stores.length; i++) {
       const store = stores[i]
       const input = inputs[i]
-      store.subscribe((rawChanges) => {
+      const unsubscribe = store.subscribe((rawChanges) => {
         const changes: MultiSetArray<[K, V]> = []
         for (const change of rawChanges) {
           switch (change.type) {
@@ -241,6 +241,7 @@ export class Store<K, V> {
         graph.step()
         time++
       })
+      unsubscribes.push(unsubscribe)
     }
 
     // Send the initial data
@@ -268,7 +269,13 @@ export class Store<K, V> {
       graph.step()
     }
 
-    return ret
+    const unsubscribe = () => {
+      for (const unsubscribe of unsubscribes) {
+        unsubscribe()
+      }
+    }
+
+    return [ret, unsubscribe]
   }
 
   static transactionAll<K, V>(

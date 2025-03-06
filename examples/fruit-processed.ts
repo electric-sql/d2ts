@@ -10,9 +10,8 @@ type FruitOrder = {
 
 const fruitOrders = new Store<string, FruitOrder>()
 
-const { materializedStatus, materializedProcessed } = Store.queryAll(
-  [fruitOrders],
-  ([fruitStream]) => {
+const [{ materializedStatus, materializedProcessed }, _unsubscribe] =
+  Store.pipeAll([fruitOrders], ([fruitStream]) => {
     const statusStream = fruitStream.pipe(
       // debug('Raw Input'),
       map(
@@ -55,8 +54,7 @@ const { materializedStatus, materializedProcessed } = Store.queryAll(
     const materializedStatus = Store.materialize(statusStream)
     const materializedProcessed = Store.materialize(processedStream)
     return { materializedStatus, materializedProcessed }
-  },
-)
+  })
 
 function showStatus() {
   const obj = Object.fromEntries(materializedStatus.entries())

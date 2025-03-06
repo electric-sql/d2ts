@@ -229,7 +229,7 @@ describe('Store', () => {
     })
   })
 
-  describe('queryAll', () => {
+  describe('pipeAll', () => {
     it('should allow querying multiple stores', () => {
       const store1 = new Store<string, number>(
         new Map([
@@ -244,9 +244,12 @@ describe('Store', () => {
         ]),
       )
 
-      const materialized = Store.queryAll([store1, store2], ([s1, s2]) => {
-        return Store.materialize(s1.pipe(concat(s2)))
-      })
+      const [materialized, _unsubscribe] = Store.pipeAll(
+        [store1, store2],
+        ([s1, s2]) => {
+          return Store.materialize(s1.pipe(concat(s2)))
+        },
+      )
 
       expect(Array.from(materialized.entries())).toEqual([
         ['a', 1],
@@ -260,10 +263,13 @@ describe('Store', () => {
       const store1 = new Store<string, number>(new Map([['a', 1]]))
       const store2 = new Store<string, number>(new Map([['b', 2]]))
 
-      const materialized = Store.queryAll([store1, store2], ([s1, s2]) => {
-        // Combine both streams into one store
-        return Store.materialize(s1.pipe(concat(s2)))
-      })
+      const [materialized, _unsubscribe] = Store.pipeAll(
+        [store1, store2],
+        ([s1, s2]) => {
+          // Combine both streams into one store
+          return Store.materialize(s1.pipe(concat(s2)))
+        },
+      )
 
       expect(Array.from(materialized.entries())).toEqual([
         ['a', 1],
@@ -290,38 +296,42 @@ describe('Store', () => {
 
       const orders = new Store<string, FruitOrder>()
 
-      const { byStatus, totals } = Store.queryAll([orders], ([orderStream]) => {
-        // Count by status
-        const byStatus = Store.materialize(
-          orderStream.pipe(
-            map(
-              ([_, order]) =>
-                [`${order.name}-${order.status}`, order.quantity] as [
-                  string,
-                  number,
-                ],
+      const [{ byStatus, totals }, _unsubscribe] = Store.pipeAll(
+        [orders],
+        ([orderStream]) => {
+          // Count by status
+          const byStatus = Store.materialize(
+            orderStream.pipe(
+              map(
+                ([_, order]) =>
+                  [`${order.name}-${order.status}`, order.quantity] as [
+                    string,
+                    number,
+                  ],
+              ),
             ),
-          ),
-        )
+          )
 
-        // Count total by fruit
-        const totals = Store.materialize(
-          orderStream.pipe(
-            map(
-              ([_, order]) => [order.name, order.quantity] as [string, number],
+          // Count total by fruit
+          const totals = Store.materialize(
+            orderStream.pipe(
+              map(
+                ([_, order]) =>
+                  [order.name, order.quantity] as [string, number],
+              ),
+              reduce((values) => {
+                let sum = 0
+                for (const [qty, diff] of values) {
+                  sum += qty * diff
+                }
+                return [[sum, 1]]
+              }),
             ),
-            reduce((values) => {
-              let sum = 0
-              for (const [qty, diff] of values) {
-                sum += qty * diff
-              }
-              return [[sum, 1]]
-            }),
-          ),
-        )
+          )
 
-        return { byStatus, totals }
-      })
+          return { byStatus, totals }
+        },
+      )
 
       // Add initial orders
       orders.transaction((tx) => {
@@ -364,7 +374,7 @@ describe('Store', () => {
         ]),
       )
 
-      const materialized = store.query((stream) =>
+      const [materialized, _unsubscribe] = store.pipe((stream) =>
         Store.materialize(
           stream.pipe(
             map(([key, value]) => [key, value * 2] as [string, number]),
