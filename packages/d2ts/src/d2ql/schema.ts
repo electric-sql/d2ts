@@ -132,3 +132,9 @@ export interface Query {
   offset?: number
   keyBy?: string | string[]
 }
+
+// A keyed query is a query that has a keyBy clause, and so the result is always
+// a keyed stream.
+export interface KeyedQuery extends Query {
+  keyBy: string | string[]
+}

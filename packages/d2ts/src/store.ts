@@ -4,7 +4,7 @@ import { D2, RootStreamBuilder } from './d2'
 import { MultiSet, MultiSetArray } from './multiset'
 import { map } from './operators/map'
 import { compileQuery } from './d2ql/compiler'
-import { Query } from './d2ql/schema'
+import { KeyedQuery } from './d2ql/schema'
 
 export type ChangeInsert<K, V> = {
   type: 'insert'
@@ -155,14 +155,18 @@ export class Store<K, V> {
    * @param query The D2QL query to execute
    * @returns A tuple containing the materialized store and an unsubscribe function
    */
-  query<T extends Record<string, unknown>>(query: Query): [Store<string, T>, () => void] {
+  query<T extends Record<string, any>>(
+    query: KeyedQuery,
+  ): [Store<string, T>, () => void] {
     return this.pipe((stream) => {
-      const inputs = { [query.from]: stream.pipe(
-        map(([_key, data]: [string, unknown]) => [ _key, data as T ])
-      ) };
-      const result = compileQuery<IStreamBuilder<[string, T]>>(query, inputs);
-      return Store.materialize(result);
-    });
+      const inputs: Record<string, IStreamBuilder<Record<string, unknown>>> = {
+        [query.from]: stream.pipe(
+          map(([_key, data]: [string, Record<string, unknown>]) => data),
+        ),
+      }
+      const result = compileQuery<IStreamBuilder<[string, T]>>(query, inputs)
+      return Store.materialize(result)
+    })
   }
 
   /**
@@ -172,28 +176,19 @@ export class Store<K, V> {
    * @returns A tuple containing the materialized store and an unsubscribe function
    */
   static queryAll<
-    StoreMap extends Record<string, Store<any, any>>,
-    T extends Record<string, unknown>
-  >(
-    stores: StoreMap,
-    query: Query
-  ): [Store<string, T>, () => void] {
+    StoreMap extends Record<string, Store<string, any>>,
+    T extends Record<string, unknown>,
+  >(stores: StoreMap, query: KeyedQuery): [Store<string, T>, () => void] {
     return Store.pipeAll(stores, (streams) => {
-      // Convert the streams to the format expected by compileQuery
-      const inputs: Record<string, IStreamBuilder<Record<string, unknown>>> = {};
-      
+      const inputs: Record<string, IStreamBuilder<Record<string, unknown>>> = {}
       for (const [tableName, stream] of Object.entries(streams)) {
         inputs[tableName] = stream.pipe(
-          map((data: unknown) => {
-            const [key, value] = data as [string, any];
-            return { ...value, '@id': key } as Record<string, unknown>;
-          })
-        );
+          map(([_key, data]: [string, Record<string, unknown>]) => data),
+        )
       }
-      
-      const result = compileQuery<IStreamBuilder<[string, T]>>(query, inputs);
-      return Store.materialize(result);
-    });
+      const result = compileQuery<IStreamBuilder<[string, T]>>(query, inputs)
+      return Store.materialize(result)
+    })
   }
 
   update(key: K, fn: (value: V | undefined) => V): void {
