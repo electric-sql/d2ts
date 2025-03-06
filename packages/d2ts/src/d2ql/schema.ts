@@ -130,4 +130,5 @@ export interface Query {
   orderBy?: OrderBy
   limit?: number
   offset?: number
+  keyBy?: string | string[]
 }

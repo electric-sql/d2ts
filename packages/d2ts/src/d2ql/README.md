@@ -237,6 +237,26 @@ const query3: Query = {
 };
 ```
 
+## Keyed Streams with keyBy
+
+D2QL supports creating keyed streams using the `keyBy` parameter. This allows you to specify which column(s) to use as keys in the output stream, making it easier to index or look up data by specific keys.
+
+```typescript
+// Key by a single column (id)
+const query1: Query = {
+  select: ['@id', '@name', '@email'],
+  from: 'users',
+  keyBy: '@id'
+};
+
+// Key by multiple columns
+const query2: Query = {
+  select: ['@id', '@name', '@department', '@role'],
+  from: 'employees',
+  keyBy: ['@department', '@role']
+};
+```
+
 ## Kitchen Sink Example
 
 Here's a comprehensive example demonstrating many of D2QL's current capabilities in a single query:
@@ -454,6 +474,7 @@ interface Query {
   orderBy?: OrderBy;
   limit?: number;
   offset?: number;
+  keyBy?: string | string[];
 }
 ```
 

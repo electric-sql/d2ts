@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SQL DSL Query Schema",
-  "description": "A SQL-like DSL supporting select, join (with optional where clauses), where, groupBy, having, orderBy, limit, and offset. In string values, those starting with '@' denote column references unless wrapped explicitly as a literal. Literal arbitrary JSON (including dates in ISO 8601 format) must be wrapped as {\"value\": ...}. Function calls are represented as objects with a single key (one of the allowed SQL functions) and its argument(s) as the value.",
+  "description": "A SQL-like DSL supporting select, join (with optional where clauses), where, groupBy, having, orderBy, limit, offset, and keyBy. In string values, those starting with '@' denote column references unless wrapped explicitly as a literal. Literal arbitrary JSON (including dates in ISO 8601 format) must be wrapped as {\"value\": ...}. Function calls are represented as objects with a single key (one of the allowed SQL functions) and its argument(s) as the value.",
   "type": "object",
   "properties": {
     "select": {
@@ -117,6 +117,13 @@
       "description": "Specifies the number of rows to skip.",
       "type": "integer",
       "minimum": 0
+    },
+    "keyBy": {
+      "description": "Specifies which column(s) to use as keys in the output keyed stream. Column names should use the '@column' syntax, consistent with other parts of the query. If a single column name is provided and its value is a string or number, it's used directly as the key. Otherwise, the value(s) are JSON serialized. Only columns included in the select clause (or via *) can be used.",
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
     }
   },
   "required": ["select", "from"],
