@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Store } from '../src/store'
 import type { ChangeSet } from '../src/store'
-import { map, reduce, concat } from '../src/operators'
+import { map, reduce, concat, join } from '../src/operators'
 import { Query, KeyedQuery } from '../src/d2ql/schema'
 
 describe('Store', () => {
@@ -364,6 +364,117 @@ describe('Store', () => {
         ['banana', 150],
       ])
     })
+
+    it('should handle joins between stores', () => {
+      // Create two stores with related data
+      type Order = {
+        id: string
+        productId: string
+        quantity: number
+      }
+
+      type Product = {
+        id: string
+        name: string
+        price: number
+      }
+
+      const orders = new Store<string, Order>(
+        new Map([
+          ['order1', { id: 'order1', productId: 'prod1', quantity: 5 }],
+          ['order2', { id: 'order2', productId: 'prod2', quantity: 3 }],
+          ['order3', { id: 'order3', productId: 'prod1', quantity: 2 }],
+        ]),
+      )
+
+      const products = new Store<string, Product>(
+        new Map([
+          ['prod1', { id: 'prod1', name: 'Apple', price: 1.2 }],
+          ['prod2', { id: 'prod2', name: 'Banana', price: 0.8 }],
+        ]),
+      )
+
+      // Use pipeAll to join the stores
+      const [result, unsubscribe] = Store.pipeAll(
+        { orders, products },
+        ({ orders, products }) => {
+          // Transform orders to have productId as the key
+          const ordersWithProductIdKey = orders.pipe(
+            map(([_, order]) => [order.productId, order] as [string, Order]),
+          )
+
+          // Transform products to have id as the key
+          const productsWithIdKey = products.pipe(
+            map(([_, product]) => [product.id, product] as [string, Product]),
+          )
+
+          // Join orders and products
+          const joined = ordersWithProductIdKey.pipe(
+            join(productsWithIdKey, 'inner'),
+            map(([productId, [order, product]]) => {
+              // In an inner join, both order and product will be non-null
+              if (order && product) {
+                return [
+                  order.id,
+                  {
+                    id: order.id,
+                    quantity: order.quantity,
+                    productName: product.name,
+                    price: product.price,
+                  },
+                ] as [
+                  string,
+                  {
+                    id: string
+                    quantity: number
+                    productName: string
+                    price: number
+                  },
+                ]
+              }
+              // This should never happen with inner join, but TypeScript needs it
+              return ['', {}] as [
+                string,
+                {
+                  id: string
+                  quantity: number
+                  productName: string
+                  price: number
+                },
+              ]
+            }),
+          )
+
+          return Store.materialize(joined)
+        },
+      )
+
+      // Check that the join worked correctly
+      expect(result.size).toBe(3)
+
+      // Check specific values
+      const order1 = result.get('order1')
+      expect(order1).toBeDefined()
+      expect(order1?.productName).toBe('Apple')
+      expect(order1?.price).toBe(1.2)
+
+      const order2 = result.get('order2')
+      expect(order2).toBeDefined()
+      expect(order2?.productName).toBe('Banana')
+      expect(order2?.price).toBe(0.8)
+
+      // Check that changes propagate
+      orders.set('order4', { id: 'order4', productId: 'prod2', quantity: 7 })
+      expect(result.size).toBe(4)
+
+      const order4 = result.get('order4')
+      expect(order4).toBeDefined()
+      expect(order4?.productName).toBe('Banana')
+      expect(order4?.price).toBe(0.8)
+
+      // Clean up
+      unsubscribe()
+    })
   })
 
   describe('pipe', () => {
@@ -400,6 +511,7 @@ describe('Store', () => {
   describe('query', () => {
     it('should allow querying a single store with D2QL', () => {
       type FruitOrder = {
+        id: string
         name: string
         quantity: number
         status: 'packed' | 'shipped'
@@ -407,9 +519,18 @@ describe('Store', () => {
 
       const store = new Store<string, FruitOrder>(
         new Map([
-          ['order1', { id: 'order1', name: 'apple', quantity: 50, status: 'packed' }],
-          ['order2', { id: 'order2', name: 'banana', quantity: 30, status: 'shipped' }],
-          ['order3', { id: 'order3', name: 'apple', quantity: 20, status: 'packed' }],
+          [
+            'order1',
+            { id: 'order1', name: 'apple', quantity: 50, status: 'packed' },
+          ],
+          [
+            'order2',
+            { id: 'order2', name: 'banana', quantity: 30, status: 'shipped' },
+          ],
+          [
+            'order3',
+            { id: 'order3', name: 'apple', quantity: 20, status: 'packed' },
+          ],
         ]),
       )
 
@@ -429,7 +550,12 @@ describe('Store', () => {
       ).toBe(true)
 
       // Add a new apple order and check that it's reflected in the result
-      store.set('order4', { name: 'apple', quantity: 10, status: 'packed' })
+      store.set('order4', {
+        id: 'order4',
+        name: 'apple',
+        quantity: 10,
+        status: 'packed',
+      })
       expect(Array.from(result.entries()).length).toBe(3)
 
       // Clean up
@@ -473,10 +599,10 @@ describe('Store', () => {
             {
               type: 'inner',
               from: 'products',
-              on: ['@orders.productId', '=', '@products.@id'],
+              on: ['@orders.productId', '=', '@products.id'],
             },
           ],
-          keyBy: '@orders.id',
+          keyBy: '@id',
         },
       )
 

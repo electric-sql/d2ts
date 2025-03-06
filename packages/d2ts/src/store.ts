@@ -169,28 +169,6 @@ export class Store<K, V> {
     })
   }
 
-  /**
-   * Query multiple stores using D2QL and return a materialized store with the results
-   * @param stores A record mapping table names to stores
-   * @param query The D2QL query to execute
-   * @returns A tuple containing the materialized store and an unsubscribe function
-   */
-  static queryAll<
-    StoreMap extends Record<string, Store<string, any>>,
-    T extends Record<string, unknown>,
-  >(stores: StoreMap, query: KeyedQuery): [Store<string, T>, () => void] {
-    return Store.pipeAll(stores, (streams) => {
-      const inputs: Record<string, IStreamBuilder<Record<string, unknown>>> = {}
-      for (const [tableName, stream] of Object.entries(streams)) {
-        inputs[tableName] = stream.pipe(
-          map(([_key, data]: [string, Record<string, unknown>]) => data),
-        )
-      }
-      const result = compileQuery<IStreamBuilder<[string, T]>>(query, inputs)
-      return Store.materialize(result)
-    })
-  }
-
   update(key: K, fn: (value: V | undefined) => V): void {
     const previousValue = this.#inner.get(key)
     const value = fn(previousValue)
@@ -299,7 +277,13 @@ export class Store<K, V> {
         time,
         new MultiSet(changes as unknown as MultiSetArray<unknown>),
       )
-      input.sendFrontier(++time)
+    }
+
+    function sendFrontiers() {
+      for (const name of Object.keys(stores)) {
+        const input = inputs[name]
+        input.sendFrontier(time)
+      }
     }
 
     for (const name of Object.keys(stores)) {
@@ -307,8 +291,9 @@ export class Store<K, V> {
       const input = inputs[name]
       const unsubscribe = store.subscribe((rawChanges) => {
         sendChanges(input, rawChanges)
-        graph.step()
-        time++
+        time = time + 1
+        sendFrontiers()
+        graph.run()
       })
       unsubscribes.push(unsubscribe)
     }
@@ -318,8 +303,10 @@ export class Store<K, V> {
       const input = inputs[name]
       const rawChanges = store.entriesAsChanges()
       sendChanges(input, rawChanges)
-      graph.step()
     }
+    time = time + 1
+    sendFrontiers()
+    graph.run()
 
     const unsubscribe = () => {
       for (const unsubscribe of unsubscribes) {
@@ -343,5 +330,27 @@ export class Store<K, V> {
         store.#emitChanges()
       })
     }
+  }
+
+  /**
+   * Query multiple stores using D2QL and return a materialized store with the results
+   * @param stores A record mapping table names to stores
+   * @param query The D2QL query to execute
+   * @returns A tuple containing the materialized store and an unsubscribe function
+   */
+  static queryAll<
+    StoreMap extends Record<string, Store<string, any>>,
+    T extends Record<string, unknown>,
+  >(stores: StoreMap, query: KeyedQuery): [Store<string, T>, () => void] {
+    return Store.pipeAll(stores, (streams) => {
+      const inputs: Record<string, IStreamBuilder<Record<string, unknown>>> = {}
+      for (const [tableName, stream] of Object.entries(streams)) {
+        inputs[tableName] = stream.pipe(
+          map(([_key, data]: [string, Record<string, unknown>]) => data),
+        )
+      }
+      const result = compileQuery<IStreamBuilder<[string, T]>>(query, inputs)
+      return Store.materialize(result)
+    })
   }
 }
