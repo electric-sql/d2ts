@@ -113,8 +113,7 @@ export type OrderBy =
   | { [column: string]: 'asc' | 'desc' }
   | Array<string | { [column: string]: 'asc' | 'desc' }>
 
-// The top-level query interface.
-export interface Query {
+export interface BaseQuery {
   // The select clause is an array of either plain strings or objects mapping alias names
   // to expressions. Plain strings starting with "@" denote column references.
   // Plain string "@*" denotes all columns from all tables.
@@ -130,6 +129,10 @@ export interface Query {
   orderBy?: OrderBy
   limit?: number
   offset?: number
+}
+
+// The top-level query interface.
+export interface Query extends BaseQuery {
   keyBy?: string | string[]
   with?: WithQuery[]
 }
@@ -137,10 +140,8 @@ export interface Query {
 // A WithQuery is a query that is used as a Common Table Expression (CTE)
 // It cannot be keyed and must have an alias (as)
 // There is no support for recursive CTEs
-export interface WithQuery extends Query {
-  keyBy: undefined
+export interface WithQuery extends BaseQuery {
   as: string
-  with: undefined
 }
 
 // A keyed query is a query that has a keyBy clause, and so the result is always

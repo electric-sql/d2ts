@@ -157,7 +157,7 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
       }
 
       // Ensure the WITH query is not keyed
-      if (withQuery.keyBy !== undefined) {
+      if ((withQuery as Query).keyBy !== undefined) {
         throw new Error('WITH query cannot have a "keyBy" property')
       }
 
