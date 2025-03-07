@@ -1,4 +1,4 @@
-import { PipedOperator } from '../types'
+import { IStreamBuilder, PipedOperator } from '../types'
 import { KeyValue } from '../types.js'
 import { reduce } from './reduce.js'
 import { map } from './map.js'
@@ -28,5 +28,17 @@ export function orderBy<
   comparator: (a: V1, b: V1) => number,
   options?: OrderByOptions,
 ): PipedOperator<T, T> {
-  throw new Error('Not implemented')
+  const limit = options?.limit ?? Infinity
+  const offset = options?.offset ?? 0
+
+  return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
+    const reduced = stream.pipe(
+      reduce((values) => {
+        // `values` is a list of tuples, first element is the value, second is the multiplicity
+        // TODO: Implement this!
+        throw new Error('Not implemented')
+      }),
+    )
+    return reduced as IStreamBuilder<T>
+  }
 }
