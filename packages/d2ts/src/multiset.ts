@@ -66,23 +66,37 @@ export class MultiSet<T> {
    * (record, multiplicity) pair.
    */
   consolidate(): MultiSet<T> {
-    const consolidated = new DefaultMap<string, number>(() => 0)
+    const consolidated = new DefaultMap<string | number, number>(() => 0)
+
+    let hasString = false
+    let hasNumber = false
+    let hasOther = false
+    for (const [data, _] of this.#inner) {
+      if (typeof data === 'string') {
+        hasString = true
+      } else if (typeof data === 'number') {
+        hasNumber = true
+      } else {
+        hasOther = true
+        break
+      }
+    }
+
+    const requireJson = hasOther || (hasString && hasNumber)
 
     for (const [data, multiplicity] of this.#inner) {
-      const key = JSON.stringify(data)
+      const key = requireJson ? JSON.stringify(data) : (data as string | number)
       consolidated.update(key, (count) => count + multiplicity)
     }
 
     const result: MultiSetArray<T> = []
     for (const [key, multiplicity] of consolidated.entries()) {
       if (multiplicity !== 0) {
-        result.push([JSON.parse(key) as T, multiplicity])
+        const parsedKey = requireJson ? JSON.parse(key as string) : key
+        result.push([parsedKey as T, multiplicity])
       }
     }
 
-    result.sort((a, b) =>
-      JSON.stringify(a[0]).localeCompare(JSON.stringify(b[0])),
-    )
     return new MultiSet(result)
   }
 
