@@ -9,7 +9,7 @@ interface TopKOptions {
 }
 
 /**
- * Orders the elements and limits the number of results, with optional offset
+ * Limits the number of results based on a comparator, with optional offset.
  * This works on a keyed stream, where the key is the first element of the tuple
  * The ordering is withing a key group, i.e. elements are sorted within a key group
  * and the limit + offset is applied to that sorted group.
@@ -17,7 +17,7 @@ interface TopKOptions {
  *
  * @param comparator - A function that compares two elements
  * @param options - An optional object containing limit and offset properties
- * @returns A piped operator that orders the elements and limits the number of results
+ * @returns A piped operator that limits the number of results
  */
 export function topK<
   K extends T extends KeyValue<infer K, infer _V> ? K : never,
