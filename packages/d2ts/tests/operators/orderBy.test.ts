@@ -21,12 +21,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderBy<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value),
+        orderBy((item) => item.value),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -77,12 +72,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderBy<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value, {
+        orderBy((item) => item.value, {
           comparator: (a, b) => b.localeCompare(a), // reverse order
         }),
         output((message) => {
@@ -135,12 +125,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderBy<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value, { limit: 3 }),
+        orderBy((item) => item.value, { limit: 3 }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -189,12 +174,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderBy<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value, { limit: 2, offset: 2 }),
+        orderBy((item) => item.value, { limit: 2, offset: 2 }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -242,12 +222,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderBy<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          number
-        >((item) => item.id),
+        orderBy((item) => item.id),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -298,12 +273,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderBy<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value),
+        orderBy((item) => item.value),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -366,12 +336,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderBy<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value),
+        orderBy((item) => item.value),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -429,12 +394,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderBy<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value, { limit: 3 }),
+        orderBy((item) => item.value, { limit: 3 }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -491,12 +451,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderBy<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value, { limit: 2, offset: 1 }),
+        orderBy((item) => item.value, { limit: 2, offset: 1 }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -553,12 +508,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderBy<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value),
+        orderBy((item) => item.value),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data

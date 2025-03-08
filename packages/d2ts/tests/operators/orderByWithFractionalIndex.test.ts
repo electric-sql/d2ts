@@ -24,12 +24,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value),
+        orderByWithFractionalIndex((item) => item.value),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -81,12 +76,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value, {
+        orderByWithFractionalIndex((item) => item.value, {
           comparator: (a, b) => b.localeCompare(a), // reverse order
         }),
         output((message) => {
@@ -140,12 +130,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value, { limit: 3 }),
+        orderByWithFractionalIndex((item) => item.value, { limit: 3 }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -195,12 +180,10 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value, { limit: 2, offset: 2 }),
+        orderByWithFractionalIndex((item) => item.value, {
+          limit: 2,
+          offset: 2,
+        }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -249,12 +232,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          number
-        >((item) => item.id),
+        orderByWithFractionalIndex((item) => item.id),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -306,12 +284,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value, { limit: 3 }),
+        orderByWithFractionalIndex((item) => item.value, { limit: 3 }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -380,12 +353,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value, { limit: 3 }),
+        orderByWithFractionalIndex((item) => item.value, { limit: 3 }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -456,12 +424,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex<
-          string,
-          { id: number; value: string },
-          KeyValue<string, { id: number; value: string }>,
-          string
-        >((item) => item.value, { limit: 3 }),
+        orderByWithFractionalIndex((item) => item.value, { limit: 3 }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
