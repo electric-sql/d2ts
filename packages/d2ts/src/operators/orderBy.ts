@@ -3,6 +3,7 @@ import { KeyValue } from '../types.js'
 import { topK } from './topK.js'
 import { map } from './map.js'
 import { innerJoin } from './join.js'
+import { consolidate } from './consolidate.js'
 
 interface OrderByOptions<Ve> {
   comparator?: (a: Ve, b: Ve) => number
@@ -49,6 +50,7 @@ export function orderBy<
       map(([key, value]) => {
         return [key, value[1]] as KeyValue<K, V1>
       }),
+      consolidate(),
     )
   }
 }

@@ -21,9 +21,12 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderBy<string, { id: number; value: string }, KeyValue<string, { id: number; value: string }>, string>(
-          (item) => item.value
-        ),
+        orderBy<
+          string,
+          { id: number; value: string },
+          KeyValue<string, { id: number; value: string }>,
+          string
+        >((item) => item.value),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -50,7 +53,7 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const result = latestMessage.collection.getInner()
-      
+
       expect(sortResults(result)).toEqual([
         [['key1', { id: 1, value: 'a' }], 1],
         [['key3', { id: 3, value: 'b' }], 1],
@@ -74,12 +77,14 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderBy<string, { id: number; value: string }, KeyValue<string, { id: number; value: string }>, string>(
-          (item) => item.value, 
-          {
-            comparator: (a, b) => b.localeCompare(a), // reverse order
-          }
-        ),
+        orderBy<
+          string,
+          { id: number; value: string },
+          KeyValue<string, { id: number; value: string }>,
+          string
+        >((item) => item.value, {
+          comparator: (a, b) => b.localeCompare(a), // reverse order
+        }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -106,7 +111,7 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const result = latestMessage.collection.getInner()
-      
+
       expect(sortResults(result)).toEqual([
         [['key2', { id: 2, value: 'z' }], 1],
         [['key4', { id: 4, value: 'y' }], 1],
@@ -130,10 +135,12 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderBy<string, { id: number; value: string }, KeyValue<string, { id: number; value: string }>, string>(
-          (item) => item.value, 
-          { limit: 3 }
-        ),
+        orderBy<
+          string,
+          { id: number; value: string },
+          KeyValue<string, { id: number; value: string }>,
+          string
+        >((item) => item.value, { limit: 3 }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -160,7 +167,7 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const result = latestMessage.collection.getInner()
-      
+
       expect(sortResults(result)).toEqual([
         [['key1', { id: 1, value: 'a' }], 1],
         [['key3', { id: 3, value: 'b' }], 1],
@@ -182,10 +189,12 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderBy<string, { id: number; value: string }, KeyValue<string, { id: number; value: string }>, string>(
-          (item) => item.value, 
-          { limit: 2, offset: 2 }
-        ),
+        orderBy<
+          string,
+          { id: number; value: string },
+          KeyValue<string, { id: number; value: string }>,
+          string
+        >((item) => item.value, { limit: 2, offset: 2 }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -212,7 +221,7 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const result = latestMessage.collection.getInner()
-      
+
       expect(sortResults(result)).toEqual([
         [['key5', { id: 5, value: 'c' }], 1],
         [['key4', { id: 4, value: 'y' }], 1],
@@ -233,9 +242,12 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderBy<string, { id: number; value: string }, KeyValue<string, { id: number; value: string }>, number>(
-          (item) => item.id
-        ),
+        orderBy<
+          string,
+          { id: number; value: string },
+          KeyValue<string, { id: number; value: string }>,
+          number
+        >((item) => item.id),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -262,13 +274,336 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const result = latestMessage.collection.getInner()
-      
+
       expect(sortResults(result)).toEqual([
         [['key3', { id: 1, value: 'b' }], 1],
         [['key5', { id: 2, value: 'c' }], 1],
         [['key2', { id: 3, value: 'z' }], 1],
         [['key4', { id: 4, value: 'y' }], 1],
         [['key1', { id: 5, value: 'a' }], 1],
+      ])
+    })
+
+    test('incremental update - adding new rows', () => {
+      const graph = new D2({ initialFrontier: 0 })
+      const input = graph.newInput<
+        KeyValue<
+          string,
+          {
+            id: number
+            value: string
+          }
+        >
+      >()
+      let latestMessage: any = null
+
+      input.pipe(
+        orderBy<
+          string,
+          { id: number; value: string },
+          KeyValue<string, { id: number; value: string }>,
+          string
+        >((item) => item.value),
+        output((message) => {
+          if (message.type === MessageType.DATA) {
+            latestMessage = message.data
+          }
+        }),
+      )
+
+      graph.finalize()
+
+      // Initial data
+      input.sendData(
+        0,
+        new MultiSet([
+          [['key1', { id: 1, value: 'c' }], 1],
+          [['key2', { id: 2, value: 'd' }], 1],
+          [['key3', { id: 3, value: 'e' }], 1],
+        ]),
+      )
+      input.sendFrontier(1)
+      graph.run()
+
+      // Initial result should be all three items in alphabetical order
+      let result = latestMessage.collection.getInner()
+      expect(sortResults(result)).toEqual([
+        [['key1', { id: 1, value: 'c' }], 1],
+        [['key2', { id: 2, value: 'd' }], 1],
+        [['key3', { id: 3, value: 'e' }], 1],
+      ])
+
+      // Add new rows that should appear in the result
+      input.sendData(
+        1,
+        new MultiSet([
+          [['key4', { id: 4, value: 'a' }], 1],
+          [['key5', { id: 5, value: 'b' }], 1],
+        ]),
+      )
+      input.sendFrontier(2)
+      graph.run()
+
+      // Result should now include the new rows in the correct order
+      result = latestMessage.collection.getInner()
+      expect(sortResults(result)).toEqual([
+        [['key4', { id: 4, value: 'a' }], 1], // New row
+        [['key5', { id: 5, value: 'b' }], 1], // New row
+      ])
+    })
+
+    test('incremental update - removing rows', () => {
+      const graph = new D2({ initialFrontier: 0 })
+      const input = graph.newInput<
+        KeyValue<
+          string,
+          {
+            id: number
+            value: string
+          }
+        >
+      >()
+      let latestMessage: any = null
+
+      input.pipe(
+        orderBy<
+          string,
+          { id: number; value: string },
+          KeyValue<string, { id: number; value: string }>,
+          string
+        >((item) => item.value),
+        output((message) => {
+          if (message.type === MessageType.DATA) {
+            latestMessage = message.data
+          }
+        }),
+      )
+
+      graph.finalize()
+
+      // Initial data
+      input.sendData(
+        0,
+        new MultiSet([
+          [['key1', { id: 1, value: 'a' }], 1],
+          [['key2', { id: 2, value: 'b' }], 1],
+          [['key3', { id: 3, value: 'c' }], 1],
+          [['key4', { id: 4, value: 'd' }], 1],
+        ]),
+      )
+      input.sendFrontier(1)
+      graph.run()
+
+      // Initial result should be all four items
+      let result = latestMessage.collection.getInner()
+      expect(sortResults(result)).toEqual([
+        [['key1', { id: 1, value: 'a' }], 1],
+        [['key2', { id: 2, value: 'b' }], 1],
+        [['key3', { id: 3, value: 'c' }], 1],
+        [['key4', { id: 4, value: 'd' }], 1],
+      ])
+
+      // Remove 'b' from the result set
+      input.sendData(1, new MultiSet([[['key2', { id: 2, value: 'b' }], -1]]))
+      input.sendFrontier(2)
+      graph.run()
+
+      // Result should show 'b' being removed
+      result = latestMessage.collection.getInner()
+      expect(sortResults(result)).toEqual([
+        [['key2', { id: 2, value: 'b' }], -1], // Removed row
+      ])
+    })
+
+    test('incremental update - with limit', () => {
+      const graph = new D2({ initialFrontier: 0 })
+      const input = graph.newInput<
+        KeyValue<
+          string,
+          {
+            id: number
+            value: string
+          }
+        >
+      >()
+      let latestMessage: any = null
+
+      input.pipe(
+        orderBy<
+          string,
+          { id: number; value: string },
+          KeyValue<string, { id: number; value: string }>,
+          string
+        >((item) => item.value, { limit: 3 }),
+        output((message) => {
+          if (message.type === MessageType.DATA) {
+            latestMessage = message.data
+          }
+        }),
+      )
+
+      graph.finalize()
+
+      // Initial data
+      input.sendData(
+        0,
+        new MultiSet([
+          [['key1', { id: 1, value: 'c' }], 1],
+          [['key2', { id: 2, value: 'd' }], 1],
+          [['key3', { id: 3, value: 'e' }], 1],
+        ]),
+      )
+      input.sendFrontier(1)
+      graph.run()
+
+      // Initial result should be all three items
+      let result = latestMessage.collection.getInner()
+      expect(sortResults(result)).toEqual([
+        [['key1', { id: 1, value: 'c' }], 1],
+        [['key2', { id: 2, value: 'd' }], 1],
+        [['key3', { id: 3, value: 'e' }], 1],
+      ])
+
+      // Add a new row that should appear in the result (before 'c')
+      input.sendData(1, new MultiSet([[['key4', { id: 4, value: 'a' }], 1]]))
+      input.sendFrontier(2)
+      graph.run()
+
+      // Result should now include 'a' and drop 'e' due to limit
+      result = latestMessage.collection.getInner()
+      expect(sortResults(result)).toEqual([
+        [['key3', { id: 3, value: 'e' }], -1], // Moved out of the limit so it's removed
+        [['key4', { id: 4, value: 'a' }], 1], // New row at the beginning
+      ])
+    })
+
+    test('incremental update - with limit and offset', () => {
+      const graph = new D2({ initialFrontier: 0 })
+      const input = graph.newInput<
+        KeyValue<
+          string,
+          {
+            id: number
+            value: string
+          }
+        >
+      >()
+      let latestMessage: any = null
+
+      input.pipe(
+        orderBy<
+          string,
+          { id: number; value: string },
+          KeyValue<string, { id: number; value: string }>,
+          string
+        >((item) => item.value, { limit: 2, offset: 1 }),
+        output((message) => {
+          if (message.type === MessageType.DATA) {
+            latestMessage = message.data
+          }
+        }),
+      )
+
+      graph.finalize()
+
+      // Initial data
+      input.sendData(
+        0,
+        new MultiSet([
+          [['key1', { id: 1, value: 'a' }], 1],
+          [['key2', { id: 2, value: 'b' }], 1],
+          [['key3', { id: 3, value: 'c' }], 1],
+          [['key4', { id: 4, value: 'd' }], 1],
+        ]),
+      )
+      input.sendFrontier(1)
+      graph.run()
+
+      // Initial result should be items at positions 1 and 2 (b and c)
+      let result = latestMessage.collection.getInner()
+      expect(sortResults(result)).toEqual([
+        [['key2', { id: 2, value: 'b' }], 1],
+        [['key3', { id: 3, value: 'c' }], 1],
+      ])
+
+      // Add a new row that should appear at the beginning
+      input.sendData(1, new MultiSet([[['key5', { id: 5, value: '_' }], 1]]))
+      input.sendFrontier(2)
+      graph.run()
+
+      // Result should now shift: a is out, _ is in at offset 1, b is still in, c is out
+      result = latestMessage.collection.getInner()
+      expect(sortResults(result)).toEqual([
+        [['key3', { id: 3, value: 'c' }], -1], // Moved out due to window shift
+        [['key1', { id: 1, value: 'a' }], 1], // Now in the window due to offset
+      ])
+    })
+
+    test('incremental update - modifying existing rows', () => {
+      const graph = new D2({ initialFrontier: 0 })
+      const input = graph.newInput<
+        KeyValue<
+          string,
+          {
+            id: number
+            value: string
+          }
+        >
+      >()
+      let latestMessage: any = null
+
+      input.pipe(
+        orderBy<
+          string,
+          { id: number; value: string },
+          KeyValue<string, { id: number; value: string }>,
+          string
+        >((item) => item.value),
+        output((message) => {
+          if (message.type === MessageType.DATA) {
+            latestMessage = message.data
+          }
+        }),
+      )
+
+      graph.finalize()
+
+      // Initial data
+      input.sendData(
+        0,
+        new MultiSet([
+          [['key1', { id: 1, value: 'a' }], 1],
+          [['key2', { id: 2, value: 'c' }], 1],
+          [['key3', { id: 3, value: 'e' }], 1],
+        ]),
+      )
+      input.sendFrontier(1)
+      graph.run()
+
+      // Initial result
+      let result = latestMessage.collection.getInner()
+      expect(sortResults(result)).toEqual([
+        [['key1', { id: 1, value: 'a' }], 1],
+        [['key2', { id: 2, value: 'c' }], 1],
+        [['key3', { id: 3, value: 'e' }], 1],
+      ])
+
+      // Modify an existing row by removing it and adding a new version
+      input.sendData(
+        1,
+        new MultiSet([
+          [['key2', { id: 2, value: 'c' }], -1], // Remove old version
+          [['key2', { id: 2, value: 'z' }], 1], // Add new version with different value
+        ]),
+      )
+      input.sendFrontier(2)
+      graph.run()
+
+      // Result should show the modification
+      result = latestMessage.collection.getInner()
+      expect(sortResults(result)).toEqual([
+        [['key2', { id: 2, value: 'c' }], -1], // Old version removed
+        [['key2', { id: 2, value: 'z' }], 1], // New version added
       ])
     })
   })
