@@ -121,11 +121,11 @@ describe('MultiSet', () => {
     // @ts-ignore
     const result = e.iterate(addOne).map((data) => [data, data * data])
     expect(result.getInner()).toEqual([
-      [[1, 1], 1],
-      [[2, 4], 1],
-      [[3, 9], 1],
-      [[4, 16], 1],
       [[5, 25], 1],
+      [[4, 16], 1],
+      [[3, 9], 1],
+      [[2, 4], 1],
+      [[1, 1], 1],
     ])
   })
 
@@ -141,5 +141,63 @@ describe('MultiSet', () => {
     expect(() => a.min()).toThrow()
     expect(() => a.max()).toThrow()
     expect(() => a.distinct()).toThrow()
+  })
+
+  it('should consolidate simple string values', () => {
+    // Create a multiset with duplicate string values that need consolidation
+    const stringSet = new MultiSet<string>([
+      ['a', 1],
+      ['a', 2],
+      ['b', 3],
+      ['b', 1],
+      ['c', 1],
+    ])
+
+    const consolidated = stringSet.consolidate()
+
+    // After consolidation, duplicates should be combined
+    expect(consolidated.getInner()).toEqual([
+      ['a', 3],
+      ['b', 4],
+      ['c', 1],
+    ])
+  })
+
+  it('should consolidate simple number values', () => {
+    // Create a multiset with duplicate number values that need consolidation
+    const numberSet = new MultiSet<number>([
+      [1, 2],
+      [1, 3],
+      [2, 1],
+      [2, 2],
+      [3, 1],
+    ])
+
+    const consolidated = numberSet.consolidate()
+
+    // After consolidation, duplicates should be combined
+    expect(consolidated.getInner()).toEqual([
+      [1, 5],
+      [2, 3],
+      [3, 1],
+    ])
+  })
+
+  it('should consolidate mixed string and number values', () => {
+    // Create a multiset with mixed types that will require JSON stringification
+    const mixedSet = new MultiSet<string | number>([
+      [1, 2],
+      ['1', 3],
+      [1, 1],
+      ['1', 2],
+    ])
+
+    const consolidated = mixedSet.consolidate()
+
+    // After consolidation, the number 1 and string '1' should remain separate
+    expect(consolidated.getInner()).toEqual([
+      [1, 3],
+      ['1', 5],
+    ])
   })
 })

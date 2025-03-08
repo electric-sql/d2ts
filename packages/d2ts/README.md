@@ -67,6 +67,9 @@ A D2TS pipeline is also fully type safe, inferring the types at each step of the
   - [`unkey`](#unkey): Remove keys from a keyed stream
   - [`output`](#output): Output the messages of the stream
   - [`pipe`](#pipe): Build a pipeline of operators enabling reuse of combinations of operators
+  - [`topK`](#topk): Limit results to top K elements based on a comparator
+  - [`topKWithIndex`](#topkwithindex): Like topK but includes position indices
+  - [`topKWithFractionalIndex`](#topkwithfractionalindex): Like topKWithIndex but with stable fractional indices
   - [`groupBy`](#groupby): Group data by key and apply multiple aggregate functions
     - [`sum`](#sum): Sum values in each group
     - [`count`](#count): Count items in each group
@@ -75,6 +78,9 @@ A D2TS pipeline is also fully type safe, inferring the types at each step of the
     - [`max`](#max): Find maximum value in each group
     - [`median`](#median): Calculate median value in each group
     - [`mode`](#mode): Find most frequent value in each group
+  - [`orderBy`](#orderby): Order elements by a value extractor function
+  - [`orderByWithIndex`](#orderbywithindex): Order elements and include position indices
+  - [`orderByWithFractionalIndex`](#orderbywithfractionalindex): Order elements with stable fractional indices
 - **SQLite Integration**: Optional SQLite backend for persisting operator state allowing for larger datasets and resumable pipelines
 - **Type Safety**: Full TypeScript type safety and inference through the pipeline API
 
@@ -167,13 +173,12 @@ const graph = new D2({ initialFrontier: 0 })
 const input = graph.newInput<any>()
 
 // Configure the pipeline
-input
-  .pipe(
-    map(([key, data]) => data.value),
-    filter(value => value > 10),
-    // ... any other processing / joining
-    output((msg) => doSomething(msg))
-  )
+input.pipe(
+  map(([key, data]) => data.value),
+  filter((value) => value > 10),
+  // ... any other processing / joining
+  output((msg) => doSomething(msg)),
+)
 
 // Finalize graph
 graph.finalize()
@@ -183,8 +188,8 @@ const electricStream = new ShapeStream({
   url: 'http://localhost:3000/v1/shape',
   params: {
     table: 'items',
-    replica: 'full',  // <-- IMPORTANT!
-  }
+    replica: 'full', // <-- IMPORTANT!
+  },
 })
 
 // Connect Electric stream to D2 input
@@ -400,20 +405,21 @@ The `iterate` operator takes a function that defines the iteration step. Inside 
 const output = input.pipe(
   iterate((stream) =>
     stream.pipe(
-      map((x) => x * 2),            // Double each value
-      concat(stream),               // Include original values
-      filter((x) => x <= 50),       // Keep only values <= 50
-      map((x) => [x, []]),          // Convert to keyable format
-      distinct(),                   // Remove duplicates 
-      map((x) => x[0]),             // Convert back to simple values
-      consolidate(),                // Ensure consistent version updates
-    )
+      map((x) => x * 2), // Double each value
+      concat(stream), // Include original values
+      filter((x) => x <= 50), // Keep only values <= 50
+      map((x) => [x, []]), // Convert to keyable format
+      distinct(), // Remove duplicates
+      map((x) => x[0]), // Convert back to simple values
+      consolidate(), // Ensure consistent version updates
+    ),
   ),
-  debug('results')
+  debug('results'),
 )
 ```
 
 In this example:
+
 1. The `iterate` function creates a feedback loop on the input stream
 2. Each value is doubled, then combined with all previous values
 3. Values greater than 50 are filtered out
@@ -422,6 +428,7 @@ In this example:
 The iteration will continue until no new values are produced (reaching a fixed point) or until the frontier advances beyond the iteration scope.
 
 Common use cases for the `iterate` operator include:
+
 - Computing transitive closures in graph algorithms
 - Propagating values until convergence
 - Implementing fixed-point algorithms
@@ -625,7 +632,7 @@ D2TS provides a set of operators for working with keyed streams, which are usefu
 Keys a stream by a property of each element. This is useful for preparing data for joins or grouping operations.
 
 ```typescript
-const keyedStream = input.pipe(keyBy(item => item.id))
+const keyedStream = input.pipe(keyBy((item) => item.id))
 ```
 
 ##### `unkey`
@@ -641,21 +648,17 @@ const unkeyedStream = keyedStream.pipe(unkey())
 Changes the key of a keyed stream to a new key based on a property of the value.
 
 ```typescript
-const rekeyedStream = keyedStream.pipe(rekey(item => item.newKey))
+const rekeyedStream = keyedStream.pipe(rekey((item) => item.newKey))
 ```
 
 Example usage with joins:
 
 ```typescript
 // Transform comments into [issue_id, comment] pairs for joining
-const commentsByIssue = inputComments.pipe(
-  rekey(comment => comment.issue_id)
-)
+const commentsByIssue = inputComments.pipe(rekey((comment) => comment.issue_id))
 
 // Join comments with issues
-const issuesWithComments = issuesForProject.pipe(
-  join(commentsByIssue)
-)
+const issuesWithComments = issuesForProject.pipe(join(commentsByIssue))
 ```
 
 #### groupBy
@@ -679,8 +682,8 @@ const salesAnalytics = salesData.pipe(
       average: avg((item) => item.amount),
       min: min((item) => item.amount),
       max: max((item) => item.amount),
-    }
-  )
+    },
+  ),
 )
 ```
 
@@ -711,7 +714,7 @@ Computes the sum of values in each group.
 ```typescript
 // Sum the amount field for each category
 groupBy((item) => ({ category: item.category }), {
-  total: sum((item) => item.amount)
+  total: sum((item) => item.amount),
 })
 ```
 
@@ -724,7 +727,7 @@ Counts the number of items in each group.
 ```typescript
 // Count items in each category
 groupBy((item) => ({ category: item.category }), {
-  itemCount: count()
+  itemCount: count(),
 })
 ```
 
@@ -737,7 +740,7 @@ Computes the average of values in each group.
 ```typescript
 // Calculate average price by category
 groupBy((item) => ({ category: item.category }), {
-  averagePrice: avg((item) => item.price)
+  averagePrice: avg((item) => item.price),
 })
 ```
 
@@ -750,7 +753,7 @@ Finds the minimum value in each group.
 ```typescript
 // Find minimum price by category
 groupBy((item) => ({ category: item.category }), {
-  lowestPrice: min((item) => item.price)
+  lowestPrice: min((item) => item.price),
 })
 ```
 
@@ -763,7 +766,7 @@ Finds the maximum value in each group.
 ```typescript
 // Find maximum price by category
 groupBy((item) => ({ category: item.category }), {
-  highestPrice: max((item) => item.price)
+  highestPrice: max((item) => item.price),
 })
 ```
 
@@ -776,7 +779,7 @@ Computes the median (middle value) in each group. For groups with an even number
 ```typescript
 // Calculate median price by category
 groupBy((item) => ({ category: item.category }), {
-  medianPrice: median((item) => item.price)
+  medianPrice: median((item) => item.price),
 })
 ```
 
@@ -789,7 +792,7 @@ Finds the most frequent value in each group. If multiple values have the same hi
 ```typescript
 // Find most common price point by category
 groupBy((item) => ({ category: item.category }), {
-  mostCommonPrice: mode((item) => item.price)
+  mostCommonPrice: mode((item) => item.price),
 })
 ```
 
@@ -802,9 +805,9 @@ The power of `groupBy` comes from combining multiple aggregates in a single oper
 const salesAnalysis = salesData.pipe(
   groupBy(
     // Group by both region and category
-    (sale) => ({ 
-      region: sale.region, 
-      category: sale.productCategory 
+    (sale) => ({
+      region: sale.region,
+      category: sale.productCategory,
     }),
     // Apply multiple aggregates
     {
@@ -814,11 +817,146 @@ const salesAnalysis = salesData.pipe(
       smallestOrder: min((sale) => sale.amount),
       largestOrder: max((sale) => sale.amount),
       medianOrder: median((sale) => sale.amount),
-      mostCommonAmount: mode((sale) => sale.amount)
-    }
-  )
+      mostCommonAmount: mode((sale) => sale.amount),
+    },
+  ),
 )
 ```
+
+#### orderBy
+
+`orderBy(valueExtractor: (value: V) => T, options?: { comparator?: (a: T, b: T) => number, limit?: number, offset?: number })`
+
+Orders elements in a keyed stream by a value extracted from each element, with optional limit and offset. This operator orders the entire stream, not just within key groups.
+
+```typescript
+// Order all products by price
+const orderedProducts = products.pipe(
+  map((product) => [product.category, product]), // Key by category
+  orderBy((product) => product.price, {
+    comparator: (a, b) => a - b, // Sort by price ascending
+    limit: 10, // Only keep top 10
+  }),
+)
+
+// To order the entire collection regardless of category
+const allProductsByPrice = products.pipe(
+  map((product) => [null, product]), // Key all products by null
+  orderBy((product) => product.price, {
+    comparator: (a, b) => a - b, // Sort by price ascending
+  }),
+)
+```
+
+#### orderByWithIndex
+
+`orderByWithIndex(valueExtractor: (value: V) => T, options?: { comparator?: (a: T, b: T) => number, limit?: number, offset?: number })`
+
+Similar to `orderBy`, but includes the position index of each element in the result. The output format is `[key, [value, index]]` where index is the position (starting from the offset).
+
+```typescript
+// Order all products by price and include their overall rank
+const rankedProducts = products.pipe(
+  map((product) => [product.category, product]),
+  orderByWithIndex((product) => product.price, {
+    comparator: (a, b) => b - a, // Sort by price descending
+    limit: 5,
+  }),
+  map(([category, [product, position]]) => ({
+    category,
+    product,
+    rank: position + 1, // Convert to 1-based ranking
+  })),
+)
+```
+
+#### orderByWithFractionalIndex
+
+`orderByWithFractionalIndex(valueExtractor: (value: V) => T, options?: { comparator?: (a: T, b: T) => number, limit?: number, offset?: number })`
+
+An advanced version of `orderByWithIndex` that uses fractional indexing to minimize changes when elements move positions. This is particularly useful for UI applications where you want to minimize DOM updates when the order changes.
+
+```typescript
+// Order all products with stable fractional indices
+const stableOrderedProducts = products.pipe(
+  map((product) => [product.category, product]),
+  orderByWithFractionalIndex((product) => product.rating, {
+    comparator: (a, b) => b - a, // Sort by rating descending
+  }),
+  map(([category, [product, fractionalIndex]]) => ({
+    category,
+    product,
+    position: fractionalIndex, // Lexicographically sortable string index
+  })),
+)
+```
+
+For more details on how fractional indexing works, see [Implementing Fractional Indexing](https://observablehq.com/@dgreensp/implementing-fractional-indexing) by David Greenspan.
+
+#### topK
+
+`topK(comparator: (a: T, b: T) => number, options?: { limit?: number, offset?: number })`
+
+Limits the number of results based on a comparator, with optional limit and offset. This works on a keyed stream, where elements are sorted within each key group.
+
+```typescript
+// Get the top 5 most expensive products in each category
+const topProducts = products.pipe(
+  map((product) => [product.category, product]), // Key by category
+  topK((a, b) => b.price - a.price, { limit: 5 }), // Sort by price descending
+)
+```
+
+To sort the entire stream, key all elements by the same value (like `null`):
+
+```typescript
+// Get the top 10 most expensive products overall
+const topOverall = products.pipe(
+  map((product) => [null, product]), // Key all products by null
+  topK((a, b) => b.price - a.price, { limit: 10 }),
+)
+```
+
+#### topKWithIndex
+
+`topKWithIndex(comparator: (a: T, b: T) => number, options?: { limit?: number, offset?: number })`
+
+Similar to `topK`, but includes the position index of each element in the result. The output format is `[key, [value, index]]` where index is the position (starting from the offset).
+
+```typescript
+// Get top 5 products with their position in each category
+const rankedProducts = products.pipe(
+  map((product) => [product.category, product]),
+  topKWithIndex((a, b) => b.rating - a.rating, { limit: 5 }),
+  map(([category, [product, position]]) => ({
+    category,
+    product,
+    rank: position + 1, // Convert to 1-based ranking
+  })),
+)
+```
+
+#### topKWithFractionalIndex
+
+`topKWithFractionalIndex(comparator: (a: T, b: T) => number, options?: { limit?: number, offset?: number })`
+
+An advanced version of `topKWithIndex` that uses fractional indexing to minimize changes when elements move positions. Instead of integer indices, it assigns string-based fractional indices that are lexicographically sortable.
+
+When elements change position, only the indices of the moved elements are updated, not all elements. This is particularly useful for UI applications where you want to minimize DOM updates.
+
+```typescript
+// Get top 10 leaderboard entries with stable fractional indices
+const leaderboard = scores.pipe(
+  map((score) => ['leaderboard', score]),
+  topKWithFractionalIndex((a, b) => b.points - a.points, { limit: 10 }),
+  map(([_, [score, fractionalIndex]]) => ({
+    ...score,
+    position: fractionalIndex, // Lexicographically sortable string index
+  })),
+)
+```
+
+For more details on how fractional indexing works, see [Implementing Fractional Indexing](https://observablehq.com/@dgreensp/implementing-fractional-indexing) by David Greenspan.
 
 ### Using SQLite Backend
 
@@ -831,6 +969,8 @@ For persistence and larger datasets, a number of operators are provided that per
 - `map()`: Transforms elements
 - `reduce()`: Aggregates values by key
 - `groupBy()`: Groups data by key and applies multiple aggregate functions
+- `topK()`: Limits the number of results per group based on a comparator, and its variants `topKWithIndex` and `topKWithFractionalIndex`
+- `orderBy()`: Orders elements by value, and its variants `orderByWithIndex` and `orderByWithFractionalIndex`
 
 Each take a SQLite database as the final argument, for example:
 
