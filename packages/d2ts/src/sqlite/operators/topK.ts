@@ -27,7 +27,7 @@ export function topK<
 >(
   comparator: (a: V1, b: V1) => number,
   db: SQLiteDb,
-  options?: TopKOptions
+  options?: TopKOptions,
 ): PipedOperator<T, T> {
   const limit = options?.limit ?? Infinity
   const offset = options?.offset ?? 0

@@ -1,9 +1,12 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import { MessageType } from '../../src/types.js'
-import { topKWithFractionalIndex } from '../../src/operators/topKWithFractionalIndex.js'
+import { topKWithFractionalIndex as inMemoryTopKWithFractionalIndex } from '../../src/operators/topKWithFractionalIndex.js'
+import { topKWithFractionalIndex as sqliteTopKWithFractionalIndex } from '../../src/sqlite/operators/topKWithFractionalIndex.js'
 import { output } from '../../src/operators/index.js'
+import { BetterSQLite3Wrapper } from '../../src/sqlite/database.js'
+import Database from 'better-sqlite3'
 
 // Helper function to check if indices are in lexicographic order
 function checkLexicographicOrder(results: any[]) {
@@ -57,7 +60,37 @@ function verifyOrder(results: any[], expectedOrder: string[]) {
   expect(sortedByIndex).toEqual(expectedOrder)
 }
 
-describe('topKWithFractionalIndex', () => {
+describe('Operators', () => {
+  describe('TopKWithFractionalIndex operation', () => {
+    testTopKWithFractionalIndex(inMemoryTopKWithFractionalIndex)
+  })
+})
+
+describe('SQLite Operators', () => {
+  describe('TopKWithFractionalIndex operation', () => {
+    let db: BetterSQLite3Wrapper
+
+    beforeEach(() => {
+      const sqlite = new Database(':memory:')
+      db = new BetterSQLite3Wrapper(sqlite)
+    })
+
+    afterEach(() => {
+      db.close()
+    })
+
+    const wrappedTopK = ((stream, ...args) => {
+      // @ts-ignore
+      return sqliteTopKWithFractionalIndex(stream, db, ...args)
+    }) as typeof inMemoryTopKWithFractionalIndex
+
+    testTopKWithFractionalIndex(wrappedTopK)
+  })
+})
+
+function testTopKWithFractionalIndex(
+  topKWithFractionalIndex: typeof inMemoryTopKWithFractionalIndex,
+) {
   it('should assign fractional indices to sorted elements', () => {
     const graph = new D2({ initialFrontier: 0 })
     const input = graph.newInput<[null, { id: number; value: string }]>()
@@ -710,4 +743,4 @@ describe('topKWithFractionalIndex', () => {
       currentItem = { id: currentItem.id, value: newValue }
     }
   })
-})
+}
