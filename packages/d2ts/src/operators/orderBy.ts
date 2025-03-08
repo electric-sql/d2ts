@@ -1,6 +1,7 @@
 import { IStreamBuilder } from '../types'
 import { KeyValue } from '../types.js'
 import { topK, indexedTopK } from './topK.js'
+import { fractionalIndexedTopK } from './fractionalIndexedTopK.js'
 import { map } from './map.js'
 import { innerJoin } from './join.js'
 import { consolidate } from './consolidate.js'
@@ -94,6 +95,51 @@ export function orderByWithIndex<
       innerJoin(stream),
       map(([key, [index, value]]) => {
         return [key, [value, index]] as KeyValue<K, [V1, number]>
+      }),
+      consolidate(),
+    )
+  }
+}
+
+/**
+ * Orders the elements and limits the number of results, with optional offset and 
+ * annotates the value with a fractional index.
+ * This requires a keyed stream, and uses the `topK` operator to order all the elements.
+ *
+ * @param valueExtractor - A function that extracts the value to order by from the element
+ * @param options - An optional object containing comparator, limit and offset properties
+ * @returns A piped operator that orders the elements and limits the number of results
+ */
+export function orderByWithFractionalIndex<
+  K extends T extends KeyValue<infer K, infer _V> ? K : never,
+  V1 extends T extends KeyValue<K, infer V> ? V : never,
+  T,
+  Ve,
+>(valueExtractor: (value: V1) => Ve, options?: OrderByOptions<Ve>) {
+  const limit = options?.limit ?? Infinity
+  const offset = options?.offset ?? 0
+  const comparator =
+    options?.comparator ??
+    ((a, b) => {
+      // Default to JS like ordering
+      if (a === b) return 0
+      if (a < b) return -1
+      return 1
+    })
+
+  return (
+    stream: IStreamBuilder<KeyValue<K, V1>>,
+  ): IStreamBuilder<KeyValue<K, [V1, string]>> => {
+    return stream.pipe(
+      map(
+        ([key, value]) =>
+          [null, [key, valueExtractor(value)]] as KeyValue<null, [K, Ve]>,
+      ),
+      fractionalIndexedTopK((a, b) => comparator(a[1], b[1]), { limit, offset }),
+      map(([_, [[key], index]]) => [key, index] as KeyValue<K, string>),
+      innerJoin(stream),
+      map(([key, [index, value]]) => {
+        return [key, [value, index]] as KeyValue<K, [V1, string]>
       }),
       consolidate(),
     )
