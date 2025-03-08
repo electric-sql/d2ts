@@ -67,6 +67,9 @@ A D2TS pipeline is also fully type safe, inferring the types at each step of the
   - [`unkey`](#unkey): Remove keys from a keyed stream
   - [`output`](#output): Output the messages of the stream
   - [`pipe`](#pipe): Build a pipeline of operators enabling reuse of combinations of operators
+  - [`topK`](#topk): Limit results to top K elements based on a comparator
+  - [`indexedTopK`](#indexedtopk): Like topK but includes position indices
+  - [`fractionalIndexedTopK`](#fractionalindexedtopk): Like indexedTopK but with stable fractional indices
   - [`groupBy`](#groupby): Group data by key and apply multiple aggregate functions
     - [`sum`](#sum): Sum values in each group
     - [`count`](#count): Count items in each group
@@ -845,6 +848,71 @@ const output = input.pipe(consolidate(db))
 The operators will automatically create the necessary tables and indexes to store the state of the operators. It is advised to use the same database for all operators to ensure that the state is stored in a single location.
 
 The `BetterSQLite3Wrapper` is a wrapper around the `better-sqlite3` library that provides a unified interface for the operators. Other SQLite database drivers can be supported by implementing the `SQLiteDb` interface.
+
+#### topK
+
+`topK(comparator: (a: T, b: T) => number, options?: { limit?: number, offset?: number })`
+
+Limits the number of results based on a comparator, with optional limit and offset. This works on a keyed stream, where elements are sorted within each key group.
+
+```typescript
+// Get the top 5 most expensive products in each category
+const topProducts = products.pipe(
+  map(product => [product.category, product]), // Key by category
+  topK((a, b) => b.price - a.price, { limit: 5 }) // Sort by price descending
+)
+```
+
+To sort the entire stream, key all elements by the same value (like `null`):
+
+```typescript
+// Get the top 10 most expensive products overall
+const topOverall = products.pipe(
+  map(product => [null, product]), // Key all products by null
+  topK((a, b) => b.price - a.price, { limit: 10 })
+)
+```
+
+#### indexedTopK
+
+`indexedTopK(comparator: (a: T, b: T) => number, options?: { limit?: number, offset?: number })`
+
+Similar to `topK`, but includes the position index of each element in the result. The output format is `[key, [value, index]]` where index is the position (starting from the offset).
+
+```typescript
+// Get top 5 products with their position in each category
+const rankedProducts = products.pipe(
+  map(product => [product.category, product]),
+  indexedTopK((a, b) => b.rating - a.rating, { limit: 5 }),
+  map(([category, [product, position]]) => ({
+    category,
+    product,
+    rank: position + 1 // Convert to 1-based ranking
+  }))
+)
+```
+
+#### fractionalIndexedTopK
+
+`fractionalIndexedTopK(comparator: (a: T, b: T) => number, options?: { limit?: number, offset?: number })`
+
+An advanced version of `indexedTopK` that uses fractional indexing to minimize changes when elements move positions. Instead of integer indices, it assigns string-based fractional indices that are lexicographically sortable.
+
+When elements change position, only the indices of the moved elements are updated, not all elements. This is particularly useful for UI applications where you want to minimize DOM updates.
+
+```typescript
+// Get top 10 leaderboard entries with stable fractional indices
+const leaderboard = scores.pipe(
+  map(score => ['leaderboard', score]),
+  fractionalIndexedTopK((a, b) => b.points - a.points, { limit: 10 }),
+  map(([_, [score, fractionalIndex]]) => ({
+    ...score,
+    position: fractionalIndex // Lexicographically sortable string index
+  }))
+)
+```
+
+For more details on how fractional indexing works, see [Implementing Fractional Indexing](https://observablehq.com/@dgreensp/implementing-fractional-indexing) by David Greenspan.
 
 ## Implementation Details
 

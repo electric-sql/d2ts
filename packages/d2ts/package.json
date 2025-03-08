@@ -77,5 +77,8 @@
     "better-sqlite3": {
       "optional": true
     }
+  },
+  "dependencies": {
+    "fractional-indexing": "^3.2.0"
   }
 }
