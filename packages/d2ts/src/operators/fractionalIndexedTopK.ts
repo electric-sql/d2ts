@@ -1,4 +1,10 @@
-import { IStreamBuilder, DataMessage, MessageType, KeyValue, PipedOperator } from '../types.js'
+import {
+  IStreamBuilder,
+  DataMessage,
+  MessageType,
+  KeyValue,
+  PipedOperator,
+} from '../types.js'
 import {
   DifferenceStreamReader,
   DifferenceStreamWriter,
@@ -20,7 +26,9 @@ interface FractionalIndexedTopKOptions {
  * This operator maintains fractional indices for sorted elements
  * and only updates indices when elements move position
  */
-export class FractionalIndexedTopKOperator<K, V1> extends UnaryOperator<[K, V1 | [V1, string]]> {
+export class FractionalIndexedTopKOperator<K, V1> extends UnaryOperator<
+  [K, V1 | [V1, string]]
+> {
   #index = new Index<K, V1>()
   #indexOut = new Index<K, [V1, string]>()
   #keysTodo = new Map<Version, Set<K>>()
@@ -90,22 +98,22 @@ export class FractionalIndexedTopKOperator<K, V1> extends UnaryOperator<[K, V1 |
       for (const key of keys) {
         const curr = this.#index.reconstructAt(key, version)
         const currOut = this.#indexOut.reconstructAt(key, version)
-        
+
         // Sort the current values
         const consolidated = new MultiSet(curr).consolidate()
         const sortedValues = consolidated
           .getInner()
           .sort((a, b) => this.#comparator(a[0] as V1, b[0] as V1))
           .slice(this.#offset, this.#offset + this.#limit)
-        
+
         // Create a map for quick value lookup with pre-stringified keys
         const currValueMap = new Map<string, V1>()
         const prevOutputMap = new Map<string, [V1, string]>()
-        
+
         // Pre-stringify all values once
         const valueKeys: string[] = []
         const valueToKey = new Map<V1, string>()
-        
+
         // Process current values
         for (const [value, multiplicity] of sortedValues) {
           if (multiplicity > 0) {
@@ -119,7 +127,7 @@ export class FractionalIndexedTopKOperator<K, V1> extends UnaryOperator<[K, V1 |
             currValueMap.set(valueKey, value)
           }
         }
-        
+
         // Process previous output values
         for (const [[value, index], multiplicity] of currOut) {
           if (multiplicity > 0) {
@@ -132,7 +140,7 @@ export class FractionalIndexedTopKOperator<K, V1> extends UnaryOperator<[K, V1 |
             prevOutputMap.set(valueKey, [value, index])
           }
         }
-        
+
         // Find values that are no longer in the result
         for (const [valueKey, [value, index]] of prevOutputMap.entries()) {
           if (!currValueMap.has(valueKey)) {
@@ -141,32 +149,35 @@ export class FractionalIndexedTopKOperator<K, V1> extends UnaryOperator<[K, V1 |
             this.#indexOut.addValue(key, version, [[value, index], -1])
           }
         }
-        
+
         // Process the sorted values and assign fractional indices
         let prevIndex: string | null = null
         let nextIndex: string | null = null
         const newIndices = new Map<string, string>()
-        
+
         // First pass: reuse existing indices for values that haven't moved
         for (let i = 0; i < sortedValues.length; i++) {
           const [value, _multiplicity] = sortedValues[i]
           // Use the pre-computed valueKey
           const valueKey = valueToKey.get(value) as string
-          
+
           // Check if this value already has an index
           const existingEntry = prevOutputMap.get(valueKey)
-          
+
           if (existingEntry) {
             const [_, existingIndex] = existingEntry
-            
+
             // Check if we need to update the index
             if (i === 0) {
               // First element
               prevIndex = null
-              nextIndex = i + 1 < sortedValues.length 
-                ? newIndices.get(valueToKey.get(sortedValues[i + 1][0]) as string) || null 
-                : null
-              
+              nextIndex =
+                i + 1 < sortedValues.length
+                  ? newIndices.get(
+                      valueToKey.get(sortedValues[i + 1][0]) as string,
+                    ) || null
+                  : null
+
               if (nextIndex !== null && existingIndex >= nextIndex) {
                 // Need to update index
                 const newIndex = generateKeyBetween(prevIndex, nextIndex)
@@ -177,9 +188,12 @@ export class FractionalIndexedTopKOperator<K, V1> extends UnaryOperator<[K, V1 |
               }
             } else if (i === sortedValues.length - 1) {
               // Last element
-              prevIndex = newIndices.get(valueToKey.get(sortedValues[i - 1][0]) as string) || null
+              prevIndex =
+                newIndices.get(
+                  valueToKey.get(sortedValues[i - 1][0]) as string,
+                ) || null
               nextIndex = null
-              
+
               if (prevIndex !== null && existingIndex <= prevIndex) {
                 // Need to update index
                 const newIndex = generateKeyBetween(prevIndex, nextIndex)
@@ -190,13 +204,21 @@ export class FractionalIndexedTopKOperator<K, V1> extends UnaryOperator<[K, V1 |
               }
             } else {
               // Middle element
-              prevIndex = newIndices.get(valueToKey.get(sortedValues[i - 1][0]) as string) || null
-              nextIndex = i + 1 < sortedValues.length 
-                ? newIndices.get(valueToKey.get(sortedValues[i + 1][0]) as string) || null 
-                : null
-              
-              if ((prevIndex !== null && existingIndex <= prevIndex) || 
-                  (nextIndex !== null && existingIndex >= nextIndex)) {
+              prevIndex =
+                newIndices.get(
+                  valueToKey.get(sortedValues[i - 1][0]) as string,
+                ) || null
+              nextIndex =
+                i + 1 < sortedValues.length
+                  ? newIndices.get(
+                      valueToKey.get(sortedValues[i + 1][0]) as string,
+                    ) || null
+                  : null
+
+              if (
+                (prevIndex !== null && existingIndex <= prevIndex) ||
+                (nextIndex !== null && existingIndex >= nextIndex)
+              ) {
                 // Need to update index
                 const newIndex = generateKeyBetween(prevIndex, nextIndex)
                 newIndices.set(valueKey, newIndex)
@@ -207,48 +229,60 @@ export class FractionalIndexedTopKOperator<K, V1> extends UnaryOperator<[K, V1 |
             }
           }
         }
-        
+
         // Second pass: assign new indices for values that don't have one or need to be updated
         for (let i = 0; i < sortedValues.length; i++) {
           const [value, _multiplicity] = sortedValues[i]
           // Use the pre-computed valueKey
           const valueKey = valueToKey.get(value) as string
-          
+
           if (!newIndices.has(valueKey)) {
             // This value doesn't have an index yet, generate one
             if (i === 0) {
               // First element
               prevIndex = null
-              nextIndex = i + 1 < sortedValues.length 
-                ? newIndices.get(valueToKey.get(sortedValues[i + 1][0]) as string) || null 
-                : null
+              nextIndex =
+                i + 1 < sortedValues.length
+                  ? newIndices.get(
+                      valueToKey.get(sortedValues[i + 1][0]) as string,
+                    ) || null
+                  : null
             } else if (i === sortedValues.length - 1) {
               // Last element
-              prevIndex = newIndices.get(valueToKey.get(sortedValues[i - 1][0]) as string) || null
+              prevIndex =
+                newIndices.get(
+                  valueToKey.get(sortedValues[i - 1][0]) as string,
+                ) || null
               nextIndex = null
             } else {
               // Middle element
-              prevIndex = newIndices.get(valueToKey.get(sortedValues[i - 1][0]) as string) || null
-              nextIndex = i + 1 < sortedValues.length 
-                ? newIndices.get(valueToKey.get(sortedValues[i + 1][0]) as string) || null 
-                : null
+              prevIndex =
+                newIndices.get(
+                  valueToKey.get(sortedValues[i - 1][0]) as string,
+                ) || null
+              nextIndex =
+                i + 1 < sortedValues.length
+                  ? newIndices.get(
+                      valueToKey.get(sortedValues[i + 1][0]) as string,
+                    ) || null
+                  : null
             }
-            
+
             const newIndex = generateKeyBetween(prevIndex, nextIndex)
             newIndices.set(valueKey, newIndex)
           }
         }
-        
+
         // Now create the output with the new indices
         for (let i = 0; i < sortedValues.length; i++) {
           const [value, _multiplicity] = sortedValues[i]
           // Use the pre-computed valueKey
           const valueKey = valueToKey.get(value) as string
           const index = newIndices.get(valueKey)!
-          
+
           // Check if this is a new value or if the index has changed
           const existingEntry = prevOutputMap.get(valueKey)
-          
+
           if (!existingEntry) {
             // New value
             result.push([[key, [value, index]], 1])
@@ -288,7 +322,7 @@ export class FractionalIndexedTopKOperator<K, V1> extends UnaryOperator<[K, V1 |
  * The ordering is within a key group, i.e. elements are sorted within a key group
  * and the limit + offset is applied to that sorted group.
  * To order the entire stream, key by the same value for all elements such as null.
- * 
+ *
  * Uses fractional indexing to minimize the number of changes when elements move positions.
  * Each element is assigned a fractional index that is lexicographically sortable.
  * When elements move, only the indices of the moved elements are updated, not all elements.
@@ -326,4 +360,4 @@ export function fractionalIndexedTopK<
     stream.graph.addStream(output.connectReader())
     return output
   }
-} 
+}

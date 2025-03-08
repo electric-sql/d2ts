@@ -57,7 +57,7 @@ export function orderBy<
 }
 
 /**
- * Orders the elements and limits the number of results, with optional offset and 
+ * Orders the elements and limits the number of results, with optional offset and
  * annotates the value with the index.
  * This requires a keyed stream, and uses the `indexedTopK` operator to order all the elements.
  *
@@ -102,7 +102,7 @@ export function orderByWithIndex<
 }
 
 /**
- * Orders the elements and limits the number of results, with optional offset and 
+ * Orders the elements and limits the number of results, with optional offset and
  * annotates the value with a fractional index.
  * This requires a keyed stream, and uses the `fractionalIndexedTopK` operator to order all the elements.
  *
@@ -135,7 +135,10 @@ export function orderByWithFractionalIndex<
         ([key, value]) =>
           [null, [key, valueExtractor(value)]] as KeyValue<null, [K, Ve]>,
       ),
-      fractionalIndexedTopK((a, b) => comparator(a[1], b[1]), { limit, offset }),
+      fractionalIndexedTopK((a, b) => comparator(a[1], b[1]), {
+        limit,
+        offset,
+      }),
       map(([_, [[key], index]]) => [key, index] as KeyValue<K, string>),
       innerJoin(stream),
       map(([key, [index, value]]) => {
