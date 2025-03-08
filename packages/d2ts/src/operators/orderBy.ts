@@ -59,7 +59,7 @@ export function orderBy<
 /**
  * Orders the elements and limits the number of results, with optional offset and 
  * annotates the value with the index.
- * This requires a keyed stream, and uses the `topK` operator to order all the elements.
+ * This requires a keyed stream, and uses the `indexedTopK` operator to order all the elements.
  *
  * @param valueExtractor - A function that extracts the value to order by from the element
  * @param options - An optional object containing comparator, limit and offset properties
@@ -104,7 +104,7 @@ export function orderByWithIndex<
 /**
  * Orders the elements and limits the number of results, with optional offset and 
  * annotates the value with a fractional index.
- * This requires a keyed stream, and uses the `topK` operator to order all the elements.
+ * This requires a keyed stream, and uses the `fractionalIndexedTopK` operator to order all the elements.
  *
  * @param valueExtractor - A function that extracts the value to order by from the element
  * @param options - An optional object containing comparator, limit and offset properties
