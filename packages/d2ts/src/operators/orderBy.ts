@@ -46,7 +46,9 @@ export function orderBy<
       topK((a, b) => comparator(a[1], b[1]), { limit, offset }),
       map(([_, [key]]) => [key, null] as KeyValue<K, null>),
       innerJoin(stream),
-      map(([key, [value, _]]) => [key, value] as KeyValue<K, V1>),
+      map(([key, value]) => {
+        return [key, value[1]] as KeyValue<K, V1>
+      }),
     )
   }
 }
