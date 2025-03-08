@@ -22,6 +22,11 @@ interface TopKWithFractionalIndexOptions {
   offset?: number
 }
 
+interface KeysTodoRow {
+  version: string
+  key: string
+}
+
 /**
  * Operator for fractional indexed topK operations
  * This operator maintains fractional indices for sorted elements
@@ -32,7 +37,13 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
 > {
   #index: SQLIndex<K, V1>
   #indexOut: SQLIndex<K, [V1, string]>
-  #keysTodo = new Map<Version, Set<K>>()
+  #preparedStatements: {
+    insertKeyTodo: SQLiteStatement<[string, string]>
+    getKeysTodo: SQLiteStatement<[], KeysTodoRow>
+    deleteKeysTodo: SQLiteStatement<[string]>
+    createKeysTodoTable: SQLiteStatement
+    dropKeysTodoTable: SQLiteStatement
+  }
   #comparator: (a: V1, b: V1) => number
   #limit: number
   #offset: number
@@ -54,6 +65,46 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
     // Initialize indexes
     this.#index = new SQLIndex<K, V1>(db, `topKFI_index_${id}`)
     this.#indexOut = new SQLIndex<K, [V1, string]>(db, `topKFI_index_out_${id}`)
+
+    // Create tables
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS topKFI_keys_todo_${id} (
+        version TEXT NOT NULL,
+        key TEXT NOT NULL,
+        PRIMARY KEY (version, key)
+      )
+    `)
+
+    // Create indexes for better performance
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS topKFI_keys_todo_${id}_version_idx 
+      ON topKFI_keys_todo_${id}(version)
+    `)
+
+    // Prepare statements
+    this.#preparedStatements = {
+      createKeysTodoTable: db.prepare(`
+        CREATE TABLE IF NOT EXISTS topKFI_keys_todo_${id} (
+          version TEXT NOT NULL,
+          key TEXT NOT NULL,
+          PRIMARY KEY (version, key)
+        )
+      `),
+      dropKeysTodoTable: db.prepare(`
+        DROP TABLE IF EXISTS topKFI_keys_todo_${id}
+      `),
+      insertKeyTodo: db.prepare(`
+        INSERT OR IGNORE INTO topKFI_keys_todo_${id} (version, key)
+        VALUES (?, ?)
+      `),
+      getKeysTodo: db.prepare(`
+        SELECT version, key FROM topKFI_keys_todo_${id}
+      `),
+      deleteKeysTodo: db.prepare(`
+        DELETE FROM topKFI_keys_todo_${id}
+        WHERE version = ?
+      `),
+    }
   }
 
   run(): void {
@@ -64,22 +115,19 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
           const [key, value] = item
           this.#index.addValue(key, version, [value, multiplicity])
 
-          let todoSet = this.#keysTodo.get(version)
-          if (!todoSet) {
-            todoSet = new Set<K>()
-            this.#keysTodo.set(version, todoSet)
-          }
-          todoSet.add(key)
+          // Add key to todo list for this version
+          this.#preparedStatements.insertKeyTodo.run(
+            version.toJSON(),
+            JSON.stringify(key),
+          )
 
           // Add key to all join versions
           for (const v2 of this.#index.versions(key)) {
             const joinVersion = version.join(v2)
-            let joinTodoSet = this.#keysTodo.get(joinVersion)
-            if (!joinTodoSet) {
-              joinTodoSet = new Set<K>()
-              this.#keysTodo.set(joinVersion, joinTodoSet)
-            }
-            joinTodoSet.add(key)
+            this.#preparedStatements.insertKeyTodo.run(
+              joinVersion.toJSON(),
+              JSON.stringify(key),
+            )
           }
         }
       } else if (message.type === MessageType.FRONTIER) {
@@ -92,11 +140,23 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
     }
 
     // Find versions that are complete
-    const finishedVersions = Array.from(this.#keysTodo.entries())
+    const finishedVersionsRows = this.#preparedStatements.getKeysTodo
+      .all()
+      .map((row) => ({
+        version: Version.fromJSON(row.version),
+        key: JSON.parse(row.key) as K,
+      }))
+
+    // Group by version
+    const finishedVersionsMap = new Map<Version, K[]>()
+    for (const { version, key } of finishedVersionsRows) {
+      const keys = finishedVersionsMap.get(version) || []
+      keys.push(key)
+      finishedVersionsMap.set(version, keys)
+    }
+    const finishedVersions = Array.from(finishedVersionsMap.entries())
       .filter(([version]) => !this.inputFrontier().lessEqualVersion(version))
-      .sort(([a], [b]) => {
-        return a.lessEqual(b) ? -1 : 1
-      })
+      .sort((a, b) => (a[0].lessEqual(b[0]) ? -1 : 1))
 
     for (const [version, keys] of finishedVersions) {
       const result: [[K, [V1, string]], number][] = []
@@ -307,7 +367,7 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
       if (result.length > 0) {
         this.output.sendData(version, new MultiSet(result))
       }
-      this.#keysTodo.delete(version)
+      this.#preparedStatements.deleteKeysTodo.run(version.toJSON())
     }
 
     if (!this.outputFrontier.lessEqual(this.inputFrontier())) {
@@ -319,6 +379,12 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
       this.#index.compact(this.outputFrontier)
       this.#indexOut.compact(this.outputFrontier)
     }
+  }
+
+  destroy(): void {
+    this.#index.destroy()
+    this.#indexOut.destroy()
+    this.#preparedStatements.dropKeysTodoTable.run()
   }
 }
 
