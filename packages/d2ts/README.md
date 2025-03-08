@@ -78,6 +78,9 @@ A D2TS pipeline is also fully type safe, inferring the types at each step of the
     - [`max`](#max): Find maximum value in each group
     - [`median`](#median): Calculate median value in each group
     - [`mode`](#mode): Find most frequent value in each group
+  - [`orderBy`](#orderby): Order elements by a value extractor function
+  - [`orderByWithIndex`](#orderbywithindex): Order elements and include position indices
+  - [`orderByWithFractionalIndex`](#orderbywithfractionalindex): Order elements with stable fractional indices
 - **SQLite Integration**: Optional SQLite backend for persisting operator state allowing for larger datasets and resumable pipelines
 - **Type Safety**: Full TypeScript type safety and inference through the pipeline API
 
@@ -822,6 +825,76 @@ const salesAnalysis = salesData.pipe(
   )
 )
 ```
+
+#### orderBy
+
+`orderBy(valueExtractor: (value: V) => T, options?: { comparator?: (a: T, b: T) => number, limit?: number, offset?: number })`
+
+Orders elements in a keyed stream by a value extracted from each element, with optional limit and offset. This operator orders the entire stream, not just within key groups.
+
+```typescript
+// Order all products by price
+const orderedProducts = products.pipe(
+  map(product => [product.category, product]), // Key by category
+  orderBy(product => product.price, { 
+    comparator: (a, b) => a - b, // Sort by price ascending
+    limit: 10 // Only keep top 10
+  })
+)
+
+// To order the entire collection regardless of category
+const allProductsByPrice = products.pipe(
+  map(product => [null, product]), // Key all products by null
+  orderBy(product => product.price, { 
+    comparator: (a, b) => a - b // Sort by price ascending
+  })
+)
+```
+
+#### orderByWithIndex
+
+`orderByWithIndex(valueExtractor: (value: V) => T, options?: { comparator?: (a: T, b: T) => number, limit?: number, offset?: number })`
+
+Similar to `orderBy`, but includes the position index of each element in the result. The output format is `[key, [value, index]]` where index is the position (starting from the offset).
+
+```typescript
+// Order all products by price and include their overall rank
+const rankedProducts = products.pipe(
+  map(product => [product.category, product]),
+  orderByWithIndex(product => product.price, { 
+    comparator: (a, b) => b - a, // Sort by price descending
+    limit: 5
+  }),
+  map(([category, [product, position]]) => ({
+    category,
+    product,
+    rank: position + 1 // Convert to 1-based ranking
+  }))
+)
+```
+
+#### orderByWithFractionalIndex
+
+`orderByWithFractionalIndex(valueExtractor: (value: V) => T, options?: { comparator?: (a: T, b: T) => number, limit?: number, offset?: number })`
+
+An advanced version of `orderByWithIndex` that uses fractional indexing to minimize changes when elements move positions. This is particularly useful for UI applications where you want to minimize DOM updates when the order changes.
+
+```typescript
+// Order all products with stable fractional indices
+const stableOrderedProducts = products.pipe(
+  map(product => [product.category, product]),
+  orderByWithFractionalIndex(product => product.rating, { 
+    comparator: (a, b) => b - a // Sort by rating descending
+  }),
+  map(([category, [product, fractionalIndex]]) => ({
+    category,
+    product,
+    position: fractionalIndex // Lexicographically sortable string index
+  }))
+)
+```
+
+For more details on how fractional indexing works, see [Implementing Fractional Indexing](https://observablehq.com/@dgreensp/implementing-fractional-indexing) by David Greenspan.
 
 ### Using SQLite Backend
 
