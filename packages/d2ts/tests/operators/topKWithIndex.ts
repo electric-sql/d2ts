@@ -2,10 +2,10 @@ import { describe, test, expect } from 'vitest'
 import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import { MessageType } from '../../src/types.js'
-import { indexedTopK, output } from '../../src/operators/index.js'
+import { topKWithIndex, output } from '../../src/operators/index.js'
 
 describe('Operators', () => {
-  describe('IndexedTopK operation', () => {
+  describe('TopKWithIndex operation', () => {
     test('initial results with limit - no key', () => {
       const graph = new D2({ initialFrontier: 0 })
       const input = graph.newInput<
@@ -20,7 +20,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        indexedTopK((a, b) => a.value.localeCompare(b.value), { limit: 3 }),
+        topKWithIndex((a, b) => a.value.localeCompare(b.value), { limit: 3 }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -69,7 +69,7 @@ describe('Operators', () => {
       >()
       let latestMessage: any = null
       input.pipe(
-        indexedTopK((a, b) => a.value.localeCompare(b.value), {
+        topKWithIndex((a, b) => a.value.localeCompare(b.value), {
           limit: 3,
           offset: 2,
         }),
@@ -122,7 +122,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        indexedTopK((a, b) => a.value.localeCompare(b.value), { limit: 3 }),
+        topKWithIndex((a, b) => a.value.localeCompare(b.value), { limit: 3 }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -180,7 +180,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        indexedTopK((a, b) => a.value.localeCompare(b.value), { limit: 3 }),
+        topKWithIndex((a, b) => a.value.localeCompare(b.value), { limit: 3 }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -244,7 +244,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        indexedTopK((a, b) => a.value.localeCompare(b.value), { limit: 3 }),
+        topKWithIndex((a, b) => a.value.localeCompare(b.value), { limit: 3 }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -317,7 +317,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        indexedTopK((a, b) => a.value.localeCompare(b.value), { limit: 3 }),
+        topKWithIndex((a, b) => a.value.localeCompare(b.value), { limit: 3 }),
         output((message) => {
           if (message.type === MessageType.DATA) {
             latestMessage = message.data
@@ -391,7 +391,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        indexedTopK((a, b) => a.value.localeCompare(b.value), {
+        topKWithIndex((a, b) => a.value.localeCompare(b.value), {
           limit: 2,
           offset: 1,
         }),

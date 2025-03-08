@@ -1,7 +1,7 @@
 import { IStreamBuilder } from '../types'
 import { KeyValue } from '../types.js'
-import { topK, indexedTopK } from './topK.js'
-import { fractionalIndexedTopK } from './fractionalIndexedTopK.js'
+import { topK, topKWithIndex } from './topK.js'
+import { topKWithFractionalIndex } from './topKWithFractionalIndex.js'
 import { map } from './map.js'
 import { innerJoin } from './join.js'
 import { consolidate } from './consolidate.js'
@@ -59,7 +59,7 @@ export function orderBy<
 /**
  * Orders the elements and limits the number of results, with optional offset and
  * annotates the value with the index.
- * This requires a keyed stream, and uses the `indexedTopK` operator to order all the elements.
+ * This requires a keyed stream, and uses the `topKWithIndex` operator to order all the elements.
  *
  * @param valueExtractor - A function that extracts the value to order by from the element
  * @param options - An optional object containing comparator, limit and offset properties
@@ -90,7 +90,7 @@ export function orderByWithIndex<
         ([key, value]) =>
           [null, [key, valueExtractor(value)]] as KeyValue<null, [K, Ve]>,
       ),
-      indexedTopK((a, b) => comparator(a[1], b[1]), { limit, offset }),
+      topKWithIndex((a, b) => comparator(a[1], b[1]), { limit, offset }),
       map(([_, [[key], index]]) => [key, index] as KeyValue<K, number>),
       innerJoin(stream),
       map(([key, [index, value]]) => {
@@ -104,7 +104,7 @@ export function orderByWithIndex<
 /**
  * Orders the elements and limits the number of results, with optional offset and
  * annotates the value with a fractional index.
- * This requires a keyed stream, and uses the `fractionalIndexedTopK` operator to order all the elements.
+ * This requires a keyed stream, and uses the `topKWithFractionalIndex` operator to order all the elements.
  *
  * @param valueExtractor - A function that extracts the value to order by from the element
  * @param options - An optional object containing comparator, limit and offset properties
@@ -135,7 +135,7 @@ export function orderByWithFractionalIndex<
         ([key, value]) =>
           [null, [key, valueExtractor(value)]] as KeyValue<null, [K, Ve]>,
       ),
-      fractionalIndexedTopK((a, b) => comparator(a[1], b[1]), {
+      topKWithFractionalIndex((a, b) => comparator(a[1], b[1]), {
         limit,
         offset,
       }),

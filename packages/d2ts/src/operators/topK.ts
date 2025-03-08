@@ -57,7 +57,7 @@ export function topK<
  * @param options - An optional object containing limit and offset properties
  * @returns A piped operator that orders the elements and limits the number of results
  */
-export function indexedTopK<
+export function topKWithIndex<
   K extends T extends KeyValue<infer K, infer _V> ? K : never,
   V1 extends T extends KeyValue<K, infer V> ? V : never,
   T,

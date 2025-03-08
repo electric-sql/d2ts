@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import { MessageType } from '../../src/types.js'
-import { fractionalIndexedTopK } from '../../src/operators/fractionalIndexedTopK.js'
+import { topKWithFractionalIndex } from '../../src/operators/topKWithFractionalIndex.js'
 import { output } from '../../src/operators/index.js'
 
 // Helper function to check if indices are in lexicographic order
@@ -57,14 +57,14 @@ function verifyOrder(results: any[], expectedOrder: string[]) {
   expect(sortedByIndex).toEqual(expectedOrder)
 }
 
-describe('fractionalIndexedTopK', () => {
+describe('topKWithFractionalIndex', () => {
   it('should assign fractional indices to sorted elements', () => {
     const graph = new D2({ initialFrontier: 0 })
     const input = graph.newInput<[null, { id: number; value: string }]>()
     const allMessages: any[] = []
 
     input.pipe(
-      fractionalIndexedTopK((a, b) => a.value.localeCompare(b.value)),
+      topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value)),
       output((message) => {
         if (message.type === MessageType.DATA) {
           allMessages.push(message.data)
@@ -172,7 +172,7 @@ describe('fractionalIndexedTopK', () => {
     const allMessages: any[] = []
 
     input.pipe(
-      fractionalIndexedTopK((a, b) => a.value.localeCompare(b.value), {
+      topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value), {
         limit: 3,
         offset: 1,
       }),
@@ -282,7 +282,7 @@ describe('fractionalIndexedTopK', () => {
     const allMessages: any[] = []
 
     input.pipe(
-      fractionalIndexedTopK((a, b) => a.value.localeCompare(b.value)),
+      topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value)),
       output((message) => {
         if (message.type === MessageType.DATA) {
           allMessages.push(message.data)
@@ -416,7 +416,7 @@ describe('fractionalIndexedTopK', () => {
     const allMessages: any[] = []
 
     input.pipe(
-      fractionalIndexedTopK((a, b) => a.value.localeCompare(b.value)),
+      topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value)),
       output((message) => {
         if (message.type === MessageType.DATA) {
           allMessages.push(message.data)
@@ -583,7 +583,7 @@ describe('fractionalIndexedTopK', () => {
     const allMessages: any[] = []
 
     input.pipe(
-      fractionalIndexedTopK((a, b) => a.value.localeCompare(b.value)),
+      topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value)),
       output((message) => {
         if (message.type === MessageType.DATA) {
           allMessages.push(message.data)

@@ -68,8 +68,8 @@ A D2TS pipeline is also fully type safe, inferring the types at each step of the
   - [`output`](#output): Output the messages of the stream
   - [`pipe`](#pipe): Build a pipeline of operators enabling reuse of combinations of operators
   - [`topK`](#topk): Limit results to top K elements based on a comparator
-  - [`indexedTopK`](#indexedtopk): Like topK but includes position indices
-  - [`fractionalIndexedTopK`](#fractionalindexedtopk): Like indexedTopK but with stable fractional indices
+  - [`topKWithIndex`](#topkwithindex): Like topK but includes position indices
+  - [`topKWithFractionalIndex`](#topkwithfractionalindex): Like topKWithIndex but with stable fractional indices
   - [`groupBy`](#groupby): Group data by key and apply multiple aggregate functions
     - [`sum`](#sum): Sum values in each group
     - [`count`](#count): Count items in each group
@@ -873,9 +873,9 @@ const topOverall = products.pipe(
 )
 ```
 
-#### indexedTopK
+#### topKWithIndex
 
-`indexedTopK(comparator: (a: T, b: T) => number, options?: { limit?: number, offset?: number })`
+`topKWithIndex(comparator: (a: T, b: T) => number, options?: { limit?: number, offset?: number })`
 
 Similar to `topK`, but includes the position index of each element in the result. The output format is `[key, [value, index]]` where index is the position (starting from the offset).
 
@@ -883,7 +883,7 @@ Similar to `topK`, but includes the position index of each element in the result
 // Get top 5 products with their position in each category
 const rankedProducts = products.pipe(
   map(product => [product.category, product]),
-  indexedTopK((a, b) => b.rating - a.rating, { limit: 5 }),
+  topKWithIndex((a, b) => b.rating - a.rating, { limit: 5 }),
   map(([category, [product, position]]) => ({
     category,
     product,
@@ -892,11 +892,11 @@ const rankedProducts = products.pipe(
 )
 ```
 
-#### fractionalIndexedTopK
+#### topKWithFractionalIndex
 
-`fractionalIndexedTopK(comparator: (a: T, b: T) => number, options?: { limit?: number, offset?: number })`
+`topKWithFractionalIndex(comparator: (a: T, b: T) => number, options?: { limit?: number, offset?: number })`
 
-An advanced version of `indexedTopK` that uses fractional indexing to minimize changes when elements move positions. Instead of integer indices, it assigns string-based fractional indices that are lexicographically sortable.
+An advanced version of `topKWithIndex` that uses fractional indexing to minimize changes when elements move positions. Instead of integer indices, it assigns string-based fractional indices that are lexicographically sortable.
 
 When elements change position, only the indices of the moved elements are updated, not all elements. This is particularly useful for UI applications where you want to minimize DOM updates.
 
@@ -904,7 +904,7 @@ When elements change position, only the indices of the moved elements are update
 // Get top 10 leaderboard entries with stable fractional indices
 const leaderboard = scores.pipe(
   map(score => ['leaderboard', score]),
-  fractionalIndexedTopK((a, b) => b.points - a.points, { limit: 10 }),
+  topKWithFractionalIndex((a, b) => b.points - a.points, { limit: 10 }),
   map(([_, [score, fractionalIndex]]) => ({
     ...score,
     position: fractionalIndex // Lexicographically sortable string index

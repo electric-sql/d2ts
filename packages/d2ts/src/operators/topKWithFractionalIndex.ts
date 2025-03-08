@@ -16,7 +16,7 @@ import { Antichain, Version } from '../order.js'
 import { Index } from '../version-index.js'
 import { generateKeyBetween } from 'fractional-indexing'
 
-interface FractionalIndexedTopKOptions {
+interface TopKWithFractionalIndexOptions {
   limit?: number
   offset?: number
 }
@@ -26,7 +26,7 @@ interface FractionalIndexedTopKOptions {
  * This operator maintains fractional indices for sorted elements
  * and only updates indices when elements move position
  */
-export class FractionalIndexedTopKOperator<K, V1> extends UnaryOperator<
+export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
   [K, V1 | [V1, string]]
 > {
   #index = new Index<K, V1>()
@@ -41,7 +41,7 @@ export class FractionalIndexedTopKOperator<K, V1> extends UnaryOperator<
     inputA: DifferenceStreamReader<[K, V1]>,
     output: DifferenceStreamWriter<[K, [V1, string]]>,
     comparator: (a: V1, b: V1) => number,
-    options: FractionalIndexedTopKOptions,
+    options: TopKWithFractionalIndexOptions,
     initialFrontier: Antichain,
   ) {
     super(id, inputA, output, initialFrontier)
@@ -331,13 +331,13 @@ export class FractionalIndexedTopKOperator<K, V1> extends UnaryOperator<
  * @param options - An optional object containing limit and offset properties
  * @returns A piped operator that orders the elements and limits the number of results
  */
-export function fractionalIndexedTopK<
+export function topKWithFractionalIndex<
   K extends T extends KeyValue<infer K, infer _V> ? K : never,
   V1 extends T extends KeyValue<K, infer V> ? V : never,
   T,
 >(
   comparator: (a: V1, b: V1) => number,
-  options?: FractionalIndexedTopKOptions,
+  options?: TopKWithFractionalIndexOptions,
 ): PipedOperator<T, KeyValue<K, [V1, string]>> {
   const opts = options || {}
 
@@ -348,7 +348,7 @@ export function fractionalIndexedTopK<
       stream.graph,
       new DifferenceStreamWriter<KeyValue<K, [V1, string]>>(),
     )
-    const operator = new FractionalIndexedTopKOperator<K, V1>(
+    const operator = new TopKWithFractionalIndexOperator<K, V1>(
       stream.graph.getNextOperatorId(),
       stream.connectReader() as DifferenceStreamReader<KeyValue<K, V1>>,
       output.writer,
