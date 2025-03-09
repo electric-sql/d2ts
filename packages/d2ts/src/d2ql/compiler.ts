@@ -1,9 +1,6 @@
 import {
   filter,
   map,
-  join as joinOperator,
-  JoinType,
-  consolidate,
   keyBy,
   orderBy,
   orderByWithIndex,
@@ -26,11 +23,10 @@ import { IStreamBuilder } from '../types.js'
 import { Query, Condition, ConditionOperand, FunctionCall } from './schema.js'
 import {
   extractValueFromNestedRow,
-  extractJoinKey,
   evaluateOperandOnNestedRow,
 } from './extractors.js'
 import { evaluateConditionOnNestedRow } from './evaluators.js'
-import { processJoinResults } from './joins.js'
+import { processJoinClause } from './joins.js'
 
 // Helper function to determine if an object is a function call with an aggregate function
 function isAggregateFunctionCall(obj: any): boolean {
@@ -235,102 +231,13 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
 
   // Process JOIN clauses if they exist
   if (query.join) {
-    for (const joinClause of query.join) {
-      // Create a stream for the joined table
-      const joinedTableAlias = joinClause.as || joinClause.from
-
-      // Get the right join type for the operator
-      const joinType: JoinType =
-        joinClause.type === 'cross' ? 'inner' : joinClause.type
-
-      // We need to prepare the main pipeline and the joined pipeline
-      // to have the correct key format for joining
-      const mainPipeline = pipeline.pipe(
-        map((nestedRow: Record<string, unknown>) => {
-          // Extract the key from the ON condition left side for the main table
-          const mainRow = nestedRow[mainTableAlias] as Record<string, unknown>
-
-          // Extract the join key from the main row
-          const keyValue = extractJoinKey(
-            mainRow,
-            joinClause.on[0],
-            mainTableAlias,
-          )
-
-          // Return [key, nestedRow] as a KeyValue type
-          return [keyValue, nestedRow] as [unknown, Record<string, unknown>]
-        }),
-      )
-
-      // Get the joined table input from the inputs map
-      let joinedTableInput: IStreamBuilder<Record<string, unknown>>
-
-      if (allInputs[joinClause.from]) {
-        // Use the provided input if available
-        joinedTableInput = allInputs[joinClause.from]
-      } else {
-        // Create a new input if not provided
-        joinedTableInput = input.graph.newInput<Record<string, unknown>>()
-      }
-
-      tables[joinedTableAlias] = joinedTableInput
-
-      // Create a pipeline for the joined table
-      const joinedPipeline = joinedTableInput.pipe(
-        map((row: Record<string, unknown>) => {
-          // Wrap the row in an object with the table alias as the key
-          const nestedRow = { [joinedTableAlias]: row }
-
-          // Extract the key from the ON condition right side for the joined table
-          const keyValue = extractJoinKey(
-            row,
-            joinClause.on[2],
-            joinedTableAlias,
-          )
-
-          // Return [key, nestedRow] as a KeyValue type
-          return [keyValue, nestedRow] as [unknown, Record<string, unknown>]
-        }),
-      )
-
-      // Apply join with appropriate typings based on join type
-      switch (joinType) {
-        case 'inner':
-          pipeline = mainPipeline.pipe(
-            joinOperator(joinedPipeline, 'inner'),
-            consolidate(),
-            processJoinResults(mainTableAlias, joinedTableAlias, joinClause),
-          )
-          break
-        case 'left':
-          pipeline = mainPipeline.pipe(
-            joinOperator(joinedPipeline, 'left'),
-            consolidate(),
-            processJoinResults(mainTableAlias, joinedTableAlias, joinClause),
-          )
-          break
-        case 'right':
-          pipeline = mainPipeline.pipe(
-            joinOperator(joinedPipeline, 'right'),
-            consolidate(),
-            processJoinResults(mainTableAlias, joinedTableAlias, joinClause),
-          )
-          break
-        case 'full':
-          pipeline = mainPipeline.pipe(
-            joinOperator(joinedPipeline, 'full'),
-            consolidate(),
-            processJoinResults(mainTableAlias, joinedTableAlias, joinClause),
-          )
-          break
-        default:
-          pipeline = mainPipeline.pipe(
-            joinOperator(joinedPipeline, 'inner'),
-            consolidate(),
-            processJoinResults(mainTableAlias, joinedTableAlias, joinClause),
-          )
-      }
-    }
+    pipeline = processJoinClause(
+      pipeline,
+      query,
+      tables,
+      mainTableAlias,
+      allInputs,
+    )
   }
 
   // Process the WHERE clause if it exists

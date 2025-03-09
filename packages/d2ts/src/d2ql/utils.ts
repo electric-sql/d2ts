@@ -1,4 +1,34 @@
 /**
+ * Helper function to determine if an object is a function call with an aggregate function
+ */
+export function isAggregateFunctionCall(obj: any): boolean {
+  if (!obj || typeof obj !== 'object') return false
+
+  const aggregateFunctions = [
+    'SUM',
+    'COUNT',
+    'AVG',
+    'MIN',
+    'MAX',
+    'MEDIAN',
+    'MODE',
+  ]
+  const keys = Object.keys(obj)
+
+  return keys.length === 1 && aggregateFunctions.includes(keys[0])
+}
+
+/**
+ * Helper function to determine if an object is an ORDER_INDEX function call
+ */
+export function isOrderIndexFunctionCall(obj: any): boolean {
+  if (!obj || typeof obj !== 'object') return false
+
+  const keys = Object.keys(obj)
+  return keys.length === 1 && keys[0] === 'ORDER_INDEX'
+}
+
+/**
  * Type guard to check if a value is comparable (can be used with <, >, <=, >= operators)
  * @param value The value to check
  * @returns True if the value is comparable
