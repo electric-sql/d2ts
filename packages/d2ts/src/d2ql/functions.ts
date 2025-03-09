@@ -200,8 +200,15 @@ function jsonExtractFunction(arg: unknown): unknown {
 function orderIndexFunction(arg: unknown): null {
   // This is just a placeholder - the actual index is provided by the orderBy operator
   // The function validates that the argument is one of the expected values
-  if (arg !== 'numeric' && arg !== 'fractional' && arg !== true && arg !== 'default') {
-    throw new Error('ORDER_INDEX function expects "numeric", "fractional", "default", or true as argument')
+  if (
+    arg !== 'numeric' &&
+    arg !== 'fractional' &&
+    arg !== true &&
+    arg !== 'default'
+  ) {
+    throw new Error(
+      'ORDER_INDEX function expects "numeric", "fractional", "default", or true as argument',
+    )
   }
   return null
 }

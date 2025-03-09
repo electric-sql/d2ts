@@ -60,7 +60,7 @@ function getOrderIndexType(obj: any): 'numeric' | 'fractional' {
   if (!isOrderIndexFunctionCall(obj)) {
     throw new Error('Not an ORDER_INDEX function call')
   }
-  
+
   const arg = obj['ORDER_INDEX']
   if (arg === 'numeric' || arg === true || arg === 'default') {
     return 'numeric'
@@ -573,13 +573,16 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
     }
 
     // Normalize orderBy to an array of objects
-    const orderByItems: Array<{ operand: ConditionOperand; direction: 'asc' | 'desc' }> = []
-    
+    const orderByItems: Array<{
+      operand: ConditionOperand
+      direction: 'asc' | 'desc'
+    }> = []
+
     if (typeof query.orderBy === 'string') {
       // Handle string format: '@column'
       orderByItems.push({
         operand: query.orderBy,
-        direction: 'asc'
+        direction: 'asc',
       })
     } else if (Array.isArray(query.orderBy)) {
       // Handle array format: ['@column1', { '@column2': 'desc' }]
@@ -587,13 +590,13 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
         if (typeof item === 'string') {
           orderByItems.push({
             operand: item,
-            direction: 'asc'
+            direction: 'asc',
           })
         } else if (typeof item === 'object') {
           for (const [column, direction] of Object.entries(item)) {
             orderByItems.push({
               operand: column,
-              direction: direction as 'asc' | 'desc'
+              direction: direction as 'asc' | 'desc',
             })
           }
         }
@@ -603,7 +606,7 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
       for (const [column, direction] of Object.entries(query.orderBy)) {
         orderByItems.push({
           operand: column,
-          direction: direction as 'asc' | 'desc'
+          direction: direction as 'asc' | 'desc',
         })
       }
     }
@@ -611,25 +614,27 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
     // Create a value extractor function for the orderBy operator
     const valueExtractor = (value: unknown) => {
       const row = value as Record<string, unknown>
-      
+
       // Create a nested row structure for evaluateOperandOnNestedRow
       const nestedRow: Record<string, unknown> = { [mainTableAlias]: row }
-      
+
       // For multiple orderBy columns, create a composite key
       if (orderByItems.length > 1) {
-        return orderByItems.map(item => {
+        return orderByItems.map((item) => {
           const value = evaluateOperandOnNestedRow(
             nestedRow,
             item.operand,
-            mainTableAlias
+            mainTableAlias,
           )
-          
+
           // Reverse the value for 'desc' ordering
           return item.direction === 'desc' && typeof value === 'number'
             ? -value
             : item.direction === 'desc' && typeof value === 'string'
-            ? String.fromCharCode(...[...value].map(c => 0xFFFF - c.charCodeAt(0)))
-            : value
+              ? String.fromCharCode(
+                  ...[...value].map((c) => 0xffff - c.charCodeAt(0)),
+                )
+              : value
         })
       } else if (orderByItems.length === 1) {
         // For a single orderBy column, use the value directly
@@ -637,17 +642,19 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
         const value = evaluateOperandOnNestedRow(
           nestedRow,
           item.operand,
-          mainTableAlias
+          mainTableAlias,
         )
-        
+
         // Reverse the value for 'desc' ordering
         return item.direction === 'desc' && typeof value === 'number'
           ? -value
           : item.direction === 'desc' && typeof value === 'string'
-          ? String.fromCharCode(...[...value].map(c => 0xFFFF - c.charCodeAt(0)))
-          : value
+            ? String.fromCharCode(
+                ...[...value].map((c) => 0xffff - c.charCodeAt(0)),
+              )
+            : value
       }
-      
+
       // Default case - no ordering
       return null
     }
@@ -659,26 +666,32 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
         resultPipeline = resultPipeline.pipe(
           orderByWithIndex(valueExtractor, {
             limit: query.limit,
-            offset: query.offset
+            offset: query.offset,
           }),
           map(([key, [value, index]]) => {
             // Add the index to the result
-            const result = { ...value as Record<string, unknown>, [orderIndexAlias]: index }
+            const result = {
+              ...(value as Record<string, unknown>),
+              [orderIndexAlias]: index,
+            }
             return [key, result]
-          })
+          }),
         )
       } else {
         // Use orderByWithFractionalIndex for fractional indices
         resultPipeline = resultPipeline.pipe(
           orderByWithFractionalIndex(valueExtractor, {
             limit: query.limit,
-            offset: query.offset
+            offset: query.offset,
           }),
           map(([key, [value, index]]) => {
             // Add the index to the result
-            const result = { ...value as Record<string, unknown>, [orderIndexAlias]: index }
+            const result = {
+              ...(value as Record<string, unknown>),
+              [orderIndexAlias]: index,
+            }
             return [key, result]
-          })
+          }),
         )
       }
     } else {
@@ -686,13 +699,15 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
       resultPipeline = resultPipeline.pipe(
         orderBy(valueExtractor, {
           limit: query.limit,
-          offset: query.offset
-        })
+          offset: query.offset,
+        }),
       )
     }
   } else if (query.limit !== undefined || query.offset !== undefined) {
     // If there's a limit or offset without orderBy, throw an error
-    throw new Error('LIMIT and OFFSET require an ORDER BY clause to ensure deterministic results')
+    throw new Error(
+      'LIMIT and OFFSET require an ORDER BY clause to ensure deterministic results',
+    )
   }
 
   // Process keyBy parameter if it exists
