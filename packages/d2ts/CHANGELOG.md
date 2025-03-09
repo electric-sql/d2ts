@@ -1,5 +1,21 @@
 # @electric-sql/d2ts
 
+## 0.1.4
+
+### Patch Changes
+
+- 481a3c7: Add filterBy operator to filter elements of a keyed stream by keys from another stream
+- 434996c: Add support for wildcard select with a `@*` and `@table_name.*` syntax
+- 546db4c: new orderBy and topK operators, with indexed and fractional indexed variants
+- e339552: add support for CTEs via a `with` clause to D2QL
+- 1b8530c: added keyBy param to D2QL
+- 250ae73: Support for providing the sqlite database to operators via dependency injection
+- b48a330: add support for ORDER BY, LIMIT, and OFFSET to D2QL
+- 1b8530c: Refactor `Store` to have both `pipe`/`pipeAll` and `query`/`queryAll`, the former exposing the pipe api and the latter exposing the D2QL query api.
+- 24451fc: add support for `group by` clause to D2QL
+- 0e98a5a: new `groupBy` operator with accompanying aggregate functions (`sum`, `count`, `avg`, `min`, `max`, `median`, `mode`)
+- 31d001d: fix the join implementation so that it returns current results
+
 ## 0.1.3
 
 ### Patch Changes
