@@ -29,6 +29,7 @@ export type AllowedFunctionName =
   | 'COALESCE'
   | 'CONCAT'
   | 'LENGTH'
+  | 'ORDER_INDEX'
 
 // A function call is represented as a union of objects—each having exactly one key that is one of the allowed function names.
 export type FunctionCall = {

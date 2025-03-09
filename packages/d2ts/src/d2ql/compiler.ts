@@ -5,6 +5,9 @@ import {
   JoinType,
   consolidate,
   keyBy,
+  orderBy,
+  orderByWithIndex,
+  orderByWithFractionalIndex,
 } from '../operators/index.js'
 import {
   groupBy,
@@ -42,6 +45,30 @@ function isAggregateFunctionCall(obj: any): boolean {
   const keys = Object.keys(obj)
 
   return keys.length === 1 && aggregateFunctions.includes(keys[0])
+}
+
+// Helper function to determine if an object is an ORDER_INDEX function call
+function isOrderIndexFunctionCall(obj: any): boolean {
+  if (!obj || typeof obj !== 'object') return false
+
+  const keys = Object.keys(obj)
+  return keys.length === 1 && keys[0] === 'ORDER_INDEX'
+}
+
+// Helper function to extract the ORDER_INDEX type from a function call
+function getOrderIndexType(obj: any): 'numeric' | 'fractional' {
+  if (!isOrderIndexFunctionCall(obj)) {
+    throw new Error('Not an ORDER_INDEX function call')
+  }
+  
+  const arg = obj['ORDER_INDEX']
+  if (arg === 'numeric' || arg === true || arg === 'default') {
+    return 'numeric'
+  } else if (arg === 'fractional') {
+    return 'fractional'
+  } else {
+    throw new Error('Invalid ORDER_INDEX type: ' + arg)
+  }
 }
 
 // Helper function to get an aggregate function based on the function name
@@ -522,6 +549,151 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
       return result
     }),
   )
+
+  // Process orderBy parameter if it exists
+  if (query.orderBy) {
+    // Check if any column in the SELECT clause is an ORDER_INDEX function call
+    let hasOrderIndexColumn = false
+    let orderIndexType: 'numeric' | 'fractional' = 'numeric'
+    let orderIndexAlias = ''
+
+    // Scan the SELECT clause for ORDER_INDEX functions
+    for (const item of query.select) {
+      if (typeof item === 'object') {
+        for (const [alias, expr] of Object.entries(item)) {
+          if (typeof expr === 'object' && isOrderIndexFunctionCall(expr)) {
+            hasOrderIndexColumn = true
+            orderIndexAlias = alias
+            orderIndexType = getOrderIndexType(expr)
+            break
+          }
+        }
+      }
+      if (hasOrderIndexColumn) break
+    }
+
+    // Normalize orderBy to an array of objects
+    const orderByItems: Array<{ operand: ConditionOperand; direction: 'asc' | 'desc' }> = []
+    
+    if (typeof query.orderBy === 'string') {
+      // Handle string format: '@column'
+      orderByItems.push({
+        operand: query.orderBy,
+        direction: 'asc'
+      })
+    } else if (Array.isArray(query.orderBy)) {
+      // Handle array format: ['@column1', { '@column2': 'desc' }]
+      for (const item of query.orderBy) {
+        if (typeof item === 'string') {
+          orderByItems.push({
+            operand: item,
+            direction: 'asc'
+          })
+        } else if (typeof item === 'object') {
+          for (const [column, direction] of Object.entries(item)) {
+            orderByItems.push({
+              operand: column,
+              direction: direction as 'asc' | 'desc'
+            })
+          }
+        }
+      }
+    } else if (typeof query.orderBy === 'object') {
+      // Handle object format: { '@column': 'desc' }
+      for (const [column, direction] of Object.entries(query.orderBy)) {
+        orderByItems.push({
+          operand: column,
+          direction: direction as 'asc' | 'desc'
+        })
+      }
+    }
+
+    // Create a value extractor function for the orderBy operator
+    const valueExtractor = (value: unknown) => {
+      const row = value as Record<string, unknown>
+      
+      // Create a nested row structure for evaluateOperandOnNestedRow
+      const nestedRow: Record<string, unknown> = { [mainTableAlias]: row }
+      
+      // For multiple orderBy columns, create a composite key
+      if (orderByItems.length > 1) {
+        return orderByItems.map(item => {
+          const value = evaluateOperandOnNestedRow(
+            nestedRow,
+            item.operand,
+            mainTableAlias
+          )
+          
+          // Reverse the value for 'desc' ordering
+          return item.direction === 'desc' && typeof value === 'number'
+            ? -value
+            : item.direction === 'desc' && typeof value === 'string'
+            ? String.fromCharCode(...[...value].map(c => 0xFFFF - c.charCodeAt(0)))
+            : value
+        })
+      } else if (orderByItems.length === 1) {
+        // For a single orderBy column, use the value directly
+        const item = orderByItems[0]
+        const value = evaluateOperandOnNestedRow(
+          nestedRow,
+          item.operand,
+          mainTableAlias
+        )
+        
+        // Reverse the value for 'desc' ordering
+        return item.direction === 'desc' && typeof value === 'number'
+          ? -value
+          : item.direction === 'desc' && typeof value === 'string'
+          ? String.fromCharCode(...[...value].map(c => 0xFFFF - c.charCodeAt(0)))
+          : value
+      }
+      
+      // Default case - no ordering
+      return null
+    }
+
+    // Apply the appropriate orderBy operator based on whether an ORDER_INDEX column is requested
+    if (hasOrderIndexColumn) {
+      if (orderIndexType === 'numeric') {
+        // Use orderByWithIndex for numeric indices
+        resultPipeline = resultPipeline.pipe(
+          orderByWithIndex(valueExtractor, {
+            limit: query.limit,
+            offset: query.offset
+          }),
+          map(([key, [value, index]]) => {
+            // Add the index to the result
+            const result = { ...value as Record<string, unknown>, [orderIndexAlias]: index }
+            return [key, result]
+          })
+        )
+      } else {
+        // Use orderByWithFractionalIndex for fractional indices
+        resultPipeline = resultPipeline.pipe(
+          orderByWithFractionalIndex(valueExtractor, {
+            limit: query.limit,
+            offset: query.offset
+          }),
+          map(([key, [value, index]]) => {
+            // Add the index to the result
+            const result = { ...value as Record<string, unknown>, [orderIndexAlias]: index }
+            return [key, result]
+          })
+        )
+      }
+    } else {
+      // Use regular orderBy if no index column is requested
+      resultPipeline = resultPipeline.pipe(
+        orderBy(valueExtractor, {
+          limit: query.limit,
+          offset: query.offset
+        })
+      )
+    }
+  } else if (query.limit !== undefined || query.offset !== undefined) {
+    // If there's a limit or offset without orderBy, throw an error
+    throw new Error('LIMIT and OFFSET require an ORDER BY clause to ensure deterministic results')
+  }
 
   // Process keyBy parameter if it exists
   if (query.keyBy) {
