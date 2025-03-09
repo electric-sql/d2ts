@@ -2,6 +2,7 @@ import { IStreamBuilder, KeyValue } from '../../types.js'
 import { map } from '../../operators/map.js'
 import { reduce } from './reduce.js'
 import { SQLiteDb } from '../database.js'
+import { SQLiteContext } from '../context.js'
 
 // Re-export most of the aggregate functions from the main implementation
 // since they are compatible with both versions
@@ -92,15 +93,26 @@ export function mode<T>(
 /**
  * Groups data by key and applies multiple aggregate operations
  * SQLite version that persists state to a database
+ *
  * @param keyExtractor Function to extract grouping key from data
  * @param aggregates Object mapping aggregate names to aggregate functions
- * @param db SQLite database to persist state
+ * @param db Optional SQLite database (can be injected via context)
  */
 export function groupBy<
   T,
   K extends GroupKey,
   A extends Record<string, AggregateFunction<T, any, any>>,
->(keyExtractor: (data: T) => K, aggregates: A, db: SQLiteDb) {
+>(keyExtractor: (data: T) => K, aggregates: A, db?: SQLiteDb) {
+  // Get database from context if not provided explicitly
+  const database = db || SQLiteContext.getDb()
+
+  if (!database) {
+    throw new Error(
+      'SQLite database is required for groupBy operator. ' +
+        'Provide it as a parameter or use withSQLite() to inject it.',
+    )
+  }
+
   type ResultType = K & AggregatesReturnType<T, A>
 
   const basicAggregates = Object.fromEntries(
@@ -162,7 +174,7 @@ export function groupBy<
         }
 
         return [[result, 1]]
-      }, db),
+      }, database),
     )
 
     // Finally map to extract the key and include all values

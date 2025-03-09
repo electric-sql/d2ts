@@ -4,6 +4,7 @@ import { DifferenceStreamReader, DifferenceStreamWriter } from '../../graph.js'
 import { Antichain } from '../../order.js'
 import { SQLiteDb } from '../database.js'
 import { ReduceOperatorSQLite } from './reduce.js'
+import { SQLiteContext } from '../context.js'
 
 export class CountOperatorSQLite<K, V> extends ReduceOperatorSQLite<
   K,
@@ -32,14 +33,25 @@ export class CountOperatorSQLite<K, V> extends ReduceOperatorSQLite<
 /**
  * Counts the number of elements by key
  * Persists state to SQLite
- * @param db - The SQLite database
+ *
+ * @param db - Optional SQLite database (can be injected via context)
  */
 export function count<
   K extends T extends KeyValue<infer K, infer _V> ? K : never,
   V extends T extends KeyValue<K, infer V> ? V : never,
   T,
->(db: SQLiteDb) {
+>(db?: SQLiteDb) {
   return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, number>> => {
+    // Get database from context if not provided explicitly
+    const database = db || SQLiteContext.getDb()
+
+    if (!database) {
+      throw new Error(
+        'SQLite database is required for count operator. ' +
+          'Provide it as a parameter or use withSQLite() to inject it.',
+      )
+    }
+
     const output = new StreamBuilder<KeyValue<K, number>>(
       stream.graph,
       new DifferenceStreamWriter<KeyValue<K, number>>(),
@@ -49,7 +61,7 @@ export function count<
       stream.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
       output.writer,
       stream.graph.frontier(),
-      db,
+      database,
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())

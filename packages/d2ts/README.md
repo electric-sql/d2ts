@@ -998,7 +998,7 @@ For persistence and larger datasets, a number of operators are provided that per
 - `topK()`: Limits the number of results per group based on a comparator, and its variants `topKWithIndex` and `topKWithFractionalIndex`
 - `orderBy()`: Orders elements by value, and its variants `orderByWithIndex` and `orderByWithFractionalIndex`
 
-Each take a SQLite database as the final argument, for example:
+Each take a SQLite database as an optional argument, for example:
 
 ```typescript
 // Using better-sqlite3
@@ -1006,6 +1006,46 @@ const sqlite = new Database('./my_database.db')
 const db = new BetterSQLite3Wrapper(sqlite)
 
 const output = input.pipe(consolidate(db))
+```
+
+Alternatively, you can use dependency injection to provide the SQLite database once for a pipeline of operators:
+
+```typescript
+// Using better-sqlite3
+const sqlite = new Database('./my_database.db')
+const db = new BetterSQLite3Wrapper(sqlite)
+
+// Using withSQLite for dependency injection
+const output = input.pipe(
+  withSQLite(db)(
+    map((x) => x + 1),
+    reduce((vals) => {
+      let sum = 0
+      for (const [val, diff] of vals) {
+        sum += val * diff
+      }
+      return [[sum, 1]]
+    }),
+    distinct()
+  )
+)
+```
+
+This approach makes the code cleaner by not having to pass the database to each operator individually. The `withSQLite` function creates a context where the database is automatically available to all SQLite operators within its scope.
+
+You can also mix both approaches as needed:
+
+```typescript
+// Explicitly pass database to one operator
+const firstPart = input.pipe(reduce(reducer, db))
+
+// Use dependency injection for subsequent operators
+firstPart.pipe(
+  withSQLite(db)(
+    distinct(),
+    consolidate()
+  )
+)
 ```
 
 The operators will automatically create the necessary tables and indexes to store the state of the operators. It is advised to use the same database for all operators to ensure that the state is stored in a single location.

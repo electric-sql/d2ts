@@ -3,10 +3,12 @@ import { KeyValue } from '../../types.js'
 import { reduce } from './reduce.js'
 import { MultiSet } from '../../multiset.js'
 import { SQLiteDb } from '../database.js'
+import { SQLiteContext } from '../context.js'
 
 interface TopKOptions {
   limit?: number
   offset?: number
+  db?: SQLiteDb
 }
 
 /**
@@ -17,6 +19,7 @@ interface TopKOptions {
  * To order the entire stream, key by the same value for all elements such as null.
  *
  * @param comparator - A function that compares two elements
+ * @param db - Optional SQLite database (can be injected via context)
  * @param options - An optional object containing limit and offset properties
  * @returns A piped operator that limits the number of results
  */
@@ -26,22 +29,31 @@ export function topK<
   T,
 >(
   comparator: (a: V1, b: V1) => number,
-  db: SQLiteDb,
   options?: TopKOptions,
 ): PipedOperator<T, T> {
   const limit = options?.limit ?? Infinity
   const offset = options?.offset ?? 0
 
   return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
+    // Get database from context if not provided explicitly
+    const database = options?.db || SQLiteContext.getDb()
+
+    if (!database) {
+      throw new Error(
+        'SQLite database is required for topK operator. ' +
+          'Provide it as a parameter or use withSQLite() to inject it.',
+      )
+    }
+
     const reduced = stream.pipe(
-      reduce((values) => {
+      reduce<K, V1, V1, T>((values) => {
         // `values` is a list of tuples, first element is the value, second is the multiplicity
         const consolidated = new MultiSet(values).consolidate()
         const sortedValues = consolidated
           .getInner()
           .sort((a, b) => comparator(a[0] as V1, b[0] as V1))
         return sortedValues.slice(offset, offset + limit)
-      }, db),
+      }, database),
     )
     return reduced as IStreamBuilder<T>
   }
@@ -56,6 +68,7 @@ export function topK<
  * Adds the index of the element to the result as [key, [value, index]]
  *
  * @param comparator - A function that compares two elements
+ * @param db - Optional SQLite database (can be injected via context)
  * @param options - An optional object containing limit and offset properties
  * @returns A piped operator that orders the elements and limits the number of results
  */
@@ -65,7 +78,6 @@ export function topKWithIndex<
   T,
 >(
   comparator: (a: V1, b: V1) => number,
-  db: SQLiteDb,
   options?: TopKOptions,
 ): PipedOperator<T, KeyValue<K, [V1, number]>> {
   const limit = options?.limit ?? Infinity
@@ -74,6 +86,16 @@ export function topKWithIndex<
   return (
     stream: IStreamBuilder<T>,
   ): IStreamBuilder<KeyValue<K, [V1, number]>> => {
+    // Get database from context if not provided explicitly
+    const database = options?.db || SQLiteContext.getDb()
+
+    if (!database) {
+      throw new Error(
+        'SQLite database is required for topKWithIndex operator. ' +
+          'Provide it as a parameter or use withSQLite() to inject it.',
+      )
+    }
+
     const reduced = stream.pipe(
       reduce<K, V1, [V1, number], T>((values) => {
         // `values` is a list of tuples, first element is the value, second is the multiplicity
@@ -88,7 +110,7 @@ export function topKWithIndex<
             multiplicity,
           ])
         return sortedValues
-      }, db),
+      }, database),
     )
     return reduced
   }

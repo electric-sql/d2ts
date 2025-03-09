@@ -26,9 +26,12 @@ describe('SQLite Operators', () => {
       db.close()
     })
 
-    const wrappedTopK = ((stream, ...args) => {
+    const wrappedTopK = ((stream, options) => {
       // @ts-ignore
-      return sqliteTopK(stream, db, ...args)
+      return sqliteTopK(stream, {
+        ...options,
+        db: db,
+      })
     }) as typeof inMemoryTopK
 
     testTopK(wrappedTopK)

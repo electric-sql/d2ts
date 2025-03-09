@@ -17,6 +17,7 @@ import { SQLiteDb } from '../database.js'
 import { SQLIndex } from '../version-index.js'
 import { JoinType } from '../../operators/join.js'
 import { map, concat, negate } from '../../operators/index.js'
+import { SQLiteContext } from '../context.js'
 
 export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
   [K, unknown]
@@ -136,8 +137,9 @@ export class JoinOperatorSQLite<K, V1, V2> extends BinaryOperator<
 /**
  * Joins two input streams
  * Persists state to SQLite
+ *
  * @param other - The other stream to join with
- * @param db - The SQLite database
+ * @param db - Optional SQLite database (can be injected via context)
  * @param type - The type of join to perform
  */
 export function join<
@@ -147,7 +149,7 @@ export function join<
   T,
 >(
   other: IStreamBuilder<KeyValue<K, V2>>,
-  db: SQLiteDb,
+  db?: SQLiteDb,
   type: JoinType = 'inner',
 ): PipedOperator<T, KeyValue<K, [V1 | null, V2 | null]>> {
   switch (type) {
@@ -172,8 +174,9 @@ export function join<
 /**
  * Joins two input streams
  * Persists state to SQLite
+ *
  * @param other - The other stream to join with
- * @param db - The SQLite database
+ * @param db - Optional SQLite database (can be injected via context)
  */
 export function innerJoin<
   K,
@@ -182,12 +185,19 @@ export function innerJoin<
   T,
 >(
   other: IStreamBuilder<KeyValue<K, V2>>,
-  db: SQLiteDb,
+  db?: SQLiteDb,
 ): PipedOperator<T, KeyValue<K, [V1, V2]>> {
   return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, [V1, V2]>> => {
-    if (stream.graph !== other.graph) {
-      throw new Error('Cannot join streams from different graphs')
+    // Get database from context if not provided explicitly
+    const database = db || SQLiteContext.getDb()
+
+    if (!database) {
+      throw new Error(
+        'SQLite database is required for join operator. ' +
+          'Provide it as a parameter or use withSQLite() to inject it.',
+      )
     }
+
     const output = new StreamBuilder<KeyValue<K, [V1, V2]>>(
       stream.graph,
       new DifferenceStreamWriter<KeyValue<K, [V1, V2]>>(),
@@ -198,7 +208,7 @@ export function innerJoin<
       other.connectReader() as DifferenceStreamReader<KeyValue<K, V2>>,
       output.writer,
       stream.graph.frontier(),
-      db,
+      database,
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())
@@ -207,10 +217,10 @@ export function innerJoin<
 }
 
 /**
- * Joins two input streams
- * Persists state to SQLite
+ * Performs an anti-join
+ *
  * @param other - The other stream to join with
- * @param db - The SQLite database
+ * @param db - Optional SQLite database (can be injected via context)
  */
 export function antiJoin<
   K,
@@ -219,13 +229,23 @@ export function antiJoin<
   T,
 >(
   other: IStreamBuilder<KeyValue<K, V2>>,
-  db: SQLiteDb,
+  db?: SQLiteDb,
 ): PipedOperator<T, KeyValue<K, [V1, null]>> {
   return (
     stream: IStreamBuilder<T>,
   ): IStreamBuilder<KeyValue<K, [V1, null]>> => {
+    // Get database from context if not provided explicitly
+    const database = db || SQLiteContext.getDb()
+
+    if (!database) {
+      throw new Error(
+        'SQLite database is required for join operator. ' +
+          'Provide it as a parameter or use withSQLite() to inject it.',
+      )
+    }
+
     const matchedLeft = stream.pipe(
-      innerJoin(other, db),
+      innerJoin(other, database),
       map(([key, [valueLeft, _valueRight]]) => [key, valueLeft]),
     )
     const anti = stream.pipe(
@@ -238,10 +258,10 @@ export function antiJoin<
 }
 
 /**
- * Joins two input streams
- * Persists state to SQLite
+ * Performs a left join
+ *
  * @param other - The other stream to join with
- * @param db - The SQLite database
+ * @param db - Optional SQLite database (can be injected via context)
  */
 export function leftJoin<
   K,
@@ -250,15 +270,25 @@ export function leftJoin<
   T,
 >(
   other: IStreamBuilder<KeyValue<K, V2>>,
-  db: SQLiteDb,
+  db?: SQLiteDb,
 ): PipedOperator<T, KeyValue<K, [V1, V2 | null]>> {
   return (
     stream: IStreamBuilder<T>,
   ): IStreamBuilder<KeyValue<K, [V1, V2 | null]>> => {
+    // Get database from context if not provided explicitly
+    const database = db || SQLiteContext.getDb()
+
+    if (!database) {
+      throw new Error(
+        'SQLite database is required for join operator. ' +
+          'Provide it as a parameter or use withSQLite() to inject it.',
+      )
+    }
+
     const left = stream
     const right = other
-    const inner = left.pipe(innerJoin(right, db))
-    const anti = left.pipe(antiJoin(right, db))
+    const inner = left.pipe(innerJoin(right, database))
+    const anti = left.pipe(antiJoin(right, database))
     return inner.pipe(concat(anti)) as IStreamBuilder<
       KeyValue<K, [V1, V2 | null]>
     >
@@ -266,10 +296,10 @@ export function leftJoin<
 }
 
 /**
- * Joins two input streams
- * Persists state to SQLite
+ * Performs a right join
+ *
  * @param other - The other stream to join with
- * @param db - The SQLite database
+ * @param db - Optional SQLite database (can be injected via context)
  */
 export function rightJoin<
   K,
@@ -278,16 +308,26 @@ export function rightJoin<
   T,
 >(
   other: IStreamBuilder<KeyValue<K, V2>>,
-  db: SQLiteDb,
+  db?: SQLiteDb,
 ): PipedOperator<T, KeyValue<K, [V1 | null, V2]>> {
   return (
     stream: IStreamBuilder<T>,
   ): IStreamBuilder<KeyValue<K, [V1 | null, V2]>> => {
+    // Get database from context if not provided explicitly
+    const database = db || SQLiteContext.getDb()
+
+    if (!database) {
+      throw new Error(
+        'SQLite database is required for join operator. ' +
+          'Provide it as a parameter or use withSQLite() to inject it.',
+      )
+    }
+
     const left = stream as IStreamBuilder<KeyValue<K, V1>>
     const right = other
-    const inner = left.pipe(innerJoin(right, db))
+    const inner = left.pipe(innerJoin(right, database))
     const anti = right.pipe(
-      antiJoin(left, db),
+      antiJoin(left, database),
       map(([key, [a, b]]) => [key, [b, a]]),
     )
     return inner.pipe(concat(anti)) as IStreamBuilder<
@@ -297,10 +337,10 @@ export function rightJoin<
 }
 
 /**
- * Joins two input streams
- * Persists state to SQLite
+ * Performs a full outer join
+ *
  * @param other - The other stream to join with
- * @param db - The SQLite database
+ * @param db - Optional SQLite database (can be injected via context)
  */
 export function fullJoin<
   K,
@@ -309,17 +349,27 @@ export function fullJoin<
   T,
 >(
   other: IStreamBuilder<KeyValue<K, V2>>,
-  db: SQLiteDb,
+  db?: SQLiteDb,
 ): PipedOperator<T, KeyValue<K, [V1 | null, V2 | null]>> {
   return (
     stream: IStreamBuilder<T>,
   ): IStreamBuilder<KeyValue<K, [V1 | null, V2 | null]>> => {
+    // Get database from context if not provided explicitly
+    const database = db || SQLiteContext.getDb()
+
+    if (!database) {
+      throw new Error(
+        'SQLite database is required for join operator. ' +
+          'Provide it as a parameter or use withSQLite() to inject it.',
+      )
+    }
+
     const left = stream as IStreamBuilder<KeyValue<K, V1>>
     const right = other
-    const inner = left.pipe(innerJoin(right, db))
-    const antiLeft = left.pipe(antiJoin(right, db))
+    const inner = left.pipe(innerJoin(right, database))
+    const antiLeft = left.pipe(antiJoin(right, database))
     const antiRight = right.pipe(
-      antiJoin(left, db),
+      antiJoin(left, database),
       map(([key, [a, b]]) => [key, [b, a]]),
     )
     return inner.pipe(concat(antiLeft), concat(antiRight)) as IStreamBuilder<

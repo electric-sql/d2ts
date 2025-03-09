@@ -14,6 +14,7 @@ import {
 import { Version, Antichain } from '../../order.js'
 import { SQLiteDb, SQLiteStatement } from '../database.js'
 import { SQLIndex } from '../version-index.js'
+import { SQLiteContext } from '../context.js'
 
 interface KeysTodoRow {
   version: string
@@ -203,16 +204,27 @@ export class ReduceOperatorSQLite<K, V1, V2> extends UnaryOperator<
 /**
  * Reduces the elements in the stream by key
  * Persists state to SQLite
+ *
  * @param f - The reduction function
- * @param db - The SQLite database
+ * @param db - Optional SQLite database (can be injected via context)
  */
 export function reduce<
   K extends T extends KeyValue<infer K, infer _V> ? K : never,
   V1 extends T extends KeyValue<K, infer V> ? V : never,
   R,
   T,
->(f: (values: [V1, number][]) => [R, number][], db: SQLiteDb) {
+>(f: (values: [V1, number][]) => [R, number][], db?: SQLiteDb) {
   return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, R>> => {
+    // Get database from context if not provided explicitly
+    const database = db || SQLiteContext.getDb()
+
+    if (!database) {
+      throw new Error(
+        'SQLite database is required for reduce operator. ' +
+          'Provide it as a parameter or use withSQLite() to inject it.',
+      )
+    }
+
     const output = new StreamBuilder<KeyValue<K, R>>(
       stream.graph,
       new DifferenceStreamWriter<KeyValue<K, R>>(),
@@ -223,7 +235,7 @@ export function reduce<
       output.writer,
       f,
       stream.graph.frontier(),
-      db,
+      database,
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())
