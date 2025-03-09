@@ -58,6 +58,7 @@ A D2TS pipeline is also fully type safe, inferring the types at each step of the
   - [`count`](#count): Count elements by key
   - [`distinct`](#distinct): Remove duplicates
   - [`filter`](#filter): Filter elements based on predicates
+  - [`filterBy`](#filterby): Filter elements of a keyed stream by keys from another stream
   - [`iterate`](#iterate): Perform iterative computations
   - [`join`](#join): Join two streams
   - [`keyBy`](#keyBy): Key a stream by a property
@@ -390,6 +391,31 @@ Filters the stream based on a predicate
 ```typescript
 const output = input.pipe(filter((x) => x % 2 === 0))
 ```
+
+#### filterBy
+
+`filterBy(other: IStreamBuilder<KeyValue<K, unknown>>)`
+
+Filters the elements of a keyed stream, by keys of another stream. This allows you to build pipelines where you have multiple outputs that are related, such as streams of issues and comments for a project.
+
+```typescript
+// Create two input streams
+const issues = graph.newInput<KeyValue<string, Issue>>()
+const comments = graph.newInput<KeyValue<string, Comment>>()
+
+// Filter comments to only include those related to specific issues
+const commentsForIssues = comments.pipe(
+  keyBy((comment) => comment.issue_id),
+  filterBy(issues),
+  rekey((comment) => comment.id),
+  output((message) => {
+    // Process only comments that have matching issues
+    console.log('Comment for tracked issue:', message)
+  }),
+)
+```
+
+In this example, only comments with keys that exist in the issues stream will be included in the output.
 
 #### iterate
 
