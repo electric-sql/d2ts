@@ -8,6 +8,9 @@ import {
   orderBy,
   orderByWithIndex,
   orderByWithFractionalIndex,
+  topK,
+  topKWithIndex,
+  topKWithFractionalIndex,
 } from '../operators/index.js'
 import {
   groupBy,
@@ -550,6 +553,55 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
     }),
   )
 
+  // Process keyBy parameter if it exists
+  if (query.keyBy) {
+    const keyByParam = query.keyBy // Store in a local variable to avoid undefined issues
+
+    return resultPipeline.pipe(
+      keyBy((row: Record<string, unknown>) => {
+        if (Array.isArray(keyByParam)) {
+          // Multiple columns - extract values and JSON stringify
+          const keyValues: Record<string, unknown> = {}
+          for (const keyColumn of keyByParam) {
+            // Remove @ prefix if present
+            const columnName = keyColumn.startsWith('@')
+              ? keyColumn.substring(1)
+              : keyColumn
+
+            if (columnName in row) {
+              keyValues[columnName] = row[columnName]
+            } else {
+              throw new Error(
+                `Key column "${columnName}" not found in result set. Make sure it's included in the select clause.`,
+              )
+            }
+          }
+          return JSON.stringify(keyValues)
+        } else {
+          // Single column
+          // Remove @ prefix if present
+          const columnName = keyByParam.startsWith('@')
+            ? keyByParam.substring(1)
+            : keyByParam
+
+          if (!(columnName in row)) {
+            throw new Error(
+              `Key column "${columnName}" not found in result set. Make sure it's included in the select clause.`,
+            )
+          }
+
+          const keyValue = row[columnName]
+          // Use the value directly if it's a string or number, otherwise JSON stringify
+          if (typeof keyValue === 'string' || typeof keyValue === 'number') {
+            return keyValue
+          } else {
+            return JSON.stringify(keyValue)
+          }
+        }
+      }),
+    ) as T
+  }
+
   // Process orderBy parameter if it exists
   if (query.orderBy) {
     // Check if any column in the SELECT clause is an ORDER_INDEX function call
@@ -659,104 +711,152 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
       return null
     }
 
+    const comparator = (a: unknown, b: unknown): number => {
+      // if a and b are both numbers compare them directly
+      if (typeof a === 'number' && typeof b === 'number') {
+        return a - b
+      }
+      // if a and b are both strings, compare them lexicographically
+      if (typeof a === 'string' && typeof b === 'string') {
+        return a.localeCompare(b)
+      }
+      // if a and b are both booleans, compare them
+      if (typeof a === 'boolean' && typeof b === 'boolean') {
+        return a ? 1 : -1
+      } 
+      // if a and b are both dates, compare them
+      if (a instanceof Date && b instanceof Date) {
+        return a.getTime() - b.getTime()
+      }
+      // if a and b are both null, return 0
+      if (a === null && b === null) {
+        return 0
+      }
+      // if a and b are both arrays, compare them element by element
+      if (Array.isArray(a) && Array.isArray(b)) {
+        for (let i = 0; i < a.length; i++) {
+          const result = comparator(a[i], b[i])
+          if (result !== 0) return result
+        }
+        return 0
+      }
+      // if a and b are both null/undefined, return 0
+      if ((a === null || a === undefined) && (b === null || b === undefined)) {
+        return 0
+      }
+      // Fallback to string comparison for all other cases
+      return (a as any).toString().localeCompare((b as any).toString())
+    }
+
+    let topKComparator: (a: unknown, b: unknown) => number
+    if (!query.keyBy) {
+      topKComparator = (a, b) => {
+        const aValue = valueExtractor(a)  
+        const bValue = valueExtractor(b)
+        return comparator(aValue, bValue)
+      }
+    }
+
     // Apply the appropriate orderBy operator based on whether an ORDER_INDEX column is requested
     if (hasOrderIndexColumn) {
       if (orderIndexType === 'numeric') {
-        // Use orderByWithIndex for numeric indices
+        if (query.keyBy) {
+          // Use orderByWithIndex for numeric indices
+          resultPipeline = resultPipeline.pipe(
+            orderByWithIndex(valueExtractor, {
+              limit: query.limit,
+              offset: query.offset,
+              comparator,
+            }),
+            map(([key, [value, index]]) => {
+              // Add the index to the result
+              const result = {
+                ...(value as Record<string, unknown>),
+                [orderIndexAlias]: index,
+              }
+              return [key, result]
+            }),
+          )
+        } else {
+          // Use topKWithIndex for numeric indices
+          resultPipeline = resultPipeline.pipe(
+            map((value) => [null, value]),
+            topKWithIndex(topKComparator!, {
+              limit: query.limit,
+              offset: query.offset,
+            }),
+            map(([_, [value, index]]) => {
+              // Add the index to the result
+              return {
+                ...(value as Record<string, unknown>),
+                [orderIndexAlias]: index,
+              }
+            }),
+          )
+        }
+      } else {
+        if (query.keyBy) {
+          // Use orderByWithFractionalIndex for fractional indices
+          resultPipeline = resultPipeline.pipe(
+            orderByWithFractionalIndex(valueExtractor, {
+              limit: query.limit,
+              offset: query.offset,
+              comparator,
+            }),
+            map(([key, [value, index]]) => {
+              // Add the index to the result
+              const result = {
+                ...(value as Record<string, unknown>),
+                [orderIndexAlias]: index,
+              }
+              return [key, result]
+            }),
+          )
+        } else {
+          // Use topKWithFractionalIndex for fractional indices
+          resultPipeline = resultPipeline.pipe(
+            map((value) => [null, value]),
+            topKWithFractionalIndex(topKComparator!, {
+              limit: query.limit,
+              offset: query.offset,
+            }),
+            map(([_, [value, index]]) => {
+              // Add the index to the result
+              return {
+                ...(value as Record<string, unknown>),
+                [orderIndexAlias]: index,
+              }
+            }),
+          )
+        }
+      }
+    } else {
+      if (query.keyBy) {
+        // Use regular orderBy if no index column is requested and but a keyBy is requested
         resultPipeline = resultPipeline.pipe(
-          orderByWithIndex(valueExtractor, {
+          orderBy(valueExtractor, {
             limit: query.limit,
             offset: query.offset,
-          }),
-          map(([key, [value, index]]) => {
-            // Add the index to the result
-            const result = {
-              ...(value as Record<string, unknown>),
-              [orderIndexAlias]: index,
-            }
-            return [key, result]
+            comparator,
           }),
         )
       } else {
-        // Use orderByWithFractionalIndex for fractional indices
+        // Use topK if no index column is requested and no keyBy is requested
         resultPipeline = resultPipeline.pipe(
-          orderByWithFractionalIndex(valueExtractor, {
+          map((value) => [null, value]),
+          topK(topKComparator!, {
             limit: query.limit,
             offset: query.offset,
           }),
-          map(([key, [value, index]]) => {
-            // Add the index to the result
-            const result = {
-              ...(value as Record<string, unknown>),
-              [orderIndexAlias]: index,
-            }
-            return [key, result]
-          }),
+          map(([_, value]) => value as Record<string, unknown>),
         )
       }
-    } else {
-      // Use regular orderBy if no index column is requested
-      resultPipeline = resultPipeline.pipe(
-        orderBy(valueExtractor, {
-          limit: query.limit,
-          offset: query.offset,
-        }),
-      )
     }
   } else if (query.limit !== undefined || query.offset !== undefined) {
     // If there's a limit or offset without orderBy, throw an error
     throw new Error(
       'LIMIT and OFFSET require an ORDER BY clause to ensure deterministic results',
     )
-  }
-
-  // Process keyBy parameter if it exists
-  if (query.keyBy) {
-    const keyByParam = query.keyBy // Store in a local variable to avoid undefined issues
-
-    return resultPipeline.pipe(
-      keyBy((row: Record<string, unknown>) => {
-        if (Array.isArray(keyByParam)) {
-          // Multiple columns - extract values and JSON stringify
-          const keyValues: Record<string, unknown> = {}
-          for (const keyColumn of keyByParam) {
-            // Remove @ prefix if present
-            const columnName = keyColumn.startsWith('@')
-              ? keyColumn.substring(1)
-              : keyColumn
-
-            if (columnName in row) {
-              keyValues[columnName] = row[columnName]
-            } else {
-              throw new Error(
-                `Key column "${columnName}" not found in result set. Make sure it's included in the select clause.`,
-              )
-            }
-          }
-          return JSON.stringify(keyValues)
-        } else {
-          // Single column
-          // Remove @ prefix if present
-          const columnName = keyByParam.startsWith('@')
-            ? keyByParam.substring(1)
-            : keyByParam
-
-          if (!(columnName in row)) {
-            throw new Error(
-              `Key column "${columnName}" not found in result set. Make sure it's included in the select clause.`,
-            )
-          }
-
-          const keyValue = row[columnName]
-          // Use the value directly if it's a string or number, otherwise JSON stringify
-          if (typeof keyValue === 'string' || typeof keyValue === 'number') {
-            return keyValue
-          } else {
-            return JSON.stringify(keyValue)
-          }
-        }
-      }),
-    ) as T
   }
 
   return resultPipeline as T
