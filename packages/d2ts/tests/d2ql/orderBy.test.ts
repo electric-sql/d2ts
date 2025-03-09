@@ -1487,27 +1487,13 @@ describe('D2QL', () => {
         // Result should now include the new rows in the correct order
         result = latestMessage.collection.getInner()
         const expectedResult = [
-          [[4, { id: 4, value: 'a', index: '?' }], 1],
-          [[5, { id: 5, value: 'b', index: '?' }], 1],
-          [[1, { id: 1, value: 'c', index: '?' }], -1],
-          [[1, { id: 1, value: 'c', index: '?' }], 1],
-          [[2, { id: 2, value: 'd', index: '?' }], -1],
-          [[2, { id: 2, value: 'd', index: '?' }], 1],
-          [[3, { id: 3, value: 'e', index: '?' }], -1],
-          [[3, { id: 3, value: 'e', index: '?' }], 1],
+          [[4, { id: 4, value: 'a', index: 'Zz' }], 1],
+          [[5, { id: 5, value: 'b', index: 'ZzV' }], 1],
         ]
 
         expect(
           sortResults(result, (a, b) => a[1].value.localeCompare(b[1].value)),
         ).toEqual(expectedResult)
-
-        // console.log(
-        //   JSON.stringify(
-        //     sortResults(result, (a, b) => a[1].value.localeCompare(b[1].value)),
-        //     null,
-        //     2,
-        //   ),
-        // )
       })
 
       test('incremental update - removing rows', () => {

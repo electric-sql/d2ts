@@ -237,12 +237,28 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
             if (i === 0) {
               // First element
               prevIndex = null
-              nextIndex =
-                i + 1 < sortedValues.length
-                  ? newIndices.get(
-                      valueToKey.get(sortedValues[i + 1][0]) as string,
-                    ) || null
-                  : null
+
+              // For the nextIndex, we need to check if there's an existing element after this one
+              // If the next element in the sorted array already has an index, use that
+              // Otherwise, we need to look for the first existing element in the collection
+              let nextElementIndex = null
+              for (let j = i + 1; j < sortedValues.length; j++) {
+                const nextValueKey = valueToKey.get(
+                  sortedValues[j][0],
+                ) as string
+                // First check if this element already has a new index
+                if (newIndices.has(nextValueKey)) {
+                  nextElementIndex = newIndices.get(nextValueKey) || null
+                  break
+                }
+                // Then check if it has an existing index
+                const existingNextEntry = prevOutputMap.get(nextValueKey)
+                if (existingNextEntry) {
+                  nextElementIndex = existingNextEntry[1]
+                  break
+                }
+              }
+              nextIndex = nextElementIndex
 
               if (nextIndex !== null && existingIndex >= nextIndex) {
                 // Need to update index
@@ -274,12 +290,26 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
                 newIndices.get(
                   valueToKey.get(sortedValues[i - 1][0]) as string,
                 ) || null
-              nextIndex =
-                i + 1 < sortedValues.length
-                  ? newIndices.get(
-                      valueToKey.get(sortedValues[i + 1][0]) as string,
-                    ) || null
-                  : null
+
+              // Similar to the first element case, we need to find the next element with an index
+              let nextElementIndex = null
+              for (let j = i + 1; j < sortedValues.length; j++) {
+                const nextValueKey = valueToKey.get(
+                  sortedValues[j][0],
+                ) as string
+                // First check if this element already has a new index
+                if (newIndices.has(nextValueKey)) {
+                  nextElementIndex = newIndices.get(nextValueKey) || null
+                  break
+                }
+                // Then check if it has an existing index
+                const existingNextEntry = prevOutputMap.get(nextValueKey)
+                if (existingNextEntry) {
+                  nextElementIndex = existingNextEntry[1]
+                  break
+                }
+              }
+              nextIndex = nextElementIndex
 
               if (
                 (prevIndex !== null && existingIndex <= prevIndex) ||
@@ -296,6 +326,63 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
           }
         }
 
+        // Pre-compute valid previous and next indices for each position
+        // This avoids repeated lookups during index generation
+        const validPrevIndices: (string | null)[] = new Array(
+          sortedValues.length,
+        )
+        const validNextIndices: (string | null)[] = new Array(
+          sortedValues.length,
+        )
+
+        // Initialize with null values
+        validPrevIndices.fill(null)
+        validNextIndices.fill(null)
+
+        // First element has no previous
+        validPrevIndices[0] = null
+
+        // Last element has no next
+        validNextIndices[sortedValues.length - 1] = null
+
+        // Compute next valid indices (working forward)
+        let lastValidNextIndex: string | null = null
+        for (let i = sortedValues.length - 1; i >= 0; i--) {
+          const valueKey = valueToKey.get(sortedValues[i][0]) as string
+
+          // Set the next index for the current position
+          validNextIndices[i] = lastValidNextIndex
+
+          // Update lastValidNextIndex if this element has an index
+          if (newIndices.has(valueKey)) {
+            lastValidNextIndex = newIndices.get(valueKey) || null
+          } else {
+            const existingEntry = prevOutputMap.get(valueKey)
+            if (existingEntry) {
+              lastValidNextIndex = existingEntry[1]
+            }
+          }
+        }
+
+        // Compute previous valid indices (working backward)
+        let lastValidPrevIndex: string | null = null
+        for (let i = 0; i < sortedValues.length; i++) {
+          const valueKey = valueToKey.get(sortedValues[i][0]) as string
+
+          // Set the previous index for the current position
+          validPrevIndices[i] = lastValidPrevIndex
+
+          // Update lastValidPrevIndex if this element has an index
+          if (newIndices.has(valueKey)) {
+            lastValidPrevIndex = newIndices.get(valueKey) || null
+          } else {
+            const existingEntry = prevOutputMap.get(valueKey)
+            if (existingEntry) {
+              lastValidPrevIndex = existingEntry[1]
+            }
+          }
+        }
+
         // Second pass: assign new indices for values that don't have one or need to be updated
         for (let i = 0; i < sortedValues.length; i++) {
           const [value, _multiplicity] = sortedValues[i]
@@ -303,39 +390,20 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
           const valueKey = valueToKey.get(value) as string
 
           if (!newIndices.has(valueKey)) {
-            // This value doesn't have an index yet, generate one
-            if (i === 0) {
-              // First element
-              prevIndex = null
-              nextIndex =
-                i + 1 < sortedValues.length
-                  ? newIndices.get(
-                      valueToKey.get(sortedValues[i + 1][0]) as string,
-                    ) || null
-                  : null
-            } else if (i === sortedValues.length - 1) {
-              // Last element
-              prevIndex =
-                newIndices.get(
-                  valueToKey.get(sortedValues[i - 1][0]) as string,
-                ) || null
-              nextIndex = null
-            } else {
-              // Middle element
-              prevIndex =
-                newIndices.get(
-                  valueToKey.get(sortedValues[i - 1][0]) as string,
-                ) || null
-              nextIndex =
-                i + 1 < sortedValues.length
-                  ? newIndices.get(
-                      valueToKey.get(sortedValues[i + 1][0]) as string,
-                    ) || null
-                  : null
-            }
+            // This value doesn't have an index yet, use pre-computed indices
+            prevIndex = validPrevIndices[i]
+            nextIndex = validNextIndices[i]
 
             const newIndex = generateKeyBetween(prevIndex, nextIndex)
             newIndices.set(valueKey, newIndex)
+
+            // Update validPrevIndices for subsequent elements
+            if (
+              i < sortedValues.length - 1 &&
+              validPrevIndices[i + 1] === null
+            ) {
+              validPrevIndices[i + 1] = newIndex
+            }
           }
         }
 
