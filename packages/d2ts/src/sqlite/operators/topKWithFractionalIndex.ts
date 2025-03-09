@@ -16,10 +16,12 @@ import { Antichain, Version } from '../../order.js'
 import { SQLiteDb, SQLiteStatement } from '../database.js'
 import { SQLIndex } from '../version-index.js'
 import { generateKeyBetween } from 'fractional-indexing'
+import { SQLiteContext } from '../context.js'
 
 interface TopKWithFractionalIndexOptions {
   limit?: number
   offset?: number
+  db?: SQLiteDb
 }
 
 interface KeysTodoRow {
@@ -458,16 +460,15 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
 
 /**
  * Limits the number of results based on a comparator, with optional offset.
- * This works on a keyed stream, where the key is the first element of the tuple.
- * The ordering is within a key group, i.e. elements are sorted within a key group
+ * This works on a keyed stream, where the key is the first element of the tuple
+ * The ordering is withing a key group, i.e. elements are sorted within a key group
  * and the limit + offset is applied to that sorted group.
  * To order the entire stream, key by the same value for all elements such as null.
- *
- * Uses fractional indexing to minimize the number of changes when elements move positions.
- * Each element is assigned a fractional index that is lexicographically sortable.
- * When elements move, only the indices of the moved elements are updated, not all elements.
+ * Adds a fractional index of the element to the result as [key, [value, index]]
+ * This is useful for stable ordering in UIs.
  *
  * @param comparator - A function that compares two elements
+ * @param db - Optional SQLite database (can be injected via context)
  * @param options - An optional object containing limit and offset properties
  * @returns A piped operator that orders the elements and limits the number of results
  */
@@ -477,14 +478,21 @@ export function topKWithFractionalIndex<
   T,
 >(
   comparator: (a: V1, b: V1) => number,
-  db: SQLiteDb,
   options?: TopKWithFractionalIndexOptions,
 ): PipedOperator<T, KeyValue<K, [V1, string]>> {
-  const opts = options || {}
-
   return (
     stream: IStreamBuilder<T>,
   ): IStreamBuilder<KeyValue<K, [V1, string]>> => {
+    // Get database from context if not provided explicitly
+    const database = options?.db || SQLiteContext.getDb()
+
+    if (!database) {
+      throw new Error(
+        'SQLite database is required for topKWithFractionalIndex operator. ' +
+          'Provide it as a parameter or use withSQLite() to inject it.',
+      )
+    }
+
     const output = new StreamBuilder<KeyValue<K, [V1, string]>>(
       stream.graph,
       new DifferenceStreamWriter<KeyValue<K, [V1, string]>>(),
@@ -494,9 +502,9 @@ export function topKWithFractionalIndex<
       stream.connectReader() as DifferenceStreamReader<KeyValue<K, V1>>,
       output.writer,
       comparator,
-      opts,
+      options || {},
       stream.graph.frontier(),
-      db,
+      database,
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())

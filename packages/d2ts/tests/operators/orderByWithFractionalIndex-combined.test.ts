@@ -30,9 +30,12 @@ describe('SQLite Operators', () => {
       db.close()
     })
 
-    const wrappedOrderByWithFractionalIndex = ((stream, ...args) => {
+    const wrappedOrderByWithFractionalIndex = ((stream, options) => {
       // @ts-ignore
-      return sqliteOrderByWithFractionalIndex(stream, db, ...args)
+      return sqliteOrderByWithFractionalIndex(stream, {
+        ...options,
+        db: db,
+      })
     }) as typeof inMemoryOrderByWithFractionalIndex
 
     testOrderByWithFractionalIndex(wrappedOrderByWithFractionalIndex)

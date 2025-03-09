@@ -13,6 +13,7 @@ import {
 } from '../../graph.js'
 import { Version, Antichain } from '../../order.js'
 import { SQLiteDb, SQLiteStatement } from '../database.js'
+import { SQLiteContext } from '../context.js'
 
 interface CollectionRow {
   version: string
@@ -141,10 +142,21 @@ export class ConsolidateOperatorSQLite<T> extends UnaryOperator<T> {
 /**
  * Consolidates the elements in the stream
  * Persists state to SQLite
- * @param db - The SQLite database
+ *
+ * @param db - Optional SQLite database (can be injected via context)
  */
-export function consolidate<T>(db: SQLiteDb): PipedOperator<T, T> {
+export function consolidate<T>(db?: SQLiteDb): PipedOperator<T, T> {
   return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
+    // Get database from context if not provided explicitly
+    const database = db || SQLiteContext.getDb()
+
+    if (!database) {
+      throw new Error(
+        'SQLite database is required for consolidate operator. ' +
+          'Provide it as a parameter or use withSQLite() to inject it.',
+      )
+    }
+
     const output = new StreamBuilder<T>(
       stream.graph,
       new DifferenceStreamWriter<T>(),
@@ -154,7 +166,7 @@ export function consolidate<T>(db: SQLiteDb): PipedOperator<T, T> {
       stream.connectReader(),
       output.writer,
       stream.graph.frontier(),
-      db,
+      database,
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())

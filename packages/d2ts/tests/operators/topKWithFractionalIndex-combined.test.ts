@@ -79,9 +79,12 @@ describe('SQLite Operators', () => {
       db.close()
     })
 
-    const wrappedTopK = ((stream, ...args) => {
+    const wrappedTopK = ((stream, options) => {
       // @ts-ignore
-      return sqliteTopKWithFractionalIndex(stream, db, ...args)
+      return sqliteTopKWithFractionalIndex(stream, {
+        ...options,
+        db: db,
+      })
     }) as typeof inMemoryTopKWithFractionalIndex
 
     testTopKWithFractionalIndex(wrappedTopK)

@@ -30,9 +30,12 @@ describe('SQLite Operators', () => {
       db.close()
     })
 
-    const wrappedOrderByWithIndex = ((stream, ...args) => {
+    const wrappedOrderByWithIndex = ((stream, options) => {
       // @ts-ignore
-      return sqliteOrderByWithIndex(stream, db, ...args)
+      return sqliteOrderByWithIndex(stream, {
+        ...options,
+        db: db,
+      })
     }) as typeof inMemoryOrderByWithIndex
 
     testOrderByWithIndex(wrappedOrderByWithIndex)
