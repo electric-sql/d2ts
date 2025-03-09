@@ -18,7 +18,7 @@ function checkLexicographicOrder(results: any[]) {
 
   // Sort by value using the same comparator as in the test
   const sortedByValue = [...valuesWithIndices].sort((a, b) =>
-    a.value.value.localeCompare(b.value.value),
+    a.value.value < b.value.value ? -1 : 1,
   )
 
   // Check that indices are in the same order as the sorted values
@@ -27,7 +27,7 @@ function checkLexicographicOrder(results: any[]) {
     const nextIndex = sortedByValue[i + 1].index
 
     // Indices should be in lexicographic order
-    expect(currentIndex.localeCompare(nextIndex) < 0).toBe(true)
+    expect(currentIndex < nextIndex).toBe(true)
   }
 
   return true
@@ -53,7 +53,7 @@ function verifyOrder(results: any[], expectedOrder: string[]) {
 
   // Sort the values by their indices
   const sortedByIndex = [...valueToIndex.entries()]
-    .sort((a, b) => a[1].localeCompare(b[1]))
+    .sort((a, b) => (a[1] < b[1] ? -1 : 1))
     .map(([value]) => value)
 
   // The order should match the expected order
@@ -742,5 +742,177 @@ function testTopKWithFractionalIndex(
       // Update the current item for the next iteration
       currentItem = { id: currentItem.id, value: newValue }
     }
+  })
+
+  it('should handle insertion at the start of the sorted collection', () => {
+    const graph = new D2({ initialFrontier: 0 })
+    const input = graph.newInput<[null, { id: number; value: string }]>()
+    const allMessages: any[] = []
+
+    input.pipe(
+      topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value)),
+      output((message) => {
+        if (message.type === MessageType.DATA) {
+          allMessages.push(message.data)
+        }
+      }),
+    )
+
+    graph.finalize()
+
+    // Initial data - b, c, d, e
+    input.sendData(
+      0,
+      new MultiSet([
+        [[null, { id: 2, value: 'b' }], 1],
+        [[null, { id: 3, value: 'c' }], 1],
+        [[null, { id: 4, value: 'd' }], 1],
+        [[null, { id: 5, value: 'e' }], 1],
+      ]),
+    )
+    input.sendFrontier(1)
+    graph.run()
+
+    // Initial result should have all elements with fractional indices
+    const initialResult = allMessages[0].collection.getInner()
+    expect(initialResult.length).toBe(4)
+
+    // Check that indices are in lexicographic order
+    expect(checkLexicographicOrder(initialResult)).toBe(true)
+
+    // Keep track of the current state
+    let currentState = new Map()
+    for (const [[_, [value, index]]] of initialResult) {
+      currentState.set(JSON.stringify(value), [value, index])
+    }
+
+    // Update: Insert element at the start - 'a'
+    input.sendData(
+      1,
+      new MultiSet([
+        [[null, { id: 1, value: 'a' }], 1], // This should be inserted at the start
+      ]),
+    )
+    input.sendFrontier(2)
+    graph.run()
+
+    // Check the changes
+    const changes = allMessages[1].collection.getInner()
+
+    // We should only emit as many changes as we received (1 addition)
+    expect(changes.length).toBe(1)
+
+    // Apply the changes to our current state
+    for (const [[_, [value, index]], multiplicity] of changes) {
+      if (multiplicity < 0) {
+        // Remove
+        currentState.delete(JSON.stringify(value))
+      } else {
+        // Add
+        currentState.set(JSON.stringify(value), [value, index])
+      }
+    }
+
+    // Convert to array for lexicographic order check
+    let currentStateArray = Array.from(currentState.values()).map(
+      ([value, index]) => [[null, [value, index]], 1],
+    )
+
+    expect(checkLexicographicOrder(currentStateArray)).toBe(true)
+
+    // Verify the order of elements
+    const expectedOrder = ['a', 'b', 'c', 'd', 'e']
+    verifyOrder(currentStateArray, expectedOrder)
+
+    // Check that the new element 'a' has an index that is lexicographically before 'b'
+    const aValue = { id: 1, value: 'a' }
+    const bValue = { id: 2, value: 'b' }
+    const aIndex = currentState.get(JSON.stringify(aValue))[1]
+    const bIndex = currentState.get(JSON.stringify(bValue))[1]
+
+    // Directly check that 'a' comes before 'b' lexicographically
+    expect(aIndex < bIndex).toBe(true)
+  })
+
+  it('should handle multiple insertion at the start of the sorted collection', () => {
+    const graph = new D2({ initialFrontier: 0 })
+    const input = graph.newInput<[null, { id: number; value: string }]>()
+    const allMessages: any[] = []
+
+    input.pipe(
+      topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value)),
+      output((message) => {
+        if (message.type === MessageType.DATA) {
+          allMessages.push(message.data)
+        }
+      }),
+    )
+
+    graph.finalize()
+
+    // Initial data - b, c, d, e
+    input.sendData(
+      0,
+      new MultiSet([
+        [[null, { id: 3, value: 'c' }], 1],
+        [[null, { id: 4, value: 'd' }], 1],
+        [[null, { id: 5, value: 'e' }], 1],
+        [[null, { id: 6, value: 'f' }], 1],
+      ]),
+    )
+    input.sendFrontier(1)
+    graph.run()
+
+    // Initial result should have all elements with fractional indices
+    const initialResult = allMessages[0].collection.getInner()
+    expect(initialResult.length).toBe(4)
+
+    // Check that indices are in lexicographic order
+    expect(checkLexicographicOrder(initialResult)).toBe(true)
+
+    // Keep track of the current state
+    let currentState = new Map()
+    for (const [[_, [value, index]]] of initialResult) {
+      currentState.set(JSON.stringify(value), [value, index])
+    }
+
+    // Update: Insert element at the start - 'a'
+    input.sendData(
+      1,
+      new MultiSet([
+        [[null, { id: 1, value: 'a' }], 1], // This should be inserted at the start
+        [[null, { id: 2, value: 'b' }], 1], // This should be inserted at the start
+      ]),
+    )
+    input.sendFrontier(2)
+    graph.run()
+
+    // Check the changes
+    const changes = allMessages[1].collection.getInner()
+
+    // We should only emit as many changes as we received (1 addition)
+    expect(changes.length).toBe(2)
+
+    // Apply the changes to our current state
+    for (const [[_, [value, index]], multiplicity] of changes) {
+      if (multiplicity < 0) {
+        // Remove
+        currentState.delete(JSON.stringify(value))
+      } else {
+        // Add
+        currentState.set(JSON.stringify(value), [value, index])
+      }
+    }
+
+    // Convert to array for lexicographic order check
+    let currentStateArray = Array.from(currentState.values()).map(
+      ([value, index]) => [[null, [value, index]], 1],
+    )
+
+    expect(checkLexicographicOrder(currentStateArray)).toBe(true)
+
+    // Verify the order of elements
+    const expectedOrder = ['a', 'b', 'c', 'd', 'e', 'f']
+    verifyOrder(currentStateArray, expectedOrder)
   })
 }
