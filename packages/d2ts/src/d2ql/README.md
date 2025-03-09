@@ -72,6 +72,7 @@ The current implementation supports:
 - GROUP BY and HAVING clauses with aggregate functions:
   - SUM, COUNT, AVG, MIN, MAX, MEDIAN, MODE
 - Common Table Expressions (CTEs) using the WITH clause
+- ORDER BY, LIMIT, and OFFSET for sorting and pagination
 
 ## Common Table Expressions (CTEs)
 
@@ -136,9 +137,7 @@ const query: Query = {
 
 ## Planned Features
 
-Future versions will support:
-
-- ORDER BY, LIMIT, and OFFSET clauses
+Future versions may support additional SQL features and optimizations.
 
 ## ORDER BY, LIMIT, and OFFSET
 
