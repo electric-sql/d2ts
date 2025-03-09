@@ -435,7 +435,7 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
   }
 
   // Process the SELECT clause - this is where we flatten the structure
-  let resultPipeline = pipeline.pipe(
+  pipeline = pipeline.pipe(
     map((nestedRow: Record<string, unknown>) => {
       const result: Record<string, unknown> = {}
 
@@ -553,11 +553,15 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
     }),
   )
 
+  let resultPipeline: IStreamBuilder<
+    Record<string, unknown> | [string | number, Record<string, unknown>]
+  > = pipeline
+
   // Process keyBy parameter if it exists
   if (query.keyBy) {
     const keyByParam = query.keyBy // Store in a local variable to avoid undefined issues
 
-    return resultPipeline.pipe(
+    resultPipeline = pipeline.pipe(
       keyBy((row: Record<string, unknown>) => {
         if (Array.isArray(keyByParam)) {
           // Multiple columns - extract values and JSON stringify
@@ -599,7 +603,7 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
           }
         }
       }),
-    ) as T
+    )
   }
 
   // Process orderBy parameter if it exists
@@ -723,7 +727,7 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
       // if a and b are both booleans, compare them
       if (typeof a === 'boolean' && typeof b === 'boolean') {
         return a ? 1 : -1
-      } 
+      }
       // if a and b are both dates, compare them
       if (a instanceof Date && b instanceof Date) {
         return a.getTime() - b.getTime()
@@ -751,7 +755,7 @@ export function compileQuery<T extends IStreamBuilder<unknown>>(
     let topKComparator: (a: unknown, b: unknown) => number
     if (!query.keyBy) {
       topKComparator = (a, b) => {
-        const aValue = valueExtractor(a)  
+        const aValue = valueExtractor(a)
         const bValue = valueExtractor(b)
         return comparator(aValue, bValue)
       }
