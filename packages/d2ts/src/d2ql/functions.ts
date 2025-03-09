@@ -192,6 +192,28 @@ function jsonExtractFunction(arg: unknown): unknown {
 }
 
 /**
+ * Placeholder function for ORDER_INDEX
+ * This function doesn't do anything when called directly, as the actual index
+ * is provided by the orderBy operator during query execution.
+ * The argument can be 'numeric', 'fractional', or any truthy value (defaults to 'numeric')
+ */
+function orderIndexFunction(arg: unknown): null {
+  // This is just a placeholder - the actual index is provided by the orderBy operator
+  // The function validates that the argument is one of the expected values
+  if (
+    arg !== 'numeric' &&
+    arg !== 'fractional' &&
+    arg !== true &&
+    arg !== 'default'
+  ) {
+    throw new Error(
+      'ORDER_INDEX function expects "numeric", "fractional", "default", or true as argument',
+    )
+  }
+  return null
+}
+
+/**
  * Map of function names to their implementations
  */
 const functionImplementations: Record<
@@ -207,6 +229,7 @@ const functionImplementations: Record<
   COALESCE: coalesceFunction,
   CONCAT: concatFunction,
   LENGTH: lengthFunction,
+  ORDER_INDEX: orderIndexFunction,
 }
 
 /**

@@ -72,6 +72,7 @@ The current implementation supports:
 - GROUP BY and HAVING clauses with aggregate functions:
   - SUM, COUNT, AVG, MIN, MAX, MEDIAN, MODE
 - Common Table Expressions (CTEs) using the WITH clause
+- ORDER BY, LIMIT, and OFFSET for sorting and pagination
 
 ## Common Table Expressions (CTEs)
 
@@ -136,9 +137,107 @@ const query: Query = {
 
 ## Planned Features
 
-Future versions will support:
+Future versions may support additional SQL features and optimizations.
 
-- ORDER BY, LIMIT, and OFFSET clauses
+## ORDER BY, LIMIT, and OFFSET
+
+D2QL now supports ordering and limiting results using the `ORDER BY`, `LIMIT`, and `OFFSET` clauses.
+
+### Basic ORDER BY Example
+
+```typescript
+const query: Query = {
+  select: [
+    '@id',
+    '@name',
+    { age_in_years: '@age' }
+  ],
+  from: 'users',
+  where: [
+    '@age', '>', 21
+  ],
+  orderBy: '@age',  // Order by age in ascending order
+  limit: 10,        // Return only the first 10 results
+  offset: 5         // Skip the first 5 results
+};
+```
+
+### Multiple Columns and Direction in ORDER BY
+
+You can order by multiple columns and specify the direction (ascending or descending):
+
+```typescript
+const query: Query = {
+  select: ['@id', '@name', '@age'],
+  from: 'users',
+  orderBy: [
+    '@name',                // Order by name in ascending order
+    { '@age': 'desc' }      // Then by age in descending order
+  ]
+};
+```
+
+### Using Function Calls in ORDER BY
+
+You can use function calls in the `orderBy` clause for more complex ordering logic:
+
+```typescript
+const query: Query = {
+  select: ['@id', '@name', '@email'],
+  from: 'users',
+  orderBy: [
+    { 'UPPER': '@name' },   // Order by uppercase name (case-insensitive sort)
+    { '@email': 'desc' }    // Then by email in descending order
+  ]
+};
+```
+
+This allows for powerful sorting capabilities like case-insensitive sorting, ordering by date components, or custom transformations.
+
+### Including the Row Index in Results
+
+You can include the row index in the results by using the `ORDER_INDEX` function in the `SELECT` clause:
+
+```typescript
+const query: Query = {
+  select: [
+    '@id',
+    '@name',
+    { age_in_years: '@age' },
+    { index: { 'ORDER_INDEX': 'numeric' } }  // Include the numeric index
+  ],
+  from: 'users',
+  orderBy: '@age'
+};
+```
+
+The `ORDER_INDEX` function supports the following arguments:
+- `'numeric'` or `'default'` or `true`: Returns a numeric index (0, 1, 2, ...)
+- `'fractional'`: Returns a fractional index (useful for maintaining stable ordering when inserting items between existing ones)
+
+### LIMIT and OFFSET Requirements
+
+In D2QL, `LIMIT` and `OFFSET` clauses require an `ORDER BY` clause to ensure deterministic results:
+
+```typescript
+// This is valid - has both ORDER BY and LIMIT/OFFSET
+const query1: Query = {
+  select: ['@id', '@name', '@age'],
+  from: 'users',
+  orderBy: '@id',
+  limit: 10,
+  offset: 5
+};
+
+// This would throw an error - LIMIT without ORDER BY
+const query2: Query = {
+  select: ['@id', '@name', '@age'],
+  from: 'users',
+  limit: 10  // Error: LIMIT requires an ORDER BY clause
+};
+```
+
+Attempting to use `LIMIT` or `OFFSET` without an `ORDER BY` clause will result in an error with the message: "LIMIT and OFFSET require an ORDER BY clause to ensure deterministic results".
 
 ## GROUP BY and Aggregation
 

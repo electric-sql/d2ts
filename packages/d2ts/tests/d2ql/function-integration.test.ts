@@ -202,7 +202,6 @@ describe('D2QL Function Integration', () => {
       const query: Query = {
         select: ['@id', '@name', { joined: { DATE: '@joined_date' } }],
         from: 'users',
-        orderBy: { id: 'asc' },
       }
 
       const results = runQuery(query)
