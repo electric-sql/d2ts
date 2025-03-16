@@ -82,6 +82,7 @@ export class DifferenceStreamWriter<T> implements IDifferenceStreamWriter<T> {
         data: dataMessage,
       })
     }
+    // console.log('sendData', JSON.stringify(this.#queues, null, 2))
   }
 
   sendFrontier(frontier: Antichain | Version | number | number[]): void {

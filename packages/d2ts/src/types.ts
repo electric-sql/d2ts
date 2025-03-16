@@ -59,6 +59,9 @@ export interface ID2 {
   popFrontier(): void
   finalize(): void
   step(): void
+  close(): void
+  addStartupSubscriber(subscriber: () => void): void
+  addTeardownSubscriber(subscriber: () => void): void
 }
 
 export interface IStreamBuilder<T> {

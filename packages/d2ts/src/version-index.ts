@@ -44,6 +44,10 @@ export class Index<K, V> implements IndexType<K, V> {
     this.#modifiedKeys = new Set()
   }
 
+  get frontier(): Antichain | null {
+    return this.#compactionFrontier
+  }
+
   toString(indent = false): string {
     return `Index(${JSON.stringify(
       [...this.#inner].map(([k, v]) => [k, [...v.entries()]]),
