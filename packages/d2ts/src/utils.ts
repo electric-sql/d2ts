@@ -67,7 +67,15 @@ export class SortedSet<T> extends Set<T> {
 
   constructor(values?: Iterable<T>, compare?: (a: T, b: T) => number) {
     super(values)
-    this.compare = compare
+    this.compare =
+      compare ??
+      ((a, b) => {
+        if (typeof a === 'number' && typeof b === 'number') {
+          return a - b
+        } else {
+          return a > b ? 1 : -1
+        }
+      })
     this.sortedValuesCache = undefined
   }
 
@@ -169,7 +177,7 @@ export class SortedSet<T> extends Set<T> {
     return value
   }
 
-  slice(start: number, end: number): SortedSet<T> {
+  slice(start: number, end?: number): SortedSet<T> {
     return new SortedSet<T>(this.sortedValues.slice(start, end))
   }
 
@@ -331,6 +339,35 @@ export class SortedMap<K, V> extends Map<K, V> {
 
   [Symbol.iterator](): IterableIterator<[K, V]> {
     return this.entries()
+  }
+}
+
+/**
+ * A sorted map that returns a default value for keys that are not present.
+ */
+export class SortedDefaultMap<K, V> extends SortedMap<K, V> {
+  constructor(
+    private defaultValue: () => V,
+    entries?: Iterable<[K, V]>,
+  ) {
+    super(entries)
+  }
+
+  get(key: K): V {
+    if (!this.has(key)) {
+      this.set(key, this.defaultValue())
+    }
+    return super.get(key)!
+  }
+
+  /**
+   * Update the value for a key using a function.
+   */
+  update(key: K, updater: (value: V) => V): V {
+    const value = this.get(key)
+    const newValue = updater(value)
+    this.set(key, newValue)
+    return newValue
   }
 }
 

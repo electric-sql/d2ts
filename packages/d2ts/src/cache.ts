@@ -11,16 +11,18 @@ import { output } from './operators/output.js'
 import { Antichain, Version } from './order.js'
 import { MultiSet } from './multiset.js'
 import { DefaultMap } from './utils.js'
+import { filter } from './operators/filter.js'
+import { eq, IndexOperator } from './index-operators.js'
 
 export interface CacheOptions<T> {
   indexedBy?: {
-    [key: string]: (item: T) => unknown
+    [key: string]: (item: T) => unknown | string
   }
 }
 
-export interface PipeIntoOptions {
-  whereKey?: string
-  where?: Record<string, string>
+export interface PipeIntoOptions<K, V> {
+  whereKey?: K | IndexOperator<K>
+  where?: Record<string, any | IndexOperator<any>>
 }
 
 export class Cache<K, V> {
@@ -73,9 +75,29 @@ export class Cache<K, V> {
     }
   }
 
-  #sendHistory(input: IStreamBuilder<KeyValue<K, V>>): void {
+  #sendHistory(
+    input: IStreamBuilder<KeyValue<K, V>>,
+    options: PipeIntoOptions<K, V> = {},
+  ): void {
     const versionedData = new DefaultMap<Version, [[K, V], number][]>(() => [])
-    for (const key of this.#index.keys()) {
+
+    let keysToSend: K[]
+    if (options.whereKey) {
+      if (typeof options.whereKey === 'function') {
+        keysToSend = this.#index.matchKeys(options.whereKey as IndexOperator<K>)
+      } else {
+        keysToSend = [options.whereKey]
+      }
+    } else {
+      keysToSend = this.#index.keys()
+    }
+
+    if (options.where) {
+      // TODO: implement where
+      throw new Error('where is not supported yet')
+    }
+
+    for (const key of keysToSend) {
       for (const [version, values] of this.#index.get(key)) {
         for (const [value, multiplicity] of values) {
           versionedData.get(version).push([[key, value], multiplicity])
@@ -96,14 +118,29 @@ export class Cache<K, V> {
 
   pipeInto(
     graph: ID2,
-    options: PipeIntoOptions = {},
+    options: PipeIntoOptions<K, V> = {},
   ): IStreamBuilder<KeyValue<K, V>> {
     const input = graph.newInput<KeyValue<K, V>>()
     this.#subscribers.add(input)
 
     graph.addStartupSubscriber(() => {
-      this.#sendHistory(input)
+      this.#sendHistory(input, options)
     })
+
+    let pipeline = input
+
+    if (options.whereKey) {
+      const operator =
+        typeof options.whereKey === 'function'
+          ? (options.whereKey as IndexOperator<K>)
+          : (eq(options.whereKey) as IndexOperator<K>)
+      pipeline = pipeline.pipe(filter(([key]) => operator(key)))
+    }
+
+    if (options.where) {
+      // TODO: implement where
+      throw new Error('where is not supported yet')
+    }
 
     graph.addTeardownSubscriber(() => {
       this.#subscribers.delete(input)
