@@ -18,6 +18,9 @@ export class D2 implements ID2 {
   #frontierStack: Antichain[] = []
   #nextOperatorId = 0
   #finalized = false
+  #closed = false
+  #startupSubscribers: (() => void)[] = []
+  #teardownSubscribers: (() => void)[] = []
 
   constructor({ initialFrontier }: D2Options) {
     this.#frontierStack = [Antichain.create(initialFrontier)]
@@ -68,11 +71,17 @@ export class D2 implements ID2 {
   finalize() {
     this.#checkNotFinalized()
     this.#finalized = true
+    for (const subscriber of this.#startupSubscribers) {
+      subscriber()
+    }
   }
 
   step(): void {
     if (!this.#finalized) {
       throw new Error('Graph not finalized')
+    }
+    if (this.#closed) {
+      throw new Error('Graph closed')
     }
     for (const op of this.#operators) {
       op.run()
@@ -87,6 +96,24 @@ export class D2 implements ID2 {
     while (this.pendingWork()) {
       this.step()
     }
+  }
+
+  close(): void {
+    if (this.#closed) {
+      throw new Error('Graph already closed')
+    }
+    this.#closed = true
+    for (const subscriber of this.#teardownSubscribers) {
+      subscriber()
+    }
+  }
+
+  addStartupSubscriber(subscriber: () => void): void {
+    this.#startupSubscribers.push(subscriber)
+  }
+
+  addTeardownSubscriber(subscriber: () => void): void {
+    this.#teardownSubscribers.push(subscriber)
   }
 }
 

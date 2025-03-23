@@ -1,6 +1,7 @@
 import { Version, Antichain } from './order.js'
 import { MultiSet } from './multiset.js'
-import { DefaultMap, chunkedArrayPush } from './utils.js'
+import { DefaultMap, chunkedArrayPush, SortedSet } from './utils.js'
+import { IndexOperator } from './index-operators.js'
 
 type VersionMap<T> = DefaultMap<Version, T[]>
 type IndexMap<K, V> = DefaultMap<K, VersionMap<[V, number]>>
@@ -29,6 +30,7 @@ export class Index<K, V> implements IndexType<K, V> {
   #inner: IndexMap<K, V>
   #compactionFrontier: Antichain | null
   #modifiedKeys: Set<K>
+  #sortedKeys?: SortedSet<K>
 
   constructor() {
     this.#inner = new DefaultMap<K, VersionMap<[V, number]>>(
@@ -42,6 +44,10 @@ export class Index<K, V> implements IndexType<K, V> {
     // }
     this.#compactionFrontier = null
     this.#modifiedKeys = new Set()
+  }
+
+  get frontier(): Antichain | null {
+    return this.#compactionFrontier
   }
 
   toString(indent = false): string {
@@ -102,6 +108,10 @@ export class Index<K, V> implements IndexType<K, V> {
     return this.keys().map((key) => [key, this.get(key)])
   }
 
+  sortedEntries(): [K, VersionMap<[V, number]>][] {
+    return this.sortedKeys().map((key) => [key, this.get(key)])
+  }
+
   versions(key: K): Version[] {
     const result = Array.from(this.get(key).keys())
     return result
@@ -115,6 +125,9 @@ export class Index<K, V> implements IndexType<K, V> {
       return values
     })
     this.#modifiedKeys.add(key)
+    if (this.#sortedKeys) {
+      this.#sortedKeys.add(key)
+    }
   }
 
   append(other: Index<K, V>): void {
@@ -127,6 +140,9 @@ export class Index<K, V> implements IndexType<K, V> {
         })
       }
       this.#modifiedKeys.add(key)
+      if (this.#sortedKeys) {
+        this.#sortedKeys.add(key)
+      }
     }
   }
 
@@ -254,10 +270,24 @@ export class Index<K, V> implements IndexType<K, V> {
     }
 
     this.#compactionFrontier = compactionFrontier
+    this.#sortedKeys = undefined // invalidate cache
   }
 
   keys(): K[] {
     return Array.from(this.#inner.keys())
+  }
+
+  sortedKeysSet(): SortedSet<K> {
+    this.#sortedKeys ??= new SortedSet(this.keys())
+    return this.#sortedKeys
+  }
+
+  sortedKeys(): K[] {
+    return this.sortedKeysSet().asArray()
+  }
+
+  matchKeys(operator: IndexOperator<K>): K[] {
+    return this.keys().filter(operator)
   }
 
   has(key: K): boolean {
