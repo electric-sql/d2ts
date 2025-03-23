@@ -3,14 +3,12 @@ import {
   Message,
   MessageType,
   DataMessage,
-  FrontierMessage,
 } from '../src/types.js'
 import { MultiSet } from '../src/multiset.js'
 import { D2 } from '../src/d2.js'
 import { Cache } from '../src/cache.js'
 import { map } from '../src/operators/map.js'
 import { output } from '../src/operators/output.js'
-import { Antichain } from '../src/order.js'
 import { gt, lt, eq, or, and, between, isIn } from '../src/index-operators.js'
 
 describe('Cache', () => {

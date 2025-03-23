@@ -14,29 +14,19 @@ import { DefaultMap } from './utils.js'
 import { filter } from './operators/filter.js'
 import { eq, IndexOperator } from './index-operators.js'
 
-export interface CacheOptions<T> {
-  indexedBy?: {
-    [key: string]: (item: T) => unknown | string
-  }
-}
-
-export interface PipeIntoOptions<K, V> {
+export interface PipeIntoOptions<K, _V> {
   whereKey?: K | IndexOperator<K>
-  where?: Record<string, any | IndexOperator<any>>
 }
 
 export class Cache<K, V> {
   #index = new Index<K, V>()
-  #options: CacheOptions<KeyValue<K, V>>
   #stream: IStreamBuilder<KeyValue<K, V>>
   #subscribers = new Set<IStreamBuilder<KeyValue<K, V>>>()
 
   constructor(
     stream: IStreamBuilder<KeyValue<K, V>>,
-    options?: CacheOptions<KeyValue<K, V>>,
   ) {
     this.#stream = stream
-    this.#options = options ?? {}
     this.#stream.pipe(
       output((message) => {
         this.#handleInputMessage(message)
@@ -92,11 +82,6 @@ export class Cache<K, V> {
       keysToSend = this.#index.keys()
     }
 
-    if (options.where) {
-      // TODO: implement where
-      throw new Error('where is not supported yet')
-    }
-
     for (const key of keysToSend) {
       for (const [version, values] of this.#index.get(key)) {
         for (const [value, multiplicity] of values) {
@@ -135,11 +120,6 @@ export class Cache<K, V> {
           ? (options.whereKey as IndexOperator<K>)
           : (eq(options.whereKey) as IndexOperator<K>)
       pipeline = pipeline.pipe(filter(([key]) => operator(key)))
-    }
-
-    if (options.where) {
-      // TODO: implement where
-      throw new Error('where is not supported yet')
     }
 
     graph.addTeardownSubscriber(() => {

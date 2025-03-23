@@ -40,6 +40,10 @@
     "./d2ql": {
       "types": "./dist/d2ql/index.d.ts",
       "default": "./dist/d2ql/index.js"
+    },
+    "./cache": {
+      "types": "./dist/cache.d.ts",
+      "default": "./dist/cache.js"
     }
   },
   "scripts": {
