@@ -1,14 +1,11 @@
 import { describe, expect, test } from 'vitest'
-import {
-  Message,
-  MessageType,
-  DataMessage,
-} from '../src/types.js'
+import { Message, MessageType, DataMessage } from '../src/types.js'
 import { MultiSet } from '../src/multiset.js'
 import { D2 } from '../src/d2.js'
 import { Cache } from '../src/cache.js'
 import { map } from '../src/operators/map.js'
 import { output } from '../src/operators/output.js'
+import { debug } from '../src/operators/debug.js'
 import { gt, lt, eq, or, and, between, isIn } from '../src/index-operators.js'
 
 describe('Cache', () => {
@@ -232,20 +229,29 @@ describe('Cache', () => {
       expect(data.version.getInner()).toEqual([1])
       expect(data.collection.getInner()).toEqual([[['c', 6], 1]])
     }
+    {
+      const msg2 = messages[1]
+      expect(msg2.type).toEqual(MessageType.FRONTIER)
+    }
 
     // Test incremental updates
     messages.length = 0
 
-    // Send data that matches the operator (> 'a')
-    baseInput.sendData(2, new MultiSet<[string, number]>([[['d', 4], 1]]))
-    // Send data that doesn't match the operator (<= 'a')
-    baseInput.sendData(2, new MultiSet<[string, number]>([[['b', 5], 1]]))
+    baseInput.sendData(
+      2,
+      new MultiSet<[string, number]>([
+        // Send data that matches the operator (> 'b')
+        [['d', 4], 1],
+        // Send data that doesn't match the operator (<= 'b')
+        [['0', 5], 1],
+      ]),
+    )
     baseInput.sendFrontier(3)
 
     baseGraph.run()
     newGraph.run()
 
-    expect(messages.length).toEqual(3)
+    expect(messages.length).toEqual(2)
     {
       const msg1 = messages[0]
       expect(msg1.type).toEqual(MessageType.DATA)
@@ -253,6 +259,10 @@ describe('Cache', () => {
       expect(data.version.getInner()).toEqual([2])
       // Should only include 'd' as it's > 'a', not 'a' itself
       expect(data.collection.getInner()).toEqual([[['d', 8], 1]])
+    }
+    {
+      const msg2 = messages[1]
+      expect(msg2.type).toEqual(MessageType.FRONTIER)
     }
   })
 
@@ -302,16 +312,21 @@ describe('Cache', () => {
     // Test incremental updates
     messages.length = 0
 
-    // Send data that matches the between operator
-    baseInput.sendData(2, new MultiSet<[string, number]>([[['c', 5], 1]]))
-    // Send data that doesn't match the between operator
-    baseInput.sendData(2, new MultiSet<[string, number]>([[['e', 7], 1]]))
+    baseInput.sendData(
+      2,
+      new MultiSet<[string, number]>([
+        // Send data that matches the between operator
+        [['c', 5], 1],
+        // Send data that doesn't match the between operator
+        [['e', 7], 1],
+      ]),
+    )
     baseInput.sendFrontier(3)
 
     baseGraph.run()
     newGraph.run()
 
-    expect(messages.length).toEqual(3)
+    expect(messages.length).toEqual(2)
     {
       const msg1 = messages[0]
       expect(msg1.type).toEqual(MessageType.DATA)
@@ -369,18 +384,13 @@ describe('Cache', () => {
     // Test incremental updates
     messages.length = 0
 
-    // Send data that matches the isIn operator
     baseInput.sendData(
       2,
       new MultiSet<[string, number]>([
+        // Send data that matches the isIn operator
         [['e', 5], 1],
         [['f', 6], 1],
-      ]),
-    )
-    // Send data that doesn't match the isIn operator
-    baseInput.sendData(
-      2,
-      new MultiSet<[string, number]>([
+        // Send data that doesn't match the isIn operator
         [['g', 7], 1],
         [['h', 8], 1],
       ]),
@@ -390,7 +400,7 @@ describe('Cache', () => {
     baseGraph.run()
     newGraph.run()
 
-    expect(messages.length).toEqual(3)
+    expect(messages.length).toEqual(2)
     {
       const msg1 = messages[0]
       expect(msg1.type).toEqual(MessageType.DATA)
@@ -430,11 +440,12 @@ describe('Cache', () => {
     const messages: Message<[string, number]>[] = []
 
     // Complex condition: (key > 'b' AND key < 'e') OR key = 'a'
-    const complexOperator = or(and(gt('b'), lt('e')), eq('a'))
+    const complexOperator = or(and(gt('b'), lt('e')), eq('a'), eq('h'))
 
-    cache
-      .pipeInto(newGraph, { whereKey: complexOperator })
-      .pipe(output((message) => messages.push(message)))
+    cache.pipeInto(newGraph, { whereKey: complexOperator }).pipe(
+      debug('cache'),
+      output((message) => messages.push(message)),
+    )
     newGraph.finalize()
     newGraph.run()
 
@@ -454,23 +465,32 @@ describe('Cache', () => {
     // Test incremental updates
     messages.length = 0
 
-    // Send data that matches the complex operator
-    baseInput.sendData(2, new MultiSet<[string, number]>([[['c', 6], 1]]))
-    // Send data that doesn't match the complex operator
-    baseInput.sendData(2, new MultiSet<[string, number]>([[['g', 7], 1]]))
+    baseInput.sendData(
+      2,
+      new MultiSet<[string, number]>([
+        // Send data that matches the complex operator
+        [['c', 6], 1],
+        [['h', 8], 1],
+        // Send data that doesn't match the complex operator
+        [['g', 7], 1],
+      ]),
+    )
     baseInput.sendFrontier(3)
 
     baseGraph.run()
     newGraph.run()
 
-    expect(messages.length).toEqual(3)
+    expect(messages.length).toEqual(2)
     {
       const msg1 = messages[0]
       expect(msg1.type).toEqual(MessageType.DATA)
       const data = msg1.data as DataMessage<[string, number]>
       expect(data.version.getInner()).toEqual([2])
-      // Should only include 'a' and 'c' as they match the complex condition
-      expect(data.collection.getInner()).toEqual([[['c', 12], 1]])
+      // Should only include 'a' and 'h' as they match the complex condition
+      expect(data.collection.getInner()).toEqual([
+        [['c', 12], 1],
+        [['h', 16], 1],
+      ])
     }
   })
 })

@@ -126,6 +126,6 @@ export class Cache<K, V> {
       this.#subscribers.delete(input)
     })
 
-    return input
+    return pipeline
   }
 }
