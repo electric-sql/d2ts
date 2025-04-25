@@ -1,3 +1,6 @@
+// Identifires
+export type ColumnName<ColumnNames extends string> = ColumnNames
+
 // JSONLike supports any JSON-compatible value plus Date objects.
 export type JSONLike =
   | string
