@@ -113,6 +113,23 @@ export type WildcardReference<C extends Context<Schema>> =
   | InputWildcard<C>
   | AllWildcard
 
+type InputWithProperty<S extends Schema, P extends string> = {
+  [I in keyof RemoveIndexSignature<S>]: P extends keyof S[I] ? I : never
+}[keyof RemoveIndexSignature<S>];
+
+export type TypeFromPropertyReference<C extends Context<Schema>, R extends PropertyReference<C>> =
+  R extends `@${infer InputName}.${infer PropName}`
+    ? InputName extends keyof C['schema']
+      ? PropName extends keyof C['schema'][InputName]
+        ? C['schema'][InputName][PropName]
+        : never
+      : never
+    : R extends `@${infer PropName}`
+      ? PropName extends keyof C['schema'][C['default']]
+        ? C['schema'][C['default']][PropName] 
+        : C['schema'][InputWithProperty<C['schema'], PropName>][PropName]
+      : never;
+
 interface TextSchema extends Schema {
   employees: {
     id: number
@@ -130,6 +147,11 @@ interface TextSchema extends Schema {
     something: number
   }
 }
+
+type t = TypeFromPropertyReference<{
+  schema: TextSchema
+  default: 'employees'
+}, '@location'>
 
 type test1 = InputPropertyNames<TextSchema, 'employees' | 'departments'>
 type test2 = InputPropertyNames<TextSchema, 'employees'>
