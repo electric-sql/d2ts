@@ -12,8 +12,8 @@ export type Context<S extends Schema> = {
 // Helper types
 
 type Flatten<T> = {
-  [K in keyof T]: T[K];
-} & {};
+  [K in keyof T]: T[K]
+} & {}
 
 type UniqueSecondLevelKeys<T> = {
   [K in keyof T]: Exclude<
@@ -30,18 +30,6 @@ type InputNames<S extends Schema> = RemoveIndexSignature<{
 }>[keyof RemoveIndexSignature<{
   [I in keyof S]: I
 }>]
-
-type InputPropertyNames<
-  S extends Schema,
-  InputName extends InputNames<S>,
-> = InputName extends any ? keyof S[InputName] : never
-
-type PropertyNamesByInput<S extends Schema> = {
-  [I in InputNames<S>]: InputPropertyNames<S, I>
-}
-
-type AllPropertyNames<S extends Schema> =
-  PropertyNamesByInput<S>[InputNames<S>]
 
 type UniquePropertyNames<S extends Schema> = UniqueSecondLevelKeys<
   RemoveIndexSignature<S>
@@ -98,9 +86,11 @@ type UniqueReference<C extends Context<Schema>> = UniqueReferencesOfSchema<
   C['schema']
 >[keyof UniqueReferencesOfSchema<C['schema']>]
 
-type InputWildcard<C extends Context<Schema>> = Flatten<{
-  [I in InputNames<C['schema']>]: `@${I}.*`
-}[InputNames<C['schema']>]>
+type InputWildcard<C extends Context<Schema>> = Flatten<
+  {
+    [I in InputNames<C['schema']>]: `@${I}.*`
+  }[InputNames<C['schema']>]
+>
 
 type AllWildcard = '@*'
 
@@ -115,85 +105,19 @@ export type WildcardReference<C extends Context<Schema>> =
 
 type InputWithProperty<S extends Schema, P extends string> = {
   [I in keyof RemoveIndexSignature<S>]: P extends keyof S[I] ? I : never
-}[keyof RemoveIndexSignature<S>];
+}[keyof RemoveIndexSignature<S>]
 
-export type TypeFromPropertyReference<C extends Context<Schema>, R extends PropertyReference<C>> =
-  R extends `@${infer InputName}.${infer PropName}`
-    ? InputName extends keyof C['schema']
-      ? PropName extends keyof C['schema'][InputName]
-        ? C['schema'][InputName][PropName]
-        : never
+export type TypeFromPropertyReference<
+  C extends Context<Schema>,
+  R extends PropertyReference<C>,
+> = R extends `@${infer InputName}.${infer PropName}`
+  ? InputName extends keyof C['schema']
+    ? PropName extends keyof C['schema'][InputName]
+      ? C['schema'][InputName][PropName]
       : never
-    : R extends `@${infer PropName}`
-      ? PropName extends keyof C['schema'][C['default']]
-        ? C['schema'][C['default']][PropName] 
-        : C['schema'][InputWithProperty<C['schema'], PropName>][PropName]
-      : never;
-
-interface TextSchema extends Schema {
-  employees: {
-    id: number
-    name: string
-    email: string
-  }
-  departments: {
-    id: number
-    name: string
-    location: string
-    something: number
-  }
-  somethingElse: {
-    id: number
-    something: number
-  }
-}
-
-type t = TypeFromPropertyReference<{
-  schema: TextSchema
-  default: 'employees'
-}, '@location'>
-
-type test1 = InputPropertyNames<TextSchema, 'employees' | 'departments'>
-type test2 = InputPropertyNames<TextSchema, 'employees'>
-type test3 = PropertyNamesByInput<TextSchema>[InputNames<TextSchema>]
-
-type qualified = QualifiedReference<{
-  schema: TextSchema
-  default: 'employees'
-}>
-
-type defaulted = DefaultReference<{
-  schema: TextSchema
-  default: 'employees'
-}>
-
-type unique = UniqueReference<{
-  schema: TextSchema
-  default: 'employees'
-}>
-
-type wildcard = WildcardReference<{
-  schema: TextSchema
-  default: 'employees'
-}>
-
-type All = PropertyReference<{
-  schema: TextSchema
-  default: 'employees'
-}>
-// All of these should be valid
-// @employees.id
-// @employees.name
-// @employees.email
-// @departments.id
-// @departments.name
-// @departments.location
-// @departments.something
-// @somethingElse.id
-// @somethingElse.something
-// Valid because they are the default input
-// @id
-// @name
-// @email
-// Valid because there is only one input with a name on all the tables in the context
-// @location
+    : never
+  : R extends `@${infer PropName}`
+    ? PropName extends keyof C['schema'][C['default']]
+      ? C['schema'][C['default']][PropName]
+      : C['schema'][InputWithProperty<C['schema'], PropName>][PropName]
+    : never
