@@ -4,7 +4,7 @@ export type Input = { [key: string]: unknown }
 export type Schema = { [key: string]: Input }
 
 // Context is a Schema with a default input
-export type Context<S extends Schema> = {
+export type Context<S extends Schema = Schema> = {
   schema: S
   default: keyof S
 }
@@ -43,38 +43,67 @@ type RemoveIndexSignature<T> = {
       : K]: T[K]
 }
 
-// Fully qualified references like @employees.id
-type QualifiedReferencesOfSchema<S extends Schema> = RemoveIndexSignature<{
-  [I in keyof S]: {
-    [P in keyof S[I]]: `@${string & I}.${string & P}`
-  }[keyof S[I]]
-}>
+// Fully qualified references like "@employees.id"
+type QualifiedReferencesOfSchemaString<S extends Schema> =
+  RemoveIndexSignature<{
+    [I in keyof S]: {
+      [P in keyof S[I]]: `@${string & I}.${string & P}`
+    }[keyof S[I]]
+  }>
 
-type QualifiedReferenceOfSchema<S extends Schema> =
-  QualifiedReferencesOfSchema<S>[keyof QualifiedReferencesOfSchema<S>]
+type QualifiedReferenceString<C extends Context<Schema>> =
+  QualifiedReferencesOfSchemaString<
+    C['schema']
+  >[keyof QualifiedReferencesOfSchemaString<C['schema']>]
 
-type QualifiedReference<C extends Context<Schema>> = QualifiedReferenceOfSchema<
-  C['schema']
->
+// Fully qualified references like { col: '@employees.id' }
+type QualifiedReferencesOfSchemaObject<S extends Schema> =
+  RemoveIndexSignature<{
+    [I in keyof S]: {
+      [P in keyof S[I]]: { col: `${string & I}.${string & P}` }
+    }[keyof S[I]]
+  }>
 
-type DefaultReferencesOfSchema<
+type QualifiedReferenceObject<C extends Context<Schema>> =
+  QualifiedReferencesOfSchemaObject<
+    C['schema']
+  >[keyof QualifiedReferencesOfSchemaObject<C['schema']>]
+
+type QualifiedReference<C extends Context<Schema>> =
+  | QualifiedReferenceString<C>
+  | QualifiedReferenceObject<C>
+
+type DefaultReferencesOfSchemaString<
   S extends Schema,
   D extends keyof S,
 > = RemoveIndexSignature<{
   [P in keyof S[D]]: `@${string & P}`
 }>
 
-type DefaultReferenceOfSchema<
+type DefaultReferenceString<C extends Context<Schema>> =
+  DefaultReferencesOfSchemaString<
+    C['schema'],
+    C['default']
+  >[keyof DefaultReferencesOfSchemaString<C['schema'], C['default']>]
+
+type DefaultReferencesOfSchemaObject<
   S extends Schema,
   D extends keyof S,
-> = DefaultReferencesOfSchema<S, D>[keyof DefaultReferencesOfSchema<S, D>]
+> = RemoveIndexSignature<{
+  [P in keyof S[D]]: { col: `${string & P}` }
+}>
 
-type DefaultReference<C extends Context<Schema>> = DefaultReferenceOfSchema<
-  C['schema'],
-  C['default']
->
+type DefaultReferenceObject<C extends Context<Schema>> =
+  DefaultReferencesOfSchemaObject<
+    C['schema'],
+    C['default']
+  >[keyof DefaultReferencesOfSchemaObject<C['schema'], C['default']>]
 
-type UniqueReferencesOfSchema<S extends Schema> = RemoveIndexSignature<{
+type DefaultReference<C extends Context<Schema>> =
+  | DefaultReferenceString<C>
+  | DefaultReferenceObject<C>
+
+type UniqueReferencesOfSchemaString<S extends Schema> = RemoveIndexSignature<{
   [I in keyof S]: {
     [P in keyof S[I]]: P extends UniquePropertyNames<S>
       ? `@${string & P}`
@@ -82,17 +111,65 @@ type UniqueReferencesOfSchema<S extends Schema> = RemoveIndexSignature<{
   }[keyof S[I]]
 }>
 
-type UniqueReference<C extends Context<Schema>> = UniqueReferencesOfSchema<
-  C['schema']
->[keyof UniqueReferencesOfSchema<C['schema']>]
+type UniqueReferenceString<C extends Context<Schema>> =
+  UniqueReferencesOfSchemaString<
+    C['schema']
+  >[keyof UniqueReferencesOfSchemaString<C['schema']>]
 
-type InputWildcard<C extends Context<Schema>> = Flatten<
+type UniqueReferencesOfSchemaObject<S extends Schema> = RemoveIndexSignature<{
+  [I in keyof S]: {
+    [P in keyof S[I]]: P extends UniquePropertyNames<S>
+      ? { col: `${string & P}` }
+      : never
+  }[keyof S[I]]
+}>
+
+type UniqueReferenceObject<C extends Context<Schema>> =
+  UniqueReferencesOfSchemaObject<
+    C['schema']
+  >[keyof UniqueReferencesOfSchemaObject<C['schema']>]
+
+type UniqueReference<C extends Context<Schema>> =
+  | UniqueReferenceString<C>
+  | UniqueReferenceObject<C>
+
+type InputWildcardString<C extends Context<Schema>> = Flatten<
   {
     [I in InputNames<C['schema']>]: `@${I}.*`
   }[InputNames<C['schema']>]
 >
 
-type AllWildcard = '@*'
+type InputWildcardObject<C extends Context<Schema>> = Flatten<
+  {
+    [I in InputNames<C['schema']>]: { col: `${I}.*` }
+  }[InputNames<C['schema']>]
+>
+
+type InputWildcard<C extends Context<Schema>> =
+  | InputWildcardString<C>
+  | InputWildcardObject<C>
+
+type AllWildcardString = '@*'
+type AllWildcardObject = { col: '*' }
+type AllWildcard = AllWildcardString | AllWildcardObject
+
+export type PropertyReferenceString<C extends Context<Schema>> =
+  | DefaultReferenceString<C>
+  | QualifiedReferenceString<C>
+  | UniqueReferenceString<C>
+
+export type WildcardReferenceString<C extends Context<Schema>> =
+  | InputWildcardString<C>
+  | AllWildcardString
+
+export type PropertyReferenceObject<C extends Context<Schema>> =
+  | DefaultReferenceObject<C>
+  | QualifiedReferenceObject<C>
+  | UniqueReferenceObject<C>
+
+export type WildcardReferenceObject<C extends Context<Schema>> =
+  | InputWildcardObject<C>
+  | AllWildcardObject
 
 export type PropertyReference<C extends Context<Schema>> =
   | DefaultReference<C>
@@ -110,14 +187,20 @@ type InputWithProperty<S extends Schema, P extends string> = {
 export type TypeFromPropertyReference<
   C extends Context<Schema>,
   R extends PropertyReference<C>,
-> = R extends `@${infer InputName}.${infer PropName}`
+> = R extends
+  | `@${infer InputName}.${infer PropName}`
+  | { col: `${infer InputName}.${infer PropName}` }
   ? InputName extends keyof C['schema']
     ? PropName extends keyof C['schema'][InputName]
       ? C['schema'][InputName][PropName]
       : never
     : never
-  : R extends `@${infer PropName}`
+  : R extends `@${infer PropName}` | { col: `${infer PropName}` }
     ? PropName extends keyof C['schema'][C['default']]
       ? C['schema'][C['default']][PropName]
       : C['schema'][InputWithProperty<C['schema'], PropName>][PropName]
     : never
+
+export type InputReference<C extends Context<Schema>> = {
+  [I in InputNames<C['schema']>]: I
+}[InputNames<C['schema']>]
