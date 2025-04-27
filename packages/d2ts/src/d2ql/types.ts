@@ -6,7 +6,7 @@ export type Schema = { [key: string]: Input }
 // Context is a Schema with a default input
 export type Context<S extends Schema = Schema> = {
   schema: S
-  default: keyof S
+  default?: keyof S
 }
 
 // Helper types
@@ -81,10 +81,15 @@ type DefaultReferencesOfSchemaString<
 }>
 
 type DefaultReferenceString<C extends Context<Schema>> =
-  DefaultReferencesOfSchemaString<
-    C['schema'],
-    C['default']
-  >[keyof DefaultReferencesOfSchemaString<C['schema'], C['default']>]
+  C['default'] extends undefined
+    ? never
+    : DefaultReferencesOfSchemaString<
+        C['schema'],
+        Exclude<C['default'], undefined>
+      >[keyof DefaultReferencesOfSchemaString<
+        C['schema'],
+        Exclude<C['default'], undefined>
+      >]
 
 type DefaultReferencesOfSchemaObject<
   S extends Schema,
@@ -94,10 +99,15 @@ type DefaultReferencesOfSchemaObject<
 }>
 
 type DefaultReferenceObject<C extends Context<Schema>> =
-  DefaultReferencesOfSchemaObject<
-    C['schema'],
-    C['default']
-  >[keyof DefaultReferencesOfSchemaObject<C['schema'], C['default']>]
+  C['default'] extends undefined
+    ? never
+    : DefaultReferencesOfSchemaObject<
+        C['schema'],
+        Exclude<C['default'], undefined>
+      >[keyof DefaultReferencesOfSchemaObject<
+        C['schema'],
+        Exclude<C['default'], undefined>
+      >]
 
 type DefaultReference<C extends Context<Schema>> =
   | DefaultReferenceString<C>
@@ -196,11 +206,31 @@ export type TypeFromPropertyReference<
       : never
     : never
   : R extends `@${infer PropName}` | { col: `${infer PropName}` }
-    ? PropName extends keyof C['schema'][C['default']]
-      ? C['schema'][C['default']][PropName]
+    ? PropName extends keyof C['schema'][Exclude<C['default'], undefined>]
+      ? C['schema'][Exclude<C['default'], undefined>][PropName]
       : C['schema'][InputWithProperty<C['schema'], PropName>][PropName]
     : never
 
 export type InputReference<C extends Context<Schema>> = {
   [I in InputNames<C['schema']>]: I
 }[InputNames<C['schema']>]
+
+export type RenameInput<
+  S extends Schema,
+  I extends keyof S,
+  NewName extends string,
+> = Flatten<
+  {
+    [K in Exclude<keyof S, I>]: S[K]
+  } & {
+    [P in NewName]: S[I]
+  }
+>
+
+export type MaybeRenameInput<
+  S extends Schema,
+  I extends keyof S,
+  NewName extends string | undefined,
+> = NewName extends undefined
+  ? S
+  : RenameInput<S, I, Exclude<NewName, undefined>>
