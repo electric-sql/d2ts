@@ -1,36 +1,37 @@
-import { queryBuilder } from './query-builder.js';
-import type { Schema, Input } from '../types.js';
+import { queryBuilder } from './query-builder.js'
+import type { Schema, Input } from '../types.js'
 
 // Example schema for testing
 interface Employee extends Input {
-  id: number;
-  name: string;
-  department_id: number | null;
-  salary: number;
-  hire_date: string;
-  active: boolean;
-  preferences: string; // JSON string
+  id: number
+  name: string
+  department_id: number | null
+  salary: number
+  hire_date: string
+  active: boolean
+  preferences: string // JSON string
 }
 
 interface Department extends Input {
-  id: number;
-  name: string;
-  location: string;
-  budget: number;
+  id: number
+  name: string
+  location: string
+  budget: number
 }
 
 // Define schema that conforms to the Schema type
 interface TestSchema extends Schema {
-  employees: Employee;
-  departments: Department;
-  [key: string]: Input;  // Index signature required by Schema
+  employees: Employee
+  departments: Department
 }
 
 // Create a query builder with the custom schema
 // Using 'employees' as the default table
 const query = queryBuilder<TestSchema>()
   .from('employees')
-  .select('@active');
+  .select('@department_id', '@name', {
+    isActive: { col: 'active' },
+  })
 
 // Once we have the 'where' and 'select' methods implemented, we can uncomment these:
 // .where(['@salary', '>', 50000])
@@ -40,4 +41,4 @@ const query = queryBuilder<TestSchema>()
 // const builtQuery = query.build();
 
 // Output the query object
-// console.log(JSON.stringify(builtQuery, null, 2)); 
+// console.log(JSON.stringify(builtQuery, null, 2));

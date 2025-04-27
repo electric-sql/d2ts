@@ -6,13 +6,13 @@ import type { Schema, Input, Context, InputReference, MaybeRenameInput } from '.
  * A query builder for D2QL that provides a fluent API
  * for building type-safe queries.
  */
-export class QueryBuilder<C extends Context<Schema>> {
-  private readonly query: Partial<Query> = {}
+class BaseQueryBuilder<C extends Context<Schema>> {
+  private readonly query: Partial<Query<C>> = {}
 
   /**
    * Create a new QueryBuilder instance.
    */
-  constructor(query: Partial<Query> = {}) {
+  constructor(query: Partial<Query<C>> = {}) {
     this.query = query
   }
 
@@ -28,11 +28,11 @@ export class QueryBuilder<C extends Context<Schema>> {
     table: T,
     as?: As,
   ): QueryBuilder<{
-    schema: MaybeRenameInput<C['schema'], T, As>
+    schema: C['schema']
     default: T
   }> {
-    const newBuilder = new QueryBuilder<{
-      schema: MaybeRenameInput<C['schema'], T, As>
+    const newBuilder = new BaseQueryBuilder<{
+      schema: C['schema']
       default: T
     }>()
     Object.assign(newBuilder.query, this.query)
@@ -40,7 +40,10 @@ export class QueryBuilder<C extends Context<Schema>> {
     if (as) {
       newBuilder.query.as = as
     }
-    return newBuilder
+    return newBuilder as QueryBuilder<{
+      schema: C['schema']
+      default: T
+    }>
   }
 
   // /**
@@ -82,7 +85,7 @@ export class QueryBuilder<C extends Context<Schema>> {
     this: QueryBuilder<C>,
     ...selects: Select<C>[]
   ): this {
-    const newBuilder = new QueryBuilder<C>(this.query);
+    const newBuilder = new BaseQueryBuilder<C>((this as BaseQueryBuilder<C>).query);
     newBuilder.query.select = selects;
     return newBuilder as this;
   }
@@ -103,8 +106,14 @@ export class QueryBuilder<C extends Context<Schema>> {
   // }
 }
 
+type InitialQueryBuilder<C extends Context<Schema>> = Pick<BaseQueryBuilder<C>, 'from'> // TODO: add 'with' when implemented
+
+type QueryBuilder<C extends Context<Schema>> = Omit<BaseQueryBuilder<C>, 'from'>
+
 export function queryBuilder<S extends Schema>() {
-  return new QueryBuilder<{
+  return new BaseQueryBuilder<{
     schema: S
-  }>()
+  }>() as InitialQueryBuilder<{
+    schema: S
+  }>
 }

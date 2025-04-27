@@ -276,6 +276,7 @@ const qDesc: Query<{
 }> = {
   from: 'comments',
   select: [
+    '@posts.title',
     '@id',
     {
       test: '@authorId',
