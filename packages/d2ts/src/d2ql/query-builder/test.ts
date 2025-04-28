@@ -29,6 +29,8 @@ interface TestSchema extends Schema {
 // Using 'employees' as the default table
 const query = queryBuilder<TestSchema>()
   .from('departments', 'd')
+  .where('@d.budget', '>', 1000)
+  .where('@d.id', '!=', 1000000)
   .select('@id', '@d.budget', { upper_name: { UPPER: '@d.name' } })
 
 type Result = ResultFromQueryBuilder<typeof query>

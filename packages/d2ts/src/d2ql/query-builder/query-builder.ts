@@ -7,6 +7,9 @@ import type {
   ExplicitLiteral,
   ConditionOperand,
   Select,
+  LogicalOperator,
+  SimpleCondition,
+  Comparator,
 } from '../schema.js'
 
 import type {
@@ -126,6 +129,64 @@ class BaseQueryBuilder<C extends Context<Schema>> {
         }
       >
     >
+  }
+
+  /**
+   * Add a where clause with a property reference, operator, and value.
+   */
+  where(
+    left: PropertyReferenceString<C>,
+    operator: Comparator,
+    right: any
+  ): QueryBuilder<C>;
+
+  /**
+   * Add a where clause with a complete condition object.
+   */
+  where(
+    condition: Condition<C> | any[]
+  ): QueryBuilder<C>;
+
+  /**
+   * Add a where clause to filter the results.
+   * Can be called multiple times to add AND conditions.
+   * 
+   * @param leftOrCondition The left operand or complete condition
+   * @param operator Optional comparison operator
+   * @param right Optional right operand
+   * @returns A new QueryBuilder with the where clause added
+   */
+  where(
+    leftOrCondition: any,
+    operator?: any,
+    right?: any
+  ): QueryBuilder<C> {
+    // Create a new builder with a copy of the current query
+    // Use simplistic approach to avoid deep type errors
+    const newBuilder = new BaseQueryBuilder<C>()
+    Object.assign(newBuilder.query, this.query)
+    
+    let condition: any;
+    
+    // Determine if this is a complete condition or individual parts
+    if (operator !== undefined && right !== undefined) {
+      // Create a condition from parts
+      condition = [leftOrCondition, operator, right];
+    } else {
+      // Use the provided condition directly
+      condition = leftOrCondition;
+    }
+    
+    if (!newBuilder.query.where) {
+      newBuilder.query.where = condition;
+    } else {
+      // Create a composite condition with AND
+      // Use any to bypass type checking issues
+      const andArray: any = [newBuilder.query.where, 'and', condition];
+      newBuilder.query.where = andArray;
+    }
+    
+    return newBuilder as unknown as QueryBuilder<C>;
   }
 }
 
