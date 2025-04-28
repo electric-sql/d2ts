@@ -173,6 +173,16 @@ class BaseQueryBuilder<C extends Context<Schema>> {
 
     return newBuilder as unknown as QueryBuilder<C>
   }
+
+  /**
+   * Build and return the final query object.
+   *
+   * @returns The built query
+   */
+  buildQuery(): Query<C> {
+    // Create a copy of the query to avoid exposing the internal state directly
+    return { ...this.query } as Query<C>
+  }
 }
 
 type InitialQueryBuilder<C extends Context<Schema>> = Pick<
