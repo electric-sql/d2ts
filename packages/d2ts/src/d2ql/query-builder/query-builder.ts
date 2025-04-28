@@ -17,6 +17,7 @@ import type {
   InputReference,
   RemoveIndexSignature,
   PropertyReferenceString,
+  PropertyReference,
   Flatten,
   InferResultTypeFromSelectTuple,
 } from '../types.js'
@@ -176,6 +177,59 @@ class BaseQueryBuilder<C extends Context<Schema>> {
     }
 
     return newBuilder as unknown as QueryBuilder<C>
+  }
+
+  /**
+   * Add a having clause comparing two values.
+   * For filtering results after they have been grouped.
+   */
+  having(
+    left: PropertyReferenceString<C> | LiteralValue,
+    operator: Comparator,
+    right: PropertyReferenceString<C> | LiteralValue,
+  ): QueryBuilder<C>
+
+  /**
+   * Add a having clause with a complete condition object.
+   * For filtering results after they have been grouped.
+   */
+  having(condition: Condition<C>): QueryBuilder<C>
+
+  /**
+   * Add a having clause to filter the grouped results.
+   * Can be called multiple times to add AND conditions.
+   *
+   * @param leftOrCondition The left operand or complete condition
+   * @param operator Optional comparison operator
+   * @param right Optional right operand
+   * @returns A new QueryBuilder with the having clause added
+   */
+  having(leftOrCondition: any, operator?: any, right?: any): QueryBuilder<C> {
+    // Create a new builder with a copy of the current query
+    const newBuilder = new BaseQueryBuilder<C>()
+    Object.assign(newBuilder.query, this.query)
+
+    let condition: any
+
+    // Determine if this is a complete condition or individual parts
+    if (operator !== undefined && right !== undefined) {
+      // Create a condition from parts
+      condition = [leftOrCondition, operator, right]
+    } else {
+      // Use the provided condition directly
+      condition = leftOrCondition
+    }
+
+    if (!newBuilder.query.having) {
+      newBuilder.query.having = condition
+    } else {
+      // Create a composite condition with AND
+      // Use any to bypass type checking issues
+      const andArray: any = [newBuilder.query.having, 'and', condition]
+      newBuilder.query.having = andArray
+    }
+
+    return newBuilder as QueryBuilder<C>
   }
 
   /**
@@ -382,6 +436,42 @@ class BaseQueryBuilder<C extends Context<Schema>> {
 
     // Set the offset
     newBuilder.query.offset = offset
+
+    return newBuilder as QueryBuilder<C>
+  }
+
+  /**
+   * Specify which column(s) to use as keys in the output keyed stream.
+   *
+   * @param keyBy The column(s) to use as keys
+   * @returns A new QueryBuilder with the keyBy clause set
+   */
+  keyBy(keyBy: PropertyReference<C> | PropertyReference<C>[]): QueryBuilder<C> {
+    // Create a new builder with a copy of the current query
+    const newBuilder = new BaseQueryBuilder<C>()
+    Object.assign(newBuilder.query, this.query)
+
+    // Set the keyBy clause
+    newBuilder.query.keyBy = keyBy
+
+    return newBuilder as QueryBuilder<C>
+  }
+
+  /**
+   * Add a groupBy clause to group the results by one or more columns.
+   *
+   * @param groupBy The column(s) to group by
+   * @returns A new QueryBuilder with the groupBy clause set
+   */
+  groupBy(
+    groupBy: PropertyReference<C> | PropertyReference<C>[],
+  ): QueryBuilder<C> {
+    // Create a new builder with a copy of the current query
+    const newBuilder = new BaseQueryBuilder<C>()
+    Object.assign(newBuilder.query, this.query)
+
+    // Set the groupBy clause
+    newBuilder.query.groupBy = groupBy
 
     return newBuilder as QueryBuilder<C>
   }
