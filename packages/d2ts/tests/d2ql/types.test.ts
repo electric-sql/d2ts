@@ -34,6 +34,7 @@ interface TestSchema extends Schema {
 
 // Test context with users as default
 interface UsersContext extends Context<TestSchema> {
+  baseSchema: TestSchema
   schema: TestSchema
   default: 'users'
 }
@@ -225,6 +226,7 @@ describe('d2ql types', () => {
         singleInput: { id: number }
       }
       type SingleInputContext = {
+        baseSchema: SingleInputSchema
         schema: SingleInputSchema
         default: 'singleInput'
       }

@@ -1,3 +1,11 @@
+import type {
+  FunctionCall,
+  LiteralValue,
+  ExplicitLiteral,
+  ConditionOperand,
+  Select,
+} from './schema.js'
+
 // Input is analogous to a table in a SQL database
 // A Schema is a set of named Inputs
 export type Input = Record<string, unknown>
@@ -259,3 +267,127 @@ export type MaybeRenameInput<
 > = NewName extends undefined
   ? S
   : RenameInput<S, I, Exclude<NewName, undefined>>
+
+/**
+ * Helper type to combine result types from each select item in a tuple
+ */
+export type InferResultTypeFromSelectTuple<
+  C extends Context<Schema>,
+  S extends readonly Select<C>[],
+> = UnionToIntersection<
+  {
+    [K in keyof S]: S[K] extends Select<C> ? InferResultType<C, S[K]> : never
+  }[number]
+>
+
+/**
+ * Convert a union type to an intersection type
+ */
+type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (
+  x: infer I,
+) => void
+  ? I
+  : never
+
+/**
+ * Infers the result type from a single select item
+ */
+type InferResultType<C extends Context<Schema>, S extends Select<C>> =
+  S extends PropertyReferenceString<C>
+    ? {
+        [K in ResultKeyFromPropertyReference<C, S>]: TypeFromPropertyReference<
+          C,
+          S
+        >
+      }
+    : S extends WildcardReferenceString<C>
+      ? S extends '@*'
+        ? InferAllColumnsType<C>
+        : S extends `@${infer TableName}.*`
+          ? TableName extends keyof C['schema']
+            ? InferTableColumnsType<C, TableName>
+            : {}
+          : {}
+      : S extends { [alias: string]: PropertyReference<C> | FunctionCall<C> }
+        ? {
+            [K in keyof S]: S[K] extends PropertyReference<C>
+              ? TypeFromPropertyReference<C, S[K]>
+              : S[K] extends FunctionCall<C>
+                ? InferFunctionCallResultType<C, S[K]>
+                : never
+          }
+        : {}
+
+/**
+ * Infers the result type for all columns from all tables
+ */
+type InferAllColumnsType<C extends Context<Schema>> = {
+  [K in keyof C['schema']]: {
+    [P in keyof C['schema'][K]]: C['schema'][K][P]
+  }
+}[keyof C['schema']]
+
+/**
+ * Infers the result type for all columns from a specific table
+ */
+type InferTableColumnsType<
+  C extends Context<Schema>,
+  T extends keyof C['schema'],
+> = {
+  [P in keyof C['schema'][T]]: C['schema'][T][P]
+}
+
+/**
+ * Infers the result type for a function call
+ */
+type InferFunctionCallResultType<
+  C extends Context<Schema>,
+  F extends FunctionCall<C>,
+> = F extends { SUM: any }
+  ? number
+  : F extends { COUNT: any }
+    ? number
+    : F extends { AVG: any }
+      ? number
+      : F extends { MIN: any }
+        ? InferOperandType<C, F['MIN']>
+        : F extends { MAX: any }
+          ? InferOperandType<C, F['MAX']>
+          : F extends { DATE: any }
+            ? string
+            : F extends { JSON_EXTRACT: any }
+              ? unknown
+              : F extends { JSON_EXTRACT_PATH: any }
+                ? unknown
+                : F extends { UPPER: any }
+                  ? string
+                  : F extends { LOWER: any }
+                    ? string
+                    : F extends { COALESCE: any }
+                      ? InferOperandType<C, F['COALESCE']>
+                      : F extends { CONCAT: any }
+                        ? string
+                        : F extends { LENGTH: any }
+                          ? number
+                          : F extends { ORDER_INDEX: any }
+                            ? number
+                            : unknown
+
+/**
+ * Infers the type of an operand
+ */
+type InferOperandType<
+  C extends Context<Schema>,
+  O extends ConditionOperand<C>,
+> =
+  O extends PropertyReference<C>
+    ? TypeFromPropertyReference<C, O>
+    : O extends LiteralValue
+      ? O
+      : O extends ExplicitLiteral
+        ? O['value']
+        : O extends FunctionCall<C>
+          ? InferFunctionCallResultType<C, O>
+          : O extends ConditionOperand<C>[]
+            ? InferOperandType<C, O[number]>
+            : unknown

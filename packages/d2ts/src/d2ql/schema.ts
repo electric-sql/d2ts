@@ -1,12 +1,9 @@
 import type {
   Context,
-  Schema,
   InputReference,
-  WildcardReference,
   WildcardReferenceString,
   PropertyReference,
   PropertyReferenceString,
-  TypeFromPropertyReference,
 } from './types.js'
 
 // Identifires
@@ -137,12 +134,10 @@ export type NestedCompositeCondition<
 ]
 
 // A condition is either a simple condition or a composite condition (flat or nested).
-export type Condition<
-  C extends Context = Context,
-  T extends any = any,
-> = SimpleCondition<C, T>
-| FlatCompositeCondition<C>
-| NestedCompositeCondition<C>
+export type Condition<C extends Context = Context, T extends any = any> =
+  | SimpleCondition<C, T>
+  | FlatCompositeCondition<C>
+  | NestedCompositeCondition<C>
 
 // A join clause includes a join type, the table to join, an optional alias,
 // an "on" condition, and an optional "where" clause specific to the join.
@@ -223,72 +218,4 @@ export interface WithQuery<C extends Context = Context> extends BaseQuery<C> {
 // a keyed stream.
 export interface KeyedQuery<C extends Context = Context> extends Query<C> {
   keyBy: PropertyReference<C> | PropertyReference<C>[]
-}
-
-// ====== Some tests during development: ======
-
-interface TestSchema extends Schema {
-  users: {
-    id: number
-    name: string
-    email: string
-  }
-  posts: {
-    id: number
-    title: string
-    content: string
-    authorId: number
-    views: number
-  }
-  comments: {
-    id: number
-    postId: number
-    userId: number
-    content: string
-  }
-}
-
-const q: Query<{
-  baseSchema: TestSchema
-  schema: TestSchema
-  default: 'comments'
-}> = {
-  from: 'comments',
-  select: [
-    {
-      test: '@authorId',
-    },
-  ],
-  orderBy: '@userId',
-}
-
-// Test with object-based orderBy
-const q2: Query<{
-  baseSchema: TestSchema
-  schema: TestSchema
-  default: 'comments'
-}> = {
-  from: 'comments',
-  select: ['@id'],
-  orderBy: '@userId',
-}
-
-// We can accomplish sorting direction by adding 'DESC' in the SQL keywords
-// This is a common pattern in many SQL-like APIs
-const qDesc: Query<{
-  baseSchema: TestSchema
-  schema: TestSchema
-  default: 'comments'
-}> = {
-  from: 'comments',
-  select: [
-    '@posts.title',
-    '@id',
-    {
-      test: '@authorId',
-    },
-  ],
-  orderBy: { '@comments.userId': 'desc' },
-  groupBy: ['@authorId', { col: 'posts.title' }],
-  where: ['@comments.content', '!=', 1],
 }

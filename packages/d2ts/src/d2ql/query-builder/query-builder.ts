@@ -2,29 +2,19 @@ import type {
   Query,
   Condition,
   From,
-  FunctionCall,
   LiteralValue,
-  ExplicitLiteral,
-  ConditionOperand,
   Select,
-  LogicalOperator,
-  SimpleCondition,
   Comparator,
 } from '../schema.js'
 
 import type {
   Schema,
-  Input,
   Context,
   InputReference,
-  MaybeRenameInput,
   RemoveIndexSignature,
-  ResultKeyFromPropertyReference,
-  PropertyReference,
   PropertyReferenceString,
-  WildcardReferenceString,
-  TypeFromPropertyReference,
   Flatten,
+  InferResultTypeFromSelectTuple,
 } from '../types.js'
 
 /**
@@ -94,14 +84,14 @@ class BaseQueryBuilder<C extends Context<Schema>> {
     if (as) {
       newBuilder.query.as = as
     }
-    
+
     // Calculate the result type without deep nesting
     type ResultSchema = As extends undefined
       ? { [K in T]: C['baseSchema'][T] }
       : { [K in string & As]: C['baseSchema'][T] }
-    
+
     type ResultDefault = As extends undefined ? T : string & As
-    
+
     // Use simpler type assertion to avoid excessive depth
     return newBuilder as unknown as QueryBuilder<{
       baseSchema: C['baseSchema']
@@ -138,56 +128,50 @@ class BaseQueryBuilder<C extends Context<Schema>> {
   where(
     left: PropertyReferenceString<C> | LiteralValue,
     operator: Comparator,
-    right: PropertyReferenceString<C> | LiteralValue
-  ): QueryBuilder<C>;
+    right: PropertyReferenceString<C> | LiteralValue,
+  ): QueryBuilder<C>
 
   /**
    * Add a where clause with a complete condition object.
    */
-  where(
-    condition: Condition<C>
-  ): QueryBuilder<C>;
+  where(condition: Condition<C>): QueryBuilder<C>
 
   /**
    * Add a where clause to filter the results.
    * Can be called multiple times to add AND conditions.
-   * 
+   *
    * @param leftOrCondition The left operand or complete condition
    * @param operator Optional comparison operator
    * @param right Optional right operand
    * @returns A new QueryBuilder with the where clause added
    */
-  where(
-    leftOrCondition: any,
-    operator?: any,
-    right?: any
-  ): QueryBuilder<C> {
+  where(leftOrCondition: any, operator?: any, right?: any): QueryBuilder<C> {
     // Create a new builder with a copy of the current query
     // Use simplistic approach to avoid deep type errors
     const newBuilder = new BaseQueryBuilder<C>()
     Object.assign(newBuilder.query, this.query)
-    
-    let condition: any;
-    
+
+    let condition: any
+
     // Determine if this is a complete condition or individual parts
     if (operator !== undefined && right !== undefined) {
       // Create a condition from parts
-      condition = [leftOrCondition, operator, right];
+      condition = [leftOrCondition, operator, right]
     } else {
       // Use the provided condition directly
-      condition = leftOrCondition;
+      condition = leftOrCondition
     }
-    
+
     if (!newBuilder.query.where) {
-      newBuilder.query.where = condition;
+      newBuilder.query.where = condition
     } else {
       // Create a composite condition with AND
       // Use any to bypass type checking issues
-      const andArray: any = [newBuilder.query.where, 'and', condition];
-      newBuilder.query.where = andArray;
+      const andArray: any = [newBuilder.query.where, 'and', condition]
+      newBuilder.query.where = andArray
     }
-    
-    return newBuilder as unknown as QueryBuilder<C>;
+
+    return newBuilder as unknown as QueryBuilder<C>
   }
 }
 
@@ -218,127 +202,3 @@ export type ResultFromQueryBuilder<QB> = Flatten<
       : never
     : never
 >
-
-/**
- * Helper type to combine result types from each select item in a tuple
- */
-type InferResultTypeFromSelectTuple<
-  C extends Context<Schema>,
-  S extends readonly Select<C>[],
-> = UnionToIntersection<
-  {
-    [K in keyof S]: S[K] extends Select<C> ? InferResultType<C, S[K]> : never
-  }[number]
->
-
-/**
- * Convert a union type to an intersection type
- */
-type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (
-  x: infer I,
-) => void
-  ? I
-  : never
-
-/**
- * Infers the result type from a single select item
- */
-type InferResultType<C extends Context<Schema>, S extends Select<C>> =
-  S extends PropertyReferenceString<C>
-    ? {
-        [K in ResultKeyFromPropertyReference<C, S>]: TypeFromPropertyReference<
-          C,
-          S
-        >
-      }
-    : S extends WildcardReferenceString<C>
-      ? S extends '@*'
-        ? InferAllColumnsType<C>
-        : S extends `@${infer TableName}.*`
-          ? TableName extends keyof C['schema']
-            ? InferTableColumnsType<C, TableName>
-            : {}
-          : {}
-      : S extends { [alias: string]: PropertyReference<C> | FunctionCall<C> }
-        ? {
-            [K in keyof S]: S[K] extends PropertyReference<C>
-              ? TypeFromPropertyReference<C, S[K]>
-              : S[K] extends FunctionCall<C>
-                ? InferFunctionCallResultType<C, S[K]>
-                : never
-          }
-        : {}
-
-/**
- * Infers the result type for all columns from all tables
- */
-type InferAllColumnsType<C extends Context<Schema>> = {
-  [K in keyof C['schema']]: {
-    [P in keyof C['schema'][K]]: C['schema'][K][P]
-  }
-}[keyof C['schema']]
-
-/**
- * Infers the result type for all columns from a specific table
- */
-type InferTableColumnsType<
-  C extends Context<Schema>,
-  T extends keyof C['schema'],
-> = {
-  [P in keyof C['schema'][T]]: C['schema'][T][P]
-}
-
-/**
- * Infers the result type for a function call
- */
-type InferFunctionCallResultType<
-  C extends Context<Schema>,
-  F extends FunctionCall<C>,
-> = F extends { SUM: any }
-  ? number
-  : F extends { COUNT: any }
-    ? number
-    : F extends { AVG: any }
-      ? number
-      : F extends { MIN: any }
-        ? InferOperandType<C, F['MIN']>
-        : F extends { MAX: any }
-          ? InferOperandType<C, F['MAX']>
-          : F extends { DATE: any }
-            ? string
-            : F extends { JSON_EXTRACT: any }
-              ? unknown
-              : F extends { JSON_EXTRACT_PATH: any }
-                ? unknown
-                : F extends { UPPER: any }
-                  ? string
-                  : F extends { LOWER: any }
-                    ? string
-                    : F extends { COALESCE: any }
-                      ? InferOperandType<C, F['COALESCE']>
-                      : F extends { CONCAT: any }
-                        ? string
-                        : F extends { LENGTH: any }
-                          ? number
-                          : F extends { ORDER_INDEX: any }
-                            ? number
-                            : unknown
-
-/**
- * Infers the type of an operand
- */
-type InferOperandType<
-  C extends Context<Schema>,
-  O extends ConditionOperand<C>,
-> =
-  O extends PropertyReference<C>
-    ? TypeFromPropertyReference<C, O>
-    : O extends LiteralValue
-      ? O
-      : O extends ExplicitLiteral
-        ? O['value']
-        : O extends FunctionCall<C>
-          ? InferFunctionCallResultType<C, O>
-          : O extends ConditionOperand<C>[]
-            ? InferOperandType<C, O[number]>
-            : unknown

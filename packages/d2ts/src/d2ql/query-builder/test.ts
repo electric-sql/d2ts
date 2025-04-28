@@ -34,7 +34,6 @@ const query = queryBuilder<TestSchema>()
 
 type Result = ResultFromQueryBuilder<typeof query>
 
-
 // Once we have the 'where' and 'select' methods implemented, we can uncomment these:
 // .where(['@salary', '>', 50000])
 // .select('@id', '@name', { upper_name: { UPPER: '@name' } });
