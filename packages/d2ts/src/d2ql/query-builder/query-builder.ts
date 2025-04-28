@@ -6,6 +6,9 @@ import type {
   Select,
   Comparator,
   JoinClause,
+  OrderBy,
+  Limit,
+  Offset,
 } from '../schema.js'
 
 import type {
@@ -320,7 +323,7 @@ class BaseQueryBuilder<C extends Context<Schema>> {
 
     // Return the new builder with updated schema type
     // Use type assertion to simplify complex type
-    return newBuilder as unknown as QueryBuilder<
+    return newBuilder as QueryBuilder<
       Flatten<
         Omit<C, 'schema'> & {
           schema: C['schema'] & {
@@ -329,6 +332,58 @@ class BaseQueryBuilder<C extends Context<Schema>> {
         }
       >
     >
+  }
+
+  /**
+   * Add an orderBy clause to sort the results.
+   * Overwrites any previous orderBy clause.
+   *
+   * @param orderBy The order specification
+   * @returns A new QueryBuilder with the orderBy clause set
+   */
+  orderBy(orderBy: OrderBy<C>): QueryBuilder<C> {
+    // Create a new builder with a copy of the current query
+    const newBuilder = new BaseQueryBuilder<C>()
+    Object.assign(newBuilder.query, this.query)
+
+    // Set the orderBy clause
+    newBuilder.query.orderBy = orderBy
+
+    return newBuilder as QueryBuilder<C>
+  }
+
+  /**
+   * Set a limit on the number of results returned.
+   *
+   * @param limit Maximum number of results to return
+   * @returns A new QueryBuilder with the limit set
+   */
+  limit(limit: Limit<C>): QueryBuilder<C> {
+    // Create a new builder with a copy of the current query
+    const newBuilder = new BaseQueryBuilder<C>()
+    Object.assign(newBuilder.query, this.query)
+
+    // Set the limit
+    newBuilder.query.limit = limit
+
+    return newBuilder as QueryBuilder<C>
+  }
+
+  /**
+   * Set an offset to skip a number of results.
+   *
+   * @param offset Number of results to skip
+   * @returns A new QueryBuilder with the offset set
+   */
+  offset(offset: Offset<C>): QueryBuilder<C> {
+    // Create a new builder with a copy of the current query
+    const newBuilder = new BaseQueryBuilder<C>()
+    Object.assign(newBuilder.query, this.query)
+
+    // Set the offset
+    newBuilder.query.offset = offset
+
+    return newBuilder as QueryBuilder<C>
   }
 }
 
