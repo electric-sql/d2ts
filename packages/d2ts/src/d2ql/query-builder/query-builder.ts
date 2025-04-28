@@ -94,18 +94,19 @@ class BaseQueryBuilder<C extends Context<Schema>> {
     if (as) {
       newBuilder.query.as = as
     }
-    return newBuilder as QueryBuilder<{
+    
+    // Calculate the result type without deep nesting
+    type ResultSchema = As extends undefined
+      ? { [K in T]: C['baseSchema'][T] }
+      : { [K in string & As]: C['baseSchema'][T] }
+    
+    type ResultDefault = As extends undefined ? T : string & As
+    
+    // Use simpler type assertion to avoid excessive depth
+    return newBuilder as unknown as QueryBuilder<{
       baseSchema: C['baseSchema']
-      schema: As extends undefined
-        ? {
-            [K in T]: RemoveIndexSignature<C['baseSchema'][T]>
-          }
-        : As extends string
-          ? {
-              [K in As]: RemoveIndexSignature<C['baseSchema'][T]>
-            }
-          : never
-      default: { [K in T]: K }[T]
+      schema: ResultSchema
+      default: ResultDefault
     }>
   }
 
