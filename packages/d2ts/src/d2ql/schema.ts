@@ -177,7 +177,12 @@ export type OrderBy<C extends Context = Context> =
 
 export type Select<C extends Context = Context> =
   | PropertyReferenceString<C>
-  | { [alias: string]: PropertyReference<C> | FunctionCall<C> | AggregateFunctionCall<C> }
+  | {
+      [alias: string]:
+        | PropertyReference<C>
+        | FunctionCall<C>
+        | AggregateFunctionCall<C>
+    }
   | WildcardReferenceString<C>
 
 export type As<_C extends Context = Context> = string

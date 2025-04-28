@@ -115,40 +115,63 @@ class BaseQueryBuilder<C extends Context<Schema>> {
   select<S extends Select<C>[]>(this: QueryBuilder<C>, ...selects: S) {
     // Validate function calls in the selects
     // Need to use a type assertion to bypass deep recursive type checking
-    const validatedSelects = selects.map(select => {
+    const validatedSelects = selects.map((select) => {
       // If the select is an object with aliases, validate each value
-      if (typeof select === 'object' && select !== null && !Array.isArray(select)) {
-        const result: Record<string, any> = {};
-        
+      if (
+        typeof select === 'object' &&
+        select !== null &&
+        !Array.isArray(select)
+      ) {
+        const result: Record<string, any> = {}
+
         for (const [key, value] of Object.entries(select)) {
           // If it's a function call (object with a single key that is an allowed function name)
-          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-            const keys = Object.keys(value);
+          if (
+            typeof value === 'object' &&
+            value !== null &&
+            !Array.isArray(value)
+          ) {
+            const keys = Object.keys(value)
             if (keys.length === 1) {
-              const funcName = keys[0];
+              const funcName = keys[0]
               // List of allowed function names from AllowedFunctionName
               const allowedFunctions = [
-                'SUM', 'COUNT', 'AVG', 'MIN', 'MAX', 
-                'DATE', 'JSON_EXTRACT', 'JSON_EXTRACT_PATH',
-                'UPPER', 'LOWER', 'COALESCE', 'CONCAT', 'LENGTH', 'ORDER_INDEX'
-              ];
-              
+                'SUM',
+                'COUNT',
+                'AVG',
+                'MIN',
+                'MAX',
+                'DATE',
+                'JSON_EXTRACT',
+                'JSON_EXTRACT_PATH',
+                'UPPER',
+                'LOWER',
+                'COALESCE',
+                'CONCAT',
+                'LENGTH',
+                'ORDER_INDEX',
+              ]
+
               if (!allowedFunctions.includes(funcName)) {
-                console.warn(`Unsupported function: ${funcName}. Expected one of: ${allowedFunctions.join(', ')}`);
+                console.warn(
+                  `Unsupported function: ${funcName}. Expected one of: ${allowedFunctions.join(', ')}`,
+                )
               }
             }
           }
-          
-          result[key] = value;
+
+          result[key] = value
         }
-        
-        return result;
+
+        return result
       }
-      
-      return select;
-    });
-    
-    const newBuilder = new BaseQueryBuilder<C>((this as BaseQueryBuilder<C>).query)
+
+      return select
+    })
+
+    const newBuilder = new BaseQueryBuilder<C>(
+      (this as BaseQueryBuilder<C>).query,
+    )
     newBuilder.query.select = validatedSelects as Select<C>[]
 
     return newBuilder as QueryBuilder<
