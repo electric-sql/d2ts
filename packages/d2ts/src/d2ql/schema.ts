@@ -68,6 +68,21 @@ export type FunctionCall<C extends Context = Context> = {
   }
 }[AllowedFunctionName]
 
+export type AggregateFunctionName =
+  | 'SUM'
+  | 'COUNT'
+  | 'AVG'
+  | 'MIN'
+  | 'MAX'
+  | 'MEDIAN'
+  | 'MODE'
+
+export type AggregateFunctionCall<C extends Context = Context> = {
+  [K in AggregateFunctionName]: {
+    [key in K]: ConditionOperand<C> | ConditionOperand<C>[]
+  }
+}[AggregateFunctionName]
+
 /**
  * An operand in a condition may be:
  * - A literal value (LiteralValue)
@@ -162,7 +177,7 @@ export type OrderBy<C extends Context = Context> =
 
 export type Select<C extends Context = Context> =
   | PropertyReferenceString<C>
-  | { [alias: string]: PropertyReference<C> | FunctionCall<C> }
+  | { [alias: string]: PropertyReference<C> | FunctionCall<C> | AggregateFunctionCall<C> }
   | WildcardReferenceString<C>
 
 export type As<_C extends Context = Context> = string

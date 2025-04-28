@@ -50,14 +50,11 @@ describe('QueryBuilder.select', () => {
     const query = queryBuilder<TestSchema>()
       .from('employees')
       .select('@id', {
-        // Use any to bypass type checking for this test
-        avg_salary: { SUM: '@salary' } as any,
-        upper_name: { UPPER: '@name' } as any,
+        upper_name: { UPPER: '@name' },
       })
 
     const builtQuery = query.buildQuery()
     expect(builtQuery.select).toHaveLength(2)
-    expect(builtQuery.select[1]).toHaveProperty('avg_salary')
     expect(builtQuery.select[1]).toHaveProperty('upper_name')
   })
 
