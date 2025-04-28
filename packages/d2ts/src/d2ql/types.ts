@@ -8,11 +8,12 @@ export type Context<B extends Schema = Schema, S extends Schema = Schema> = {
   baseSchema: B
   schema: S
   default?: keyof S
+  result?: Record<string, unknown>
 }
 
 // Helper types
 
-type Flatten<T> = {
+export type Flatten<T> = {
   [K in keyof T]: T[K]
 } & {}
 
@@ -213,6 +214,27 @@ export type TypeFromPropertyReference<
       ? C['schema'][Exclude<C['default'], undefined>][PropName]
       : C['schema'][InputWithProperty<C['schema'], PropName>][PropName]
     : never
+
+/**
+ * Return the key that would be used in the result of the query for a given property
+ * reference.
+ * - `@id` -> `id`
+ * - `@employees.id` -> `id`
+ * - `{ col: 'id' }` -> `id`
+ * - `{ col: 'employees.id' }` -> `id`
+ */
+export type ResultKeyFromPropertyReference<
+  C extends Context<Schema>,
+  R extends PropertyReference<C>,
+> = R extends `@${infer _InputName}.${infer PropName}`
+  ? PropName
+  : R extends { col: `${infer _InputName}.${infer PropName}` }
+    ? PropName
+    : R extends `@${infer PropName}`
+      ? PropName
+      : R extends { col: `${infer PropName}` }
+        ? PropName
+        : never
 
 export type InputReference<C extends Context<Schema>> = {
   [I in InputNames<C['schema']>]: I
