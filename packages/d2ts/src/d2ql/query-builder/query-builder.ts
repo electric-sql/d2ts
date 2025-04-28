@@ -5,6 +5,7 @@ import type {
   LiteralValue,
   Select,
   Comparator,
+  JoinClause,
 } from '../schema.js'
 
 import type {
@@ -182,6 +183,96 @@ class BaseQueryBuilder<C extends Context<Schema>> {
   buildQuery(): Query<C> {
     // Create a copy of the query to avoid exposing the internal state directly
     return { ...this.query } as Query<C>
+  }
+
+  /**
+   * Add a join clause to the query without specifying an alias.
+   * The table name will be used as the default alias.
+   *
+   * @param joinClause The join configuration object
+   * @returns A new QueryBuilder with the join clause added
+   */
+  join<T extends keyof C['baseSchema']>(joinClause: {
+    type: 'inner' | 'left' | 'right' | 'full' | 'cross'
+    from: T
+    on: Condition<any>
+    where?: Condition<any>
+  }): QueryBuilder<
+    Flatten<
+      Omit<C, 'schema'> & {
+        schema: C['schema'] & {
+          [K in T]: C['baseSchema'][T]
+        }
+      }
+    >
+  >
+
+  /**
+   * Add a join clause to the query with a specified alias.
+   *
+   * @param joinClause The join configuration object with alias
+   * @returns A new QueryBuilder with the join clause added
+   */
+  join<T extends keyof C['baseSchema'], A extends string>(joinClause: {
+    type: 'inner' | 'left' | 'right' | 'full' | 'cross'
+    from: T
+    as: A
+    on: Condition<any>
+    where?: Condition<any>
+  }): QueryBuilder<
+    Flatten<
+      Omit<C, 'schema'> & {
+        schema: C['schema'] & {
+          [K in A]: C['baseSchema'][T]
+        }
+      }
+    >
+  >
+
+  /**
+   * Add a join clause to the query.
+   *
+   * @param joinClause The join configuration object
+   * @returns A new QueryBuilder with the join clause added
+   */
+  join<
+    T extends keyof C['baseSchema'],
+    A extends string | undefined = undefined,
+  >(joinClause: {
+    type: 'inner' | 'left' | 'right' | 'full' | 'cross'
+    from: T
+    as?: A
+    on: Condition<any>
+    where?: Condition<any>
+  }): QueryBuilder<any> {
+    // Create a new builder with a copy of the current query
+    const newBuilder = new BaseQueryBuilder<C>()
+    Object.assign(newBuilder.query, this.query)
+
+    // Create a copy of the join clause for the query
+    const joinClauseCopy = { ...joinClause } as JoinClause<C>
+
+    // Add the join clause to the query
+    if (!newBuilder.query.join) {
+      newBuilder.query.join = [joinClauseCopy]
+    } else {
+      newBuilder.query.join = [...newBuilder.query.join, joinClauseCopy]
+    }
+
+    // Determine the alias or use the table name as default
+    const effectiveAlias = joinClause.as ?? joinClause.from
+
+    // Return the new builder with updated schema type
+    // Use type assertion to simplify complex type
+    return newBuilder as unknown as QueryBuilder<
+      Flatten<
+        Omit<C, 'schema'> & {
+          schema: C['schema'] & {
+            [K in typeof effectiveAlias]: C['baseSchema'][T]
+          }
+        }
+      >
+    >
   }
 }
 
