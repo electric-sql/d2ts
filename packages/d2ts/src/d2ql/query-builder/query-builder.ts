@@ -133,19 +133,19 @@ class BaseQueryBuilder<C extends Context<Schema>> {
   }
 
   /**
-   * Add a where clause with a property reference, operator, and value.
+   * Add a where clause comparing two values.
    */
   where(
-    left: PropertyReferenceString<C>,
+    left: PropertyReferenceString<C> | LiteralValue,
     operator: Comparator,
-    right: any
+    right: PropertyReferenceString<C> | LiteralValue
   ): QueryBuilder<C>;
 
   /**
    * Add a where clause with a complete condition object.
    */
   where(
-    condition: Condition<C> | any[]
+    condition: Condition<C>
   ): QueryBuilder<C>;
 
   /**

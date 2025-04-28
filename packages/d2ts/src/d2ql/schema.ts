@@ -141,8 +141,8 @@ export type Condition<
   C extends Context = Context,
   T extends any = any,
 > = SimpleCondition<C, T>
-// | FlatCompositeCondition<C>
-// | NestedCompositeCondition<C>
+| FlatCompositeCondition<C>
+| NestedCompositeCondition<C>
 
 // A join clause includes a join type, the table to join, an optional alias,
 // an "on" condition, and an optional "where" clause specific to the join.
