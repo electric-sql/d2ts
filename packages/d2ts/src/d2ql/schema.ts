@@ -172,7 +172,10 @@ export type Select<C extends Context = Context> =
 
 export type As<_C extends Context = Context> = string
 
-export type From<C extends Context = Context> = InputReference<C>
+export type From<C extends Context = Context> = InputReference<{
+  baseSchema: C['baseSchema']
+  schema: C['baseSchema']
+}>
 
 export type Where<C extends Context = Context> = Condition<C>
 
@@ -246,6 +249,7 @@ interface TestSchema extends Schema {
 }
 
 const q: Query<{
+  baseSchema: TestSchema
   schema: TestSchema
   default: 'comments'
 }> = {
@@ -260,6 +264,7 @@ const q: Query<{
 
 // Test with object-based orderBy
 const q2: Query<{
+  baseSchema: TestSchema
   schema: TestSchema
   default: 'comments'
 }> = {
@@ -271,6 +276,7 @@ const q2: Query<{
 // We can accomplish sorting direction by adding 'DESC' in the SQL keywords
 // This is a common pattern in many SQL-like APIs
 const qDesc: Query<{
+  baseSchema: TestSchema
   schema: TestSchema
   default: 'comments'
 }> = {

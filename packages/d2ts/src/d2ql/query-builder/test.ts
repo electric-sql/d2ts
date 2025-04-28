@@ -1,5 +1,5 @@
+import { Input, Schema } from '../types.js'
 import { queryBuilder } from './query-builder.js'
-import type { Schema, Input } from '../types.js'
 
 // Example schema for testing
 interface Employee extends Input {
@@ -28,10 +28,8 @@ interface TestSchema extends Schema {
 // Create a query builder with the custom schema
 // Using 'employees' as the default table
 const query = queryBuilder<TestSchema>()
-  .from('employees')
-  .select('@department_id', '@name', {
-    isActive: { col: 'active' },
-  })
+  .from('departments', 'd')
+  .select('@id', '@d.budget')
 
 // Once we have the 'where' and 'select' methods implemented, we can uncomment these:
 // .where(['@salary', '>', 50000])

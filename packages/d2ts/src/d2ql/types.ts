@@ -1,10 +1,11 @@
 // Input is analogous to a table in a SQL database
 // A Schema is a set of named Inputs
-export type Input = { [key: string]: unknown }
-export type Schema = { [key: string]: Input }
+export type Input = Record<string, unknown>
+export type Schema = Record<string, Input>
 
 // Context is a Schema with a default input
-export type Context<S extends Schema = Schema> = {
+export type Context<B extends Schema = Schema, S extends Schema = Schema> = {
+  baseSchema: B
   schema: S
   default?: keyof S
 }
@@ -35,7 +36,7 @@ type UniquePropertyNames<S extends Schema> = UniqueSecondLevelKeys<
   RemoveIndexSignature<S>
 >
 
-type RemoveIndexSignature<T> = {
+export type RemoveIndexSignature<T> = {
   [K in keyof T as string extends K
     ? never
     : number extends K
@@ -47,8 +48,8 @@ type RemoveIndexSignature<T> = {
 type QualifiedReferencesOfSchemaString<S extends Schema> =
   RemoveIndexSignature<{
     [I in keyof S]: {
-      [P in keyof S[I]]: `@${string & I}.${string & P}`
-    }[keyof S[I]]
+      [P in keyof RemoveIndexSignature<S[I]>]: `@${string & I}.${string & P}`
+    }[keyof RemoveIndexSignature<S[I]>]
   }>
 
 type QualifiedReferenceString<C extends Context<Schema>> =
@@ -60,8 +61,10 @@ type QualifiedReferenceString<C extends Context<Schema>> =
 type QualifiedReferencesOfSchemaObject<S extends Schema> =
   RemoveIndexSignature<{
     [I in keyof S]: {
-      [P in keyof S[I]]: { col: `${string & I}.${string & P}` }
-    }[keyof S[I]]
+      [P in keyof RemoveIndexSignature<S[I]>]: {
+        col: `${string & I}.${string & P}`
+      }
+    }[keyof RemoveIndexSignature<S[I]>]
   }>
 
 type QualifiedReferenceObject<C extends Context<Schema>> =

@@ -1,1 +1,1 @@
-export { QueryBuilder } from './query-builder.js'; 
+export { queryBuilder } from './query-builder.js'
