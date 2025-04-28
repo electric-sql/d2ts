@@ -106,34 +106,6 @@ class BaseQueryBuilder<C extends Context<Schema>> {
     }>
   }
 
-  // /**
-  //  * Add a where clause to filter the results.
-  //  * Can be called multiple times to add AND conditions.
-  //  *
-  //  * @param condition The condition to filter by
-  //  * @returns A new QueryBuilder with the where clause added
-  //  */
-  // where(
-  //   this: QueryBuilder<S, DefaultTable>,
-  //   condition: Condition
-  // ): this {
-  //   const newBuilder = new QueryBuilder<S, DefaultTable>();
-  //   Object.assign(newBuilder.query, this.query);
-
-  //   if (!newBuilder.query.where) {
-  //     newBuilder.query.where = condition;
-  //   } else {
-  //     // Add as AND condition
-  //     newBuilder.query.where = [
-  //       newBuilder.query.where,
-  //       'and',
-  //       condition
-  //     ] as any;
-  //   }
-
-  //   return newBuilder as this;
-  // }
-
   /**
    * Specify what columns to select.
    * Overwrites any previous select clause.
@@ -141,37 +113,20 @@ class BaseQueryBuilder<C extends Context<Schema>> {
    * @param selects The columns to select
    * @returns A new QueryBuilder with the select clause set
    */
-  select(this: QueryBuilder<C>, ...selects: Select<C>[]) {
+  select<S extends Select<C>[]>(this: QueryBuilder<C>, ...selects: S) {
     const newBuilder = new BaseQueryBuilder<C>(
       (this as BaseQueryBuilder<C>).query,
     )
     newBuilder.query.select = selects
-    return newBuilder as QueryBuilder<
+
+    return newBuilder as unknown as QueryBuilder<
       Flatten<
         Omit<C, 'result'> & {
-          result: Flatten<InferResultType<C, typeof selects>>
-          // result: {
-          //   test: string
-          // }
+          result: InferResultTypeFromSelectTuple<C, S>
         }
       >
     >
   }
-
-  // /**
-  //  * Build and return the final query object.
-  //  *
-  //  * @returns The built query
-  //  */
-  // build(): Query {
-  //   if (!this.query.from) {
-  //     throw new Error('Query must have a from clause');
-  //   }
-  //   if (!this.query.select || this.query.select.length === 0) {
-  //     throw new Error('Query must have a select clause');
-  //   }
-  //   return this.query as Query;
-  // }
 }
 
 type InitialQueryBuilder<C extends Context<Schema>> = Pick<
@@ -194,49 +149,39 @@ export function queryBuilder<B extends Schema>() {
   }>
 }
 
-export type ResultFromQueryBuilder<QB> =
+export type ResultFromQueryBuilder<QB> = Flatten<
   QB extends QueryBuilder<infer C>
     ? C extends { result: infer R }
-      ? R extends Record<string, unknown>
-        ? R
-        : never
+      ? R
       : never
     : never
+>
 
 /**
- * Infers the result type from the select items
+ * Helper type to combine result types from each select item in a tuple
  */
-type InferResultType<
+type InferResultTypeFromSelectTuple<
   C extends Context<Schema>,
-  S extends Select<C>[],
-> = {
-  [K in keyof InferResultTypeFromSelects<C, S>]: InferResultTypeFromSelects<C, S>[K]
-  // [K in keyof S]: K
-}
+  S extends readonly Select<C>[],
+> = UnionToIntersection<
+  {
+    [K in keyof S]: S[K] extends Select<C> ? InferResultType<C, S[K]> : never
+  }[number]
+>
 
 /**
- * Infers the result type from the select items
+ * Convert a union type to an intersection type
  */
-type InferResultTypeFromSelects<
-  C extends Context<Schema>,
-  S extends Select<C>[],
-> = S extends [infer First, ...infer Rest]
-  ? First extends Select<C>
-    ? Rest extends Select<C>[]
-      ? InferResultTypeFromSelect<C, First> &
-          InferResultTypeFromSelects<C, Rest>
-      : InferResultTypeFromSelect<C, First>
-    : {}
-  : {}
-// type InferResultTypeFromSelects<
-//   C extends Context<Schema>,
-//   S extends Select<C>[],
-// > = S extends [infer First, ...infer Rest] ? { First: 1 } : { no: 2 }
+type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (
+  x: infer I,
+) => void
+  ? I
+  : never
 
 /**
  * Infers the result type from a single select item
  */
-type InferResultTypeFromSelect<C extends Context<Schema>, S extends Select<C>> =
+type InferResultType<C extends Context<Schema>, S extends Select<C>> =
   S extends PropertyReferenceString<C>
     ? {
         [K in ResultKeyFromPropertyReference<C, S>]: TypeFromPropertyReference<

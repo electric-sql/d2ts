@@ -29,11 +29,10 @@ interface TestSchema extends Schema {
 // Using 'employees' as the default table
 const query = queryBuilder<TestSchema>()
   .from('departments', 'd')
-  .select('@id')
+  .select('@id', '@d.budget', { upper_name: { UPPER: '@d.name' } })
 
-type result = ResultFromQueryBuilder<typeof query>
+type Result = ResultFromQueryBuilder<typeof query>
 
-type Result = typeof query
 
 // Once we have the 'where' and 'select' methods implemented, we can uncomment these:
 // .where(['@salary', '>', 50000])
