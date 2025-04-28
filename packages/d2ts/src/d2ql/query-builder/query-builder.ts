@@ -192,16 +192,33 @@ class BaseQueryBuilder<C extends Context<Schema>> {
    * @param joinClause The join configuration object
    * @returns A new QueryBuilder with the join clause added
    */
-  join<T extends keyof C['baseSchema']>(joinClause: {
+  join<
+    T extends InputReference<{
+      baseSchema: C['baseSchema']
+      schema: C['baseSchema']
+    }>,
+  >(joinClause: {
     type: 'inner' | 'left' | 'right' | 'full' | 'cross'
     from: T
-    on: Condition<any>
-    where?: Condition<any>
+    on: Condition<
+      Flatten<{
+        baseSchema: C['baseSchema']
+        schema: C['schema'] & {
+          [K in T]: RemoveIndexSignature<C['baseSchema'][T]>
+        }
+      }>
+    >
+    where?: Condition<
+      Flatten<{
+        baseSchema: C['baseSchema']
+        schema: { [K in T]: RemoveIndexSignature<C['baseSchema'][T]> }
+      }>
+    >
   }): QueryBuilder<
     Flatten<
       Omit<C, 'schema'> & {
         schema: C['schema'] & {
-          [K in T]: C['baseSchema'][T]
+          [K in T]: RemoveIndexSignature<C['baseSchema'][T]>
         }
       }
     >
@@ -213,17 +230,35 @@ class BaseQueryBuilder<C extends Context<Schema>> {
    * @param joinClause The join configuration object with alias
    * @returns A new QueryBuilder with the join clause added
    */
-  join<T extends keyof C['baseSchema'], A extends string>(joinClause: {
+  join<
+    T extends InputReference<{
+      baseSchema: C['baseSchema']
+      schema: C['baseSchema']
+    }>,
+    A extends string,
+  >(joinClause: {
     type: 'inner' | 'left' | 'right' | 'full' | 'cross'
     from: T
     as: A
-    on: Condition<any>
-    where?: Condition<any>
+    on: Condition<
+      Flatten<{
+        baseSchema: C['baseSchema']
+        schema: C['schema'] & {
+          [K in A]: RemoveIndexSignature<C['baseSchema'][T]>
+        }
+      }>
+    >
+    where?: Condition<
+      Flatten<{
+        baseSchema: C['baseSchema']
+        schema: { [K in A]: RemoveIndexSignature<C['baseSchema'][T]> }
+      }>
+    >
   }): QueryBuilder<
     Flatten<
       Omit<C, 'schema'> & {
         schema: C['schema'] & {
-          [K in A]: C['baseSchema'][T]
+          [K in A]: RemoveIndexSignature<C['baseSchema'][T]>
         }
       }
     >
@@ -236,14 +271,35 @@ class BaseQueryBuilder<C extends Context<Schema>> {
    * @returns A new QueryBuilder with the join clause added
    */
   join<
-    T extends keyof C['baseSchema'],
+    T extends InputReference<{
+      baseSchema: C['baseSchema']
+      schema: C['baseSchema']
+    }>,
     A extends string | undefined = undefined,
   >(joinClause: {
     type: 'inner' | 'left' | 'right' | 'full' | 'cross'
     from: T
     as?: A
-    on: Condition<any>
-    where?: Condition<any>
+    on: Condition<
+      Flatten<{
+        baseSchema: C['baseSchema']
+        schema: C['schema'] & {
+          [K in A extends undefined ? T : A]: RemoveIndexSignature<
+            C['baseSchema'][T]
+          >
+        }
+      }>
+    >
+    where?: Condition<
+      Flatten<{
+        baseSchema: C['baseSchema']
+        schema: {
+          [K in A extends undefined ? T : A]: RemoveIndexSignature<
+            C['baseSchema'][T]
+          >
+        }
+      }>
+    >
   }): QueryBuilder<any> {
     // Create a new builder with a copy of the current query
     const newBuilder = new BaseQueryBuilder<C>()
