@@ -277,7 +277,6 @@ describe('SQLite Dependency Injection - withSQLite', () => {
 
     // Get the result data
     const data = messages.map((m) => m.collection.getInner())[0]
-    console.log('FilterBy Test Data:', JSON.stringify(data))
 
     // Check that we got data
     expect(data).toBeDefined()
