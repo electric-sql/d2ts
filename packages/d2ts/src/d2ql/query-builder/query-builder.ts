@@ -154,6 +154,7 @@ class BaseQueryBuilder<C extends Context<Schema>> {
               ]
 
               if (!allowedFunctions.includes(funcName)) {
+                // eslint-disable-next-line no-console
                 console.warn(
                   `Unsupported function: ${funcName}. Expected one of: ${allowedFunctions.join(', ')}`,
                 )
@@ -430,7 +431,7 @@ class BaseQueryBuilder<C extends Context<Schema>> {
     }
 
     // Determine the alias or use the table name as default
-    const effectiveAlias = joinClause.as ?? joinClause.from
+    const _effectiveAlias = joinClause.as ?? joinClause.from
 
     // Return the new builder with updated schema type
     // Use type assertion to simplify complex type
@@ -438,7 +439,7 @@ class BaseQueryBuilder<C extends Context<Schema>> {
       Flatten<
         Omit<C, 'schema'> & {
           schema: C['schema'] & {
-            [K in typeof effectiveAlias]: C['baseSchema'][T]
+            [K in typeof _effectiveAlias]: C['baseSchema'][T]
           }
         }
       >
