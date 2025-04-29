@@ -21,14 +21,14 @@
     "@databases/pg": "^5.5.0",
     "@databases/pg-migrations": "^5.0.3",
     "@faker-js/faker": "^8.4.1",
-    "prettier": "^3.2.5",
-    "tsx": "^4.7.0",
-    "typescript": "^5.0.0",
-    "uuid": "^9.0.0"
+    "prettier": "^3.5.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "uuid": "^9.0.1"
   },
   "dependencies": {
-    "@electric-sql/client": ">=1.0.0-beta.4",
-    "@electric-sql/experimental": ">=0.1.2-beta.3",
-    "@electric-sql/d2ts": "workspace:*"
+    "@electric-sql/client": "^1.0.4",
+    "@electric-sql/d2ts": "workspace:*",
+    "@electric-sql/experimental": "^1.0.4"
   }
 }
