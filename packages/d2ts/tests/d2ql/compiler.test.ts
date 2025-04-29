@@ -16,6 +16,15 @@ type User = {
   active: boolean
 }
 
+type Context = {
+  baseSchema: {
+    users: User
+  }
+  schema: {
+    users: User
+  }
+}
+
 // Sample data for tests
 const sampleUsers: User[] = [
   { id: 1, name: 'Alice', age: 25, email: 'alice@example.com', active: true },
@@ -33,7 +42,7 @@ const sampleUsers: User[] = [
 describe('D2QL', () => {
   describe('Compiler', () => {
     test('basic select with all columns', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@age', '@email', '@active'],
         from: 'users',
       }
@@ -80,7 +89,7 @@ describe('D2QL', () => {
     })
 
     test('select with aliased columns', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', { user_name: '@name' }, { years_old: '@age' }],
         from: 'users',
       }
@@ -129,7 +138,7 @@ describe('D2QL', () => {
     })
 
     test('select with where clause', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@age'],
         from: 'users',
         where: ['@age', '>', 20],
@@ -176,7 +185,7 @@ describe('D2QL', () => {
     })
 
     test('select with where clause using multiple conditions', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name'],
         from: 'users',
         where: ['@age', '>', 20, 'and', '@active', '=', true],

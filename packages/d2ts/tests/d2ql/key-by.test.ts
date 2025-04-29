@@ -21,6 +21,15 @@ type User = {
   }
 }
 
+type Context = {
+  baseSchema: {
+    users: User
+  }
+  schema: {
+    users: User
+  }
+}
+
 // Sample data for tests
 const sampleUsers: User[] = [
   {
@@ -71,7 +80,7 @@ const sampleUsers: User[] = [
 
 describe('D2QL keyBy', () => {
   test('keyBy with a single string column', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@age', '@email'],
       from: 'users',
       keyBy: '@id',
@@ -125,7 +134,7 @@ describe('D2QL keyBy', () => {
   })
 
   test('keyBy with a single numeric column', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@age', '@email'],
       from: 'users',
       keyBy: '@age',
@@ -169,7 +178,7 @@ describe('D2QL keyBy', () => {
   })
 
   test('keyBy with a complex object column (JSON serialized)', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@metadata'],
       from: 'users',
       keyBy: '@metadata',
@@ -218,7 +227,7 @@ describe('D2QL keyBy', () => {
   })
 
   test('keyBy with multiple columns', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@age', '@active'],
       from: 'users',
       keyBy: ['@name', '@age'],
@@ -268,7 +277,7 @@ describe('D2QL keyBy', () => {
   })
 
   test('keyBy with wildcard select', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@*'],
       from: 'users',
       keyBy: '@id',
@@ -317,7 +326,7 @@ describe('D2QL keyBy', () => {
   })
 
   test('keyBy with column not in select throws error', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name'],
       from: 'users',
       keyBy: '@age', // age is not in select
@@ -345,7 +354,7 @@ describe('D2QL keyBy', () => {
   })
 
   test('keyBy with filtered data', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@age', '@active'],
       from: 'users',
       where: ['@age', '>', 20],

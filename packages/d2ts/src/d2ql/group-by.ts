@@ -37,8 +37,8 @@ export function processGroupBy(
 
     // Extract each groupBy column value
     for (const column of groupByColumns) {
-      if (typeof column === 'string' && column.startsWith('@')) {
-        const columnRef = column.substring(1)
+      if (typeof column === 'string' && (column as string).startsWith('@')) {
+        const columnRef = (column as string).substring(1)
         const columnName = columnRef.includes('.')
           ? columnRef.split('.')[1]
           : columnRef

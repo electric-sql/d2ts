@@ -9,6 +9,22 @@ import {
   LogicalOperator,
 } from '../../src/d2ql/schema.js'
 
+type User = {
+  id: number
+  name: string
+  age: number
+  department: string
+}
+
+type Context = {
+  baseSchema: {
+    users: User
+  }
+  schema: {
+    users: User
+  }
+}
+
 // This test verifies that TypeScript properly accepts/rejects objects that should/shouldn't match D2QL types
 describe('D2QL Type System', () => {
   test('Query objects conform to the expected schema', () => {
@@ -27,20 +43,20 @@ describe('D2QL Type System', () => {
 const basicQuery = {
   select: ['@id', '@name'],
   from: 'users',
-} satisfies Query
+} satisfies Query<Context>
 
 // Valid query with aliased columns
 const aliasedQuery = {
   select: ['@id', { full_name: '@name' }],
   from: 'users',
-} satisfies Query
+} satisfies Query<Context>
 
 // Valid query with simple WHERE condition
 const simpleWhereQuery = {
   select: ['@id', '@name'],
   from: 'users',
   where: ['@age', '>', 18] as SimpleCondition,
-} satisfies Query
+} satisfies Query<Context>
 
 // Valid query with flat composite WHERE condition
 const compositeWhereQuery = {
@@ -55,7 +71,7 @@ const compositeWhereQuery = {
     '=',
     true,
   ] as FlatCompositeCondition,
-} satisfies Query
+} satisfies Query<Context>
 
 // Full query with all optional properties
 const fullQuery = {
@@ -65,10 +81,10 @@ const fullQuery = {
   where: ['@active', '=', true] as SimpleCondition,
   groupBy: ['@department'],
   having: ['@count', '>', 5] as SimpleCondition,
-  orderBy: { name: 'asc' },
+  orderBy: { '@name': 'asc' },
   limit: 10,
   offset: 20,
-} satisfies Query
+} satisfies Query<Context>
 
 // Condition type checking
 const simpleCondition: SimpleCondition = ['@age', '>', 18]
@@ -96,14 +112,14 @@ const nestedCompCond: Condition = nestedCompositeCondition
 
 // The code below demonstrates type compatibility for ConditionOperand
 // If TypeScript compiles this file, then these assignments work
-const operand1: ConditionOperand = 'string literal'
-const operand2: ConditionOperand = 42
-const operand3: ConditionOperand = true
-const operand4: ConditionOperand = null
-const operand5: ConditionOperand = undefined
-const operand6: ConditionOperand = '@column_name'
-const operand7: ConditionOperand = { col: 'column_name' }
-const operand8: ConditionOperand = { value: { nested: 'object' } }
+const operand1: ConditionOperand<Context> = 'string literal'
+const operand2: ConditionOperand<Context> = 42
+const operand3: ConditionOperand<Context> = true
+const operand4: ConditionOperand<Context> = null
+const operand5: ConditionOperand<Context> = undefined
+const operand6: ConditionOperand<Context> = '@department'
+const operand7: ConditionOperand<Context> = { col: 'department' }
+const operand8: ConditionOperand<Context> = { value: { nested: 'object' } }
 
 // The code below demonstrates type compatibility for Comparator
 // If TypeScript compiles this file, then these assignments work

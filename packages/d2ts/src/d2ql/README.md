@@ -640,3 +640,174 @@ interface Query {
 ```
 
 See the `schema.ts` file for the complete type definitions. 
+
+## Query Builder
+
+D2QL provides a fluent query builder API that makes it easier to create type-safe queries. The query builder offers a more IDE-friendly approach with better type checking compared to manually creating the query objects.
+
+### Basic Usage
+
+```typescript
+import { queryBuilder } from '@electric-sql/d2ts/d2ql/query-builder';
+import { Schema, Input } from '@electric-sql/d2ts/d2ql/types';
+
+// Define your schema types
+interface Employee extends Input {
+  id: number
+  name: string
+  department_id: number
+  salary: number
+}
+
+interface Department extends Input {
+  id: number
+  name: string
+  budget: number
+}
+
+// Define your schema
+interface MySchema extends Schema {
+  employees: Employee
+  departments: Department
+}
+
+// Create a query using the builder
+const query = queryBuilder<MySchema>()
+  .from('employees')
+  .select('@id', '@name', { salary_amount: '@salary' })
+  .where('@salary', '>', 50000)
+  .buildQuery();
+
+// Use the query with compileQuery as normal
+const pipeline = compileQuery(query, { [query.from]: employeesInput });
+```
+
+### Table Aliases
+
+You can specify table aliases to make your queries more readable:
+
+```typescript
+const query = queryBuilder<MySchema>()
+  .from('employees', 'e')  // 'e' is the alias
+  .select('@e.id', '@e.name')
+  .where('@e.salary', '>', 50000)
+  .buildQuery();
+```
+
+### Joins
+
+The query builder makes JOIN operations easier to construct:
+
+```typescript
+const query = queryBuilder<MySchema>()
+  .from('employees', 'e')
+  .join({
+    type: 'inner',
+    from: 'departments', 
+    as: 'd',
+    on: ['@e.department_id', '=', '@d.id']
+  })
+  .select('@e.id', '@e.name', '@d.name')
+  .where('@d.budget', '>', 1000000)
+  .buildQuery();
+```
+
+### Complex Where Conditions
+
+You can build complex WHERE conditions by chaining multiple where calls, which automatically combines them with AND:
+
+```typescript
+const query = queryBuilder<MySchema>()
+  .from('employees', 'e')
+  .where('@e.salary', '>', 50000)
+  .where('@e.department_id', '=', 1)
+  .buildQuery();
+
+// Results in where: [['@e.salary', '>', 50000], 'and', ['@e.department_id', '=', 1]]
+```
+
+### GROUP BY and HAVING
+
+The query builder makes it easy to create aggregation queries:
+
+```typescript
+const query = queryBuilder<MySchema>()
+  .from('employees', 'e')
+  .join({
+    type: 'inner',
+    from: 'departments',
+    as: 'd',
+    on: ['@e.department_id', '=', '@d.id']
+  })
+  .select(
+    '@d.name', 
+    { avg_salary: { AVG: '@e.salary' } },
+    { employee_count: { COUNT: '@e.id' } }
+  )
+  .groupBy('@d.name')
+  .having({ COUNT: '@e.id' }, '>', 5)
+  .buildQuery();
+```
+
+### ORDER BY, LIMIT, and OFFSET
+
+You can sort and paginate your results:
+
+```typescript
+const query = queryBuilder<MySchema>()
+  .from('employees')
+  .select('@id', '@name', '@salary')
+  .orderBy(['@salary', { '@name': 'asc' }])  // Order by salary, then by name ascending
+  .limit(10)  // Return only 10 records
+  .offset(20) // Skip the first 20 records
+  .buildQuery();
+```
+
+### Common Table Expressions (WITH)
+
+You can define and use Common Table Expressions with the `with` method:
+
+```typescript
+const query = queryBuilder<MySchema>()
+  .with('high_salary_employees', q => 
+    q.from('employees')
+     .where('@salary', '>', 80000)
+     .select('@id', '@name', '@salary')
+  )
+  .with('dept_with_high_salary', q =>
+    q.from('high_salary_employees', 'e')
+     .join({
+       type: 'inner',
+       from: 'departments',
+       as: 'd',
+       on: ['@e.department_id', '=', '@d.id']
+     })
+     .select('@d.id', '@d.name', { emp_count: { COUNT: '@e.id' } })
+     .groupBy('@d.id', '@d.name')
+  )
+  .from('dept_with_high_salary')
+  .select('@id', '@name', '@emp_count')
+  .where('@emp_count', '>', 3)
+  .buildQuery();
+```
+
+### Keyed Streams with keyBy
+
+Define keys for your output streams:
+
+```typescript
+const query = queryBuilder<MySchema>()
+  .from('employees')
+  .select('@id', '@name', '@department_id')
+  .keyBy('@id')  // Use id as the key
+  .buildQuery();
+
+// Use multiple keys
+const multiKeyQuery = queryBuilder<MySchema>()
+  .from('employees')
+  .select('@id', '@name', '@department_id')
+  .keyBy(['@department_id', '@id'])
+  .buildQuery();
+```
+
+The query builder provides complete type checking throughout the chain, ensuring that column references, function calls, and other parameters are valid for your schema. 

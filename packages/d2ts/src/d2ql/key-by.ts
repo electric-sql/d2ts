@@ -20,9 +20,9 @@ export function processKeyBy(
         const keyValues: Record<string, unknown> = {}
         for (const keyColumn of keyByParam) {
           // Remove @ prefix if present
-          const columnName = keyColumn.startsWith('@')
-            ? keyColumn.substring(1)
-            : keyColumn
+          const columnName = (keyColumn as string).startsWith('@')
+            ? (keyColumn as string).substring(1)
+            : (keyColumn as string)
 
           if (columnName in row) {
             keyValues[columnName] = row[columnName]
@@ -36,9 +36,9 @@ export function processKeyBy(
       } else {
         // Single column
         // Remove @ prefix if present
-        const columnName = keyByParam.startsWith('@')
-          ? keyByParam.substring(1)
-          : keyByParam
+        const columnName = (keyByParam as string).startsWith('@')
+          ? (keyByParam as string).substring(1)
+          : (keyByParam as string)
 
         if (!(columnName in row)) {
           throw new Error(

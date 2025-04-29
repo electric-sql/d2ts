@@ -19,6 +19,15 @@ describe('D2QL - HAVING Clause', () => {
     discount?: number
   }
 
+  type Context = {
+    baseSchema: {
+      products: Product
+    }
+    schema: {
+      products: Product
+    }
+  }
+
   // Sample products for testing
   const sampleProducts: Product[] = [
     {
@@ -87,7 +96,7 @@ describe('D2QL - HAVING Clause', () => {
   ]
 
   it('should filter products with HAVING clause', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@price', '@category'],
       from: 'products',
       having: ['@price', '>', 300] as Condition,
@@ -130,7 +139,7 @@ describe('D2QL - HAVING Clause', () => {
 
   it('should apply WHERE and HAVING in sequence', () => {
     // Query to find in-stock products with price > 200
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@price', '@category', '@inStock'],
       from: 'products',
       where: ['@inStock', '=', true] as Condition,
@@ -174,7 +183,7 @@ describe('D2QL - HAVING Clause', () => {
 
   it('should support complex conditions in HAVING', () => {
     // Query with complex HAVING condition
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@price', '@category', '@rating'],
       from: 'products',
       having: [
@@ -230,7 +239,7 @@ describe('D2QL - HAVING Clause', () => {
 
   it('should support nested conditions in HAVING', () => {
     // Query with nested HAVING condition
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@price', '@category', '@inStock'],
       from: 'products',
       having: [

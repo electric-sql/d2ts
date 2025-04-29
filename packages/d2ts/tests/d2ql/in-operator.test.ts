@@ -19,6 +19,14 @@ describe('D2QL - IN Operator', () => {
     createdAt?: Date
   }
 
+  type Context = {
+    baseSchema: {
+      items: TestItem
+    }
+    schema: {
+      items: TestItem
+    }
+  }
   // Sample products for testing
   const testData: TestItem[] = [
     {
@@ -66,7 +74,7 @@ describe('D2QL - IN Operator', () => {
   ]
 
   it('should handle basic IN operator with simple values', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@category'],
       from: 'items',
       where: ['@category', 'in', ['Electronics', 'Books']] as Condition,
@@ -100,7 +108,7 @@ describe('D2QL - IN Operator', () => {
   })
 
   it('should use case-sensitive string matching by default', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name'],
       from: 'items',
       where: ['@category', 'in', ['electronics', 'books']] as Condition, // lowercase categories
@@ -134,7 +142,7 @@ describe('D2QL - IN Operator', () => {
   })
 
   it('should handle NOT IN operator correctly', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@category'],
       from: 'items',
       where: ['@category', 'not in', ['Electronics', 'Books']] as Condition,
@@ -169,7 +177,7 @@ describe('D2QL - IN Operator', () => {
   })
 
   it('should handle type coercion between numbers and strings', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name'],
       from: 'items',
       where: ['@id', 'in', ['1', '2', '3']] as Condition, // String IDs instead of numbers
@@ -209,7 +217,7 @@ describe('D2QL - IN Operator', () => {
     //
     // FUTURE ENHANCEMENT: Implement a specialized function or operator for checking
     // if any element of array1 exists in array2.
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@tags'],
       from: 'items',
       where: [
@@ -244,7 +252,7 @@ describe('D2QL - IN Operator', () => {
   })
 
   it('should handle null values correctly with IN operator', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@isActive'],
       from: 'items',
       where: ['@isActive', 'in', [null, false]] as Condition,
@@ -284,7 +292,7 @@ describe('D2QL - IN Operator', () => {
     //
     // FUTURE ENHANCEMENT: Implement a more robust deep equality check that can handle
     // object key ordering, nested structures, and special cases like Date objects.
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@metadata'],
       from: 'items',
       where: [
@@ -325,7 +333,7 @@ describe('D2QL - IN Operator', () => {
   })
 
   it('should handle empty arrays correctly', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name'],
       from: 'items',
       where: ['@category', 'in', []] as Condition, // Empty array
@@ -358,7 +366,7 @@ describe('D2QL - IN Operator', () => {
   })
 
   it('should handle complex nested conditions with IN operator', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@category', '@price'],
       from: 'items',
       where: [
