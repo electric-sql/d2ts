@@ -21,14 +21,33 @@ interface TestSchema extends Schema {
   departments: Department
 }
 
+// Define interfaces for the CTE result types
+interface EmployeeCTE {
+  id: number
+  name: string
+}
+
+interface EmployeeWithDeptCTE {
+  id: number
+  name: string
+  department_id: number | null
+}
+
+interface DepartmentCTE {
+  id: number
+  name: string
+}
+
 describe('QueryBuilder.with', () => {
   it('defines a simple CTE correctly', () => {
+    // Explicitly provide the result type for better type checking
     const query = queryBuilder<TestSchema>()
-      .with('emp_cte', (q) => q.from('employees').select('@id', '@name'))
-      // We still need type assertions, but the outer schema knows about the CTE
+      .with<'emp_cte', EmployeeCTE>('emp_cte', q => 
+        q.from('employees').select('@id', '@name')
+      )
       .from('emp_cte')
-      .select('@id' as any, '@name' as any)
-
+      .select('@id', '@name')
+    
     const builtQuery = query.buildQuery()
 
     expect(builtQuery.with).toBeDefined()
@@ -41,22 +60,20 @@ describe('QueryBuilder.with', () => {
 
   it('defines multiple CTEs correctly', () => {
     const query = queryBuilder<TestSchema>()
-      .with('emp_cte', (q) =>
-        q.from('employees').select('@id', '@name', '@department_id'),
+      .with<'emp_cte', EmployeeWithDeptCTE>('emp_cte', q =>
+        q.from('employees').select('@id', '@name', '@department_id')
       )
-      .with('dept_cte', (q) => q.from('departments').select('@id', '@name'))
-      .from('emp_cte' as any)
+      .with<'dept_cte', DepartmentCTE>('dept_cte', q => 
+        q.from('departments').select('@id', '@name')
+      )
+      .from('emp_cte')
       .join({
         type: 'inner',
-        from: 'dept_cte' as any,
-        on: ['@emp_cte.department_id', '=', '@dept_cte.id'] as any,
+        from: 'dept_cte',
+        on: ['@emp_cte.department_id', '=', '@dept_cte.id']
       })
-      .select(
-        '@emp_cte.id' as any,
-        '@emp_cte.name' as any,
-        '@dept_cte.name' as any,
-      )
-
+      .select('@emp_cte.id', '@emp_cte.name', '@dept_cte.name')
+    
     const builtQuery = query.buildQuery()
 
     expect(builtQuery.with).toBeDefined()
@@ -69,17 +86,23 @@ describe('QueryBuilder.with', () => {
   })
 
   it('allows chaining other methods after with', () => {
+    // Define the type of filtered employees
+    interface FilteredEmployees {
+      id: number
+      name: string
+    }
+
     const query = queryBuilder<TestSchema>()
-      .with('filtered_employees', (q) =>
+      .with<'filtered_employees', FilteredEmployees>('filtered_employees', q =>
         q
           .from('employees')
           .where('@department_id', '=', 1)
-          .select('@id', '@name'),
+          .select('@id', '@name')
       )
-      .from('filtered_employees' as any)
-      .where('@id' as any, '>', 100)
-      .select('@id' as any, { employee_name: '@name' as any })
-
+      .from('filtered_employees')
+      .where('@id', '>', 100)
+      .select('@id', { employee_name: '@name' })
+    
     const builtQuery = query.buildQuery()
 
     expect(builtQuery.with).toBeDefined()

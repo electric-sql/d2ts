@@ -535,13 +535,13 @@ class BaseQueryBuilder<C extends Context<Schema>> {
 
   /**
    * Define a Common Table Expression (CTE) that can be referenced in the main query.
-   * The result type is derived from the inner query builder.
-   *
-   * @param name The name of the CTE
-   * @param queryBuilderCallback A function that returns a QueryBuilder representing the CTE
-   * @returns A new QueryBuilder with the CTE added and the CTE's schema included in the base schema
+   * This allows referencing the CTE by name in subsequent from/join clauses.
+   * 
+   * @param name The name of the CTE 
+   * @param queryBuilderCallback A function that builds the CTE query
+   * @returns A new QueryBuilder with the CTE added
    */
-  with<N extends string>(
+  with<N extends string, R = Record<string, unknown>>(
     name: N,
     queryBuilderCallback: (
       builder: InitialQueryBuilder<{
@@ -549,15 +549,10 @@ class BaseQueryBuilder<C extends Context<Schema>> {
         schema: {}
       }>,
     ) => QueryBuilder<any>,
-  ): InitialQueryBuilder<
-    Flatten<
-      Omit<C, 'baseSchema'> & {
-        baseSchema: C['baseSchema'] & {
-          [K in N]: Record<string, unknown>
-        }
-      }
-    >
-  > {
+  ): InitialQueryBuilder<{
+    baseSchema: C['baseSchema'] & { [K in N]: R }
+    schema: C['schema']
+  }> {
     // Create a new builder with a copy of the current query
     const newBuilder = new BaseQueryBuilder<C>()
     Object.assign(newBuilder.query, this.query)
@@ -575,7 +570,8 @@ class BaseQueryBuilder<C extends Context<Schema>> {
         schema: {}
       }>,
     )
-
+    
+    // Get the query from the builder
     const cteQuery = cteQueryBuilder.buildQuery()
 
     // Add an 'as' property to the CTE
@@ -591,16 +587,11 @@ class BaseQueryBuilder<C extends Context<Schema>> {
       newBuilder.query.with = [...newBuilder.query.with, withQuery]
     }
 
-    // The result type includes the CTE schema in the baseSchema
-    return newBuilder as unknown as InitialQueryBuilder<
-      Flatten<
-        Omit<C, 'baseSchema'> & {
-          baseSchema: C['baseSchema'] & {
-            [K in N]: Record<string, unknown>
-          }
-        }
-      >
-    >
+    // Use a type cast that simplifies the type structure to avoid recursion
+    return newBuilder as unknown as InitialQueryBuilder<{
+      baseSchema: C['baseSchema'] & { [K in N]: R }
+      schema: C['schema']
+    }>
   }
 }
 
