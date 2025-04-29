@@ -9,6 +9,7 @@ import type {
   OrderBy,
   Limit,
   Offset,
+  WithQuery,
 } from '../schema.js'
 
 import type {
@@ -531,12 +532,82 @@ class BaseQueryBuilder<C extends Context<Schema>> {
 
     return newBuilder as QueryBuilder<C>
   }
+
+  /**
+   * Define a Common Table Expression (CTE) that can be referenced in the main query.
+   * The result type is derived from the inner query builder.
+   *
+   * @param name The name of the CTE
+   * @param queryBuilderCallback A function that returns a QueryBuilder representing the CTE
+   * @returns A new QueryBuilder with the CTE added and the CTE's schema included in the base schema
+   */
+  with<N extends string>(
+    name: N,
+    queryBuilderCallback: (
+      builder: InitialQueryBuilder<{
+        baseSchema: C['baseSchema']
+        schema: {}
+      }>,
+    ) => QueryBuilder<any>,
+  ): InitialQueryBuilder<
+    Flatten<
+      Omit<C, 'baseSchema'> & {
+        baseSchema: C['baseSchema'] & {
+          [K in N]: Record<string, unknown>
+        }
+      }
+    >
+  > {
+    // Create a new builder with a copy of the current query
+    const newBuilder = new BaseQueryBuilder<C>()
+    Object.assign(newBuilder.query, this.query)
+
+    // Create a new builder for the CTE
+    const cteBuilder = new BaseQueryBuilder<{
+      baseSchema: C['baseSchema']
+      schema: {}
+    }>()
+
+    // Get the CTE query from the callback
+    const cteQueryBuilder = queryBuilderCallback(
+      cteBuilder as InitialQueryBuilder<{
+        baseSchema: C['baseSchema']
+        schema: {}
+      }>,
+    )
+
+    const cteQuery = cteQueryBuilder.buildQuery()
+
+    // Add an 'as' property to the CTE
+    const withQuery: WithQuery<any> = {
+      ...cteQuery,
+      as: name,
+    }
+
+    // Add the CTE to the with array
+    if (!newBuilder.query.with) {
+      newBuilder.query.with = [withQuery]
+    } else {
+      newBuilder.query.with = [...newBuilder.query.with, withQuery]
+    }
+
+    // The result type includes the CTE schema in the baseSchema
+    return newBuilder as unknown as InitialQueryBuilder<
+      Flatten<
+        Omit<C, 'baseSchema'> & {
+          baseSchema: C['baseSchema'] & {
+            [K in N]: Record<string, unknown>
+          }
+        }
+      >
+    >
+  }
 }
 
 type InitialQueryBuilder<C extends Context<Schema>> = Pick<
   BaseQueryBuilder<C>,
-  'from'
-> // TODO: add 'with' when implemented
+  'from' | 'with'
+>
 
 type QueryBuilder<C extends Context<Schema>> = Omit<BaseQueryBuilder<C>, 'from'>
 

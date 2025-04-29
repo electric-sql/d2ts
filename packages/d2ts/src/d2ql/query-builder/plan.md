@@ -186,3 +186,19 @@ const query = new QueryBuilder<MySchema>()
     },
   )
 ```
+
+## With clause
+
+The `with` clause is used to define a common table expression (CTE).
+
+We will use a query builder to build the CTE, and then pass it to the `with` clause.
+
+```ts
+const query = new QueryBuilder<MySchema>()
+  .with('my_subquery', q => q
+    .from('employees')
+    .select('@id', '@name')
+  )
+  .from('my_subquery')
+  .select('@id', '@name')
+```
