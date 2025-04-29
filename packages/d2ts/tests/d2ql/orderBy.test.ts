@@ -6,10 +6,33 @@ import { MultiSet } from '../../src/multiset.js'
 import { output } from '../../src/operators/index.js'
 import { MessageType } from '../../src/types.js'
 
+type User = {
+  id: number
+  name: string
+  age: number
+}
+
+type Input = {
+  id: number
+  value: string
+}
+
+type Context = {
+  baseSchema: {
+    users: User
+    input: Input
+  }
+  schema: {
+    users: User
+    input: Input
+  }
+  default: 'users'
+}
+
 describe('D2QL', () => {
   describe('orderBy functionality', () => {
     test('error when using limit without orderBy', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@age'],
         from: 'users',
         limit: 1, // No orderBy clause
@@ -30,7 +53,7 @@ describe('D2QL', () => {
     })
 
     test('error when using offset without orderBy', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@age'],
         from: 'users',
         offset: 1, // No orderBy clause
@@ -52,7 +75,7 @@ describe('D2QL', () => {
 
     describe('with no index', () => {
       test('initial results', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value'],
           from: 'input',
           orderBy: '@value',
@@ -106,7 +129,7 @@ describe('D2QL', () => {
       })
 
       test('initial results with limit', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value'],
           from: 'input',
           orderBy: '@value',
@@ -159,7 +182,7 @@ describe('D2QL', () => {
       })
 
       test('initial results with limit and offset', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value'],
           from: 'input',
           orderBy: '@value',
@@ -212,7 +235,7 @@ describe('D2QL', () => {
       })
 
       test('incremental update - adding new rows', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value'],
           from: 'input',
           orderBy: '@value',
@@ -283,7 +306,7 @@ describe('D2QL', () => {
       })
 
       test('incremental update - removing rows', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value'],
           from: 'input',
           orderBy: '@value',
@@ -348,7 +371,7 @@ describe('D2QL', () => {
     })
     describe('with no index and keyBy', () => {
       test('initial results', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value'],
           from: 'input',
           keyBy: '@id',
@@ -403,7 +426,7 @@ describe('D2QL', () => {
       })
 
       test('initial results with limit', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value'],
           from: 'input',
           keyBy: '@id',
@@ -457,7 +480,7 @@ describe('D2QL', () => {
       })
 
       test('initial results with limit and offset', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value'],
           from: 'input',
           keyBy: '@id',
@@ -511,7 +534,7 @@ describe('D2QL', () => {
       })
 
       test('incremental update - adding new rows', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value'],
           from: 'input',
           keyBy: '@id',
@@ -582,7 +605,7 @@ describe('D2QL', () => {
       })
 
       test('incremental update - removing rows', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value'],
           from: 'input',
           keyBy: '@id',
@@ -647,7 +670,7 @@ describe('D2QL', () => {
     })
     describe('with numeric index', () => {
       test('initial results', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'numeric' } }],
           from: 'input',
           orderBy: '@value',
@@ -701,7 +724,7 @@ describe('D2QL', () => {
       })
 
       test('initial results with limit', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'numeric' } }],
           from: 'input',
           orderBy: '@value',
@@ -754,7 +777,7 @@ describe('D2QL', () => {
       })
 
       test('initial results with limit and offset', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'numeric' } }],
           from: 'input',
           orderBy: '@value',
@@ -807,7 +830,7 @@ describe('D2QL', () => {
       })
 
       test('incremental update - adding new rows', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'numeric' } }],
           from: 'input',
           orderBy: '@value',
@@ -884,7 +907,7 @@ describe('D2QL', () => {
       })
 
       test('incremental update - removing rows', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'numeric' } }],
           from: 'input',
           orderBy: '@value',
@@ -955,7 +978,7 @@ describe('D2QL', () => {
     })
     describe('with keyBy and numeric index', () => {
       test('initial results', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'numeric' } }],
           from: 'input',
           keyBy: '@id',
@@ -1010,7 +1033,7 @@ describe('D2QL', () => {
       })
 
       test('initial results with limit', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'numeric' } }],
           from: 'input',
           keyBy: '@id',
@@ -1064,7 +1087,7 @@ describe('D2QL', () => {
       })
 
       test('initial results with limit and offset', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'numeric' } }],
           from: 'input',
           keyBy: '@id',
@@ -1118,7 +1141,7 @@ describe('D2QL', () => {
       })
 
       test('incremental update - adding new rows', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'numeric' } }],
           from: 'input',
           keyBy: '@id',
@@ -1195,7 +1218,7 @@ describe('D2QL', () => {
       })
 
       test('incremental update - removing rows', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'numeric' } }],
           from: 'input',
           keyBy: '@id',
@@ -1266,7 +1289,7 @@ describe('D2QL', () => {
     })
     describe('with fractional index', () => {
       test('initial results', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'fractional' } }],
           from: 'input',
           orderBy: '@value',
@@ -1320,7 +1343,7 @@ describe('D2QL', () => {
       })
 
       test('initial results with limit', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'fractional' } }],
           from: 'input',
           orderBy: '@value',
@@ -1373,7 +1396,7 @@ describe('D2QL', () => {
       })
 
       test('initial results with limit and offset', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'fractional' } }],
           from: 'input',
           orderBy: '@value',
@@ -1426,7 +1449,7 @@ describe('D2QL', () => {
       })
 
       test('incremental update - adding new rows', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'fractional' } }],
           from: 'input',
           keyBy: '@id',
@@ -1497,7 +1520,7 @@ describe('D2QL', () => {
       })
 
       test('incremental update - removing rows', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'fractional' } }],
           from: 'input',
           orderBy: '@value',
@@ -1559,7 +1582,7 @@ describe('D2QL', () => {
     })
     describe('with keyBy and fractional index', () => {
       test('initial results', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'fractional' } }],
           from: 'input',
           keyBy: '@id',
@@ -1614,7 +1637,7 @@ describe('D2QL', () => {
       })
 
       test('initial results with limit', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'fractional' } }],
           from: 'input',
           keyBy: '@id',
@@ -1668,7 +1691,7 @@ describe('D2QL', () => {
       })
 
       test('initial results with limit and offset', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'fractional' } }],
           from: 'input',
           keyBy: '@id',
@@ -1728,7 +1751,7 @@ describe('D2QL', () => {
       })
 
       test('incremental update - removing rows', () => {
-        const query: Query = {
+        const query: Query<Context> = {
           select: ['@id', '@value', { index: { ORDER_INDEX: 'fractional' } }],
           from: 'input',
           keyBy: '@id',

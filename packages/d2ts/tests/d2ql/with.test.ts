@@ -16,6 +16,14 @@ type User = {
   active: boolean
 }
 
+type Context = {
+  baseSchema: {
+    users: User
+  }
+  schema: {
+    users: User
+  }
+}
 // Sample data for tests
 const sampleUsers: User[] = [
   { id: 1, name: 'Alice', age: 25, email: 'alice@example.com', active: true },
@@ -34,14 +42,20 @@ describe('D2QL', () => {
   describe('Common Table Expressions (WITH clause)', () => {
     test('basic CTE usage', () => {
       // Define a query with a single CTE
-      const query: Query = {
+      const query: Query<
+        Context & {
+          baseSchema: {
+            users: User
+            adult_users: User
+          }
+        }
+      > = {
         with: [
           {
             select: ['@id', '@name', '@age'],
             from: 'users',
             where: ['@age', '>', 20],
             as: 'adult_users',
-            keyBy: undefined,
           },
         ],
         select: ['@id', '@name'],
@@ -86,21 +100,27 @@ describe('D2QL', () => {
 
     test('multiple CTEs with references between them', () => {
       // Define a query with multiple CTEs where the second references the first
-      const query: Query = {
+      const query: Query<
+        Context & {
+          baseSchema: {
+            users: User
+            active_users: User
+            active_adult_users: User
+          }
+        }
+      > = {
         with: [
           {
             select: ['@id', '@name', '@age'],
             from: 'users',
             where: ['@active', '=', true],
             as: 'active_users',
-            keyBy: undefined,
           },
           {
             select: ['@id', '@name', '@age'],
             from: 'active_users',
             where: ['@age', '>', 20],
             as: 'active_adult_users',
-            keyBy: undefined,
           },
         ],
         select: ['@id', '@name'],

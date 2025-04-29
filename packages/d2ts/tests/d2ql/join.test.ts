@@ -5,6 +5,7 @@ import { output } from '../../src/operators/index.js'
 import { Query, compileQuery } from '../../src/d2ql/index.js'
 import { RootStreamBuilder } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
+import { type } from 'os'
 
 describe('D2QL - JOIN Clauses', () => {
   // Sample data for users
@@ -31,6 +32,17 @@ describe('D2QL - JOIN Clauses', () => {
     productId: number
     quantity: number
     orderDate: string
+  }
+
+  type Schema = {
+    orders: Order
+    users: User
+    products: Product
+  }
+
+  type Context = {
+    baseSchema: Schema
+    schema: Schema
   }
 
   // Sample users
@@ -200,7 +212,7 @@ describe('D2QL - JOIN Clauses', () => {
   }
 
   it('should support basic INNER JOIN', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: [
         { order_id: '@orders.id' },
         { user_name: '@users.name' },
@@ -251,7 +263,7 @@ describe('D2QL - JOIN Clauses', () => {
       },
     ]
 
-    const query: Query = {
+    const query: Query<Context> = {
       select: [
         {
           order_id: '@orders.id',
@@ -287,7 +299,7 @@ describe('D2QL - JOIN Clauses', () => {
     // Exclude one product from orders
     const partialOrders = orders.filter((o) => o.productId !== 4)
 
-    const query: Query = {
+    const query: Query<Context> = {
       select: [
         {
           order_id: '@orders.id',
@@ -344,7 +356,7 @@ describe('D2QL - JOIN Clauses', () => {
       },
     ]
 
-    const query: Query = {
+    const query: Query<Context> = {
       select: [
         {
           order_id: '@orders.id',
@@ -384,7 +396,7 @@ describe('D2QL - JOIN Clauses', () => {
   })
 
   it('should support join conditions in SELECT', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: [
         {
           order_id: '@orders.id',
@@ -424,7 +436,7 @@ describe('D2QL - JOIN Clauses', () => {
   })
 
   it('should support filtering with WHERE on joined data', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: [
         {
           order_id: '@orders.id',
@@ -465,7 +477,7 @@ describe('D2QL - JOIN Clauses', () => {
   })
 
   it('should support filtering with a WHERE clause on the join', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: [
         {
           order_id: '@orders.id',

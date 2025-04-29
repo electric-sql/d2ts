@@ -18,6 +18,15 @@ type User = {
   preferences: string // JSON string for testing JSON_EXTRACT
 }
 
+type Context = {
+  baseSchema: {
+    users: User
+  }
+  schema: {
+    users: User
+  }
+}
+
 // Sample data for tests
 const sampleUsers: User[] = [
   {
@@ -93,7 +102,7 @@ describe('D2QL Function Integration', () => {
 
   describe('String functions', () => {
     test('UPPER function', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', { upper_name: { UPPER: '@name' } }],
         from: 'users',
       }
@@ -112,7 +121,7 @@ describe('D2QL Function Integration', () => {
     })
 
     test('LOWER function', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', { lower_email: { LOWER: '@email' } }],
         from: 'users',
       }
@@ -127,7 +136,7 @@ describe('D2QL Function Integration', () => {
     })
 
     test('LENGTH function on string', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', { name_length: { LENGTH: '@name' } }],
         from: 'users',
       }
@@ -148,7 +157,7 @@ describe('D2QL Function Integration', () => {
     })
 
     test('CONCAT function', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: [
           '@id',
           { full_details: { CONCAT: ['@name', ' (', '@email', ')'] } },
@@ -169,7 +178,7 @@ describe('D2QL Function Integration', () => {
   describe('Value processing functions', () => {
     test('COALESCE function', () => {
       // For this test, create a query that would produce some null values
-      const query: Query = {
+      const query: Query<Context> = {
         select: [
           '@id',
           {
@@ -199,7 +208,7 @@ describe('D2QL Function Integration', () => {
     })
 
     test('DATE function', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', { joined: { DATE: '@joined_date' } }],
         from: 'users',
       }
@@ -223,7 +232,7 @@ describe('D2QL Function Integration', () => {
 
   describe('JSON functions', () => {
     test('JSON_EXTRACT function', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: [
           '@id',
           '@name',
@@ -248,7 +257,7 @@ describe('D2QL Function Integration', () => {
     })
 
     test('JSON_EXTRACT_PATH function (alias)', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: [
           '@id',
           {
@@ -278,7 +287,7 @@ describe('D2QL Function Integration', () => {
 
   describe('Using functions in WHERE clauses', () => {
     test('Filter with UPPER function', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name'],
         from: 'users',
         where: [{ UPPER: '@name' }, '=', 'BOB'],
@@ -292,7 +301,7 @@ describe('D2QL Function Integration', () => {
     })
 
     test('Filter with LENGTH function', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name'],
         from: 'users',
         where: [{ LENGTH: '@name' }, '>', 5],
@@ -306,7 +315,7 @@ describe('D2QL Function Integration', () => {
     })
 
     test('Filter with JSON_EXTRACT function', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name'],
         from: 'users',
         where: [{ JSON_EXTRACT: ['@preferences', 'theme'] }, '=', 'dark'],
@@ -319,7 +328,7 @@ describe('D2QL Function Integration', () => {
     })
 
     test('Complex filter with multiple functions', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@email'],
         from: 'users',
         where: [

@@ -42,12 +42,12 @@ describe('QueryBuilder.with', () => {
   it('defines a simple CTE correctly', () => {
     // Explicitly provide the result type for better type checking
     const query = queryBuilder<TestSchema>()
-      .with<'emp_cte', EmployeeCTE>('emp_cte', q => 
-        q.from('employees').select('@id', '@name')
+      .with<'emp_cte', EmployeeCTE>('emp_cte', (q) =>
+        q.from('employees').select('@id', '@name'),
       )
       .from('emp_cte')
       .select('@id', '@name')
-    
+
     const builtQuery = query.buildQuery()
 
     expect(builtQuery.with).toBeDefined()
@@ -60,20 +60,20 @@ describe('QueryBuilder.with', () => {
 
   it('defines multiple CTEs correctly', () => {
     const query = queryBuilder<TestSchema>()
-      .with<'emp_cte', EmployeeWithDeptCTE>('emp_cte', q =>
-        q.from('employees').select('@id', '@name', '@department_id')
+      .with<'emp_cte', EmployeeWithDeptCTE>('emp_cte', (q) =>
+        q.from('employees').select('@id', '@name', '@department_id'),
       )
-      .with<'dept_cte', DepartmentCTE>('dept_cte', q => 
-        q.from('departments').select('@id', '@name')
+      .with<'dept_cte', DepartmentCTE>('dept_cte', (q) =>
+        q.from('departments').select('@id', '@name'),
       )
       .from('emp_cte')
       .join({
         type: 'inner',
         from: 'dept_cte',
-        on: ['@emp_cte.department_id', '=', '@dept_cte.id']
+        on: ['@emp_cte.department_id', '=', '@dept_cte.id'],
       })
       .select('@emp_cte.id', '@emp_cte.name', '@dept_cte.name')
-    
+
     const builtQuery = query.buildQuery()
 
     expect(builtQuery.with).toBeDefined()
@@ -93,16 +93,18 @@ describe('QueryBuilder.with', () => {
     }
 
     const query = queryBuilder<TestSchema>()
-      .with<'filtered_employees', FilteredEmployees>('filtered_employees', q =>
-        q
-          .from('employees')
-          .where('@department_id', '=', 1)
-          .select('@id', '@name')
+      .with<'filtered_employees', FilteredEmployees>(
+        'filtered_employees',
+        (q) =>
+          q
+            .from('employees')
+            .where('@department_id', '=', 1)
+            .select('@id', '@name'),
       )
       .from('filtered_employees')
       .where('@id', '>', 100)
       .select('@id', { employee_name: '@name' })
-    
+
     const builtQuery = query.buildQuery()
 
     expect(builtQuery.with).toBeDefined()

@@ -19,6 +19,15 @@ describe('D2QL - Table Aliasing', () => {
     discount?: number
   }
 
+  type Context = {
+    baseSchema: {
+      products: Product
+    }
+    schema: {
+      p: Product
+    }
+  }
+
   // Sample products for testing
   const sampleProducts: Product[] = [
     {
@@ -60,7 +69,7 @@ describe('D2QL - Table Aliasing', () => {
   ]
 
   it('should support table aliases in SELECT clause', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: [
         '@p.id',
         '@p.name',
@@ -109,7 +118,7 @@ describe('D2QL - Table Aliasing', () => {
   })
 
   it('should support table aliases in WHERE clause', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@p.id', '@p.name', '@p.price'],
       from: 'products',
       as: 'p',
@@ -153,7 +162,7 @@ describe('D2QL - Table Aliasing', () => {
   })
 
   it('should support table aliases in HAVING clause', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@p.id', '@p.name', '@p.price'],
       from: 'products',
       as: 'p',
@@ -197,7 +206,7 @@ describe('D2QL - Table Aliasing', () => {
   })
 
   it('should support mixing aliased and non-aliased column references', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: [
         '@id', // Non-aliased
         '@p.name', // Aliased
@@ -261,7 +270,7 @@ describe('D2QL - Table Aliasing', () => {
   })
 
   it('should support complex conditions with table aliases', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@p.id', '@p.name', '@p.price', '@p.category'],
       from: 'products',
       as: 'p',

@@ -16,6 +16,15 @@ describe('D2QL - LIKE Operator', () => {
     category: string
   }
 
+  type Context = {
+    baseSchema: {
+      items: TestItem
+    }
+    schema: {
+      items: TestItem
+    }
+  }
+
   // Sample products for testing
   const testData: TestItem[] = [
     {
@@ -81,7 +90,7 @@ describe('D2QL - LIKE Operator', () => {
   }
 
   it('should handle basic percent wildcard matching', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name'],
       from: 'items',
       where: ['@name', 'like', 'Laptop%'] as Condition,
@@ -95,7 +104,7 @@ describe('D2QL - LIKE Operator', () => {
   })
 
   it('should handle wildcards at the beginning and middle of pattern', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@description'],
       from: 'items',
       where: ['@description', 'like', '%laptop%'] as Condition,
@@ -126,7 +135,7 @@ describe('D2QL - LIKE Operator', () => {
       },
     ]
 
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@SKU'],
       from: 'items',
       where: ['@SKU', 'like', 'TECH-___-2023'] as Condition,
@@ -165,7 +174,7 @@ describe('D2QL - LIKE Operator', () => {
   })
 
   it('should handle mixed underscore and percent wildcards', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@SKU'],
       from: 'items',
       where: ['@SKU', 'like', 'TECH-__%-____'] as Condition,
@@ -178,7 +187,7 @@ describe('D2QL - LIKE Operator', () => {
   })
 
   it('should handle escaped special characters', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name'],
       from: 'items',
       where: ['@name', 'like', 'Office Desk 60\\%'] as Condition,
@@ -191,7 +200,7 @@ describe('D2QL - LIKE Operator', () => {
   })
 
   it('should handle NOT LIKE operator correctly', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@category'],
       from: 'items',
       where: ['@category', 'not like', 'Elec%'] as Condition,
@@ -204,7 +213,7 @@ describe('D2QL - LIKE Operator', () => {
   })
 
   it('should handle regex special characters in patterns', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@description'],
       from: 'items',
       where: ['@description', 'like', '%[0-9]%'] as Condition, // Using regex special char
@@ -218,7 +227,7 @@ describe('D2QL - LIKE Operator', () => {
   })
 
   it('should match numeric values in descriptions', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name', '@description'],
       from: 'items',
       where: ['@description', 'like', '%2-%'] as Condition, // Looking for "2-" in description
@@ -232,7 +241,7 @@ describe('D2QL - LIKE Operator', () => {
   })
 
   it('should do case-insensitive matching', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@id', '@name'],
       from: 'items',
       where: ['@name', 'like', 'laptop%'] as Condition, // lowercase, but data has uppercase

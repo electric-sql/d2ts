@@ -22,6 +22,14 @@ type Product = {
   discount?: number
 }
 
+type Context = {
+  baseSchema: {
+    products: Product
+  }
+  schema: {
+    products: Product
+  }
+}
 // Sample data for tests
 const sampleProducts: Product[] = [
   {
@@ -70,7 +78,7 @@ const sampleProducts: Product[] = [
 describe('D2QL', () => {
   describe('Condition Evaluation', () => {
     test('equals operator', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name'],
         from: 'products',
         where: ['@category', '=', 'Electronics'],
@@ -113,7 +121,7 @@ describe('D2QL', () => {
     })
 
     test('not equals operator', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@category'],
         from: 'products',
         where: ['@category', '!=', 'Electronics'],
@@ -156,7 +164,7 @@ describe('D2QL', () => {
     })
 
     test('greater than operator', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@price'],
         from: 'products',
         where: ['@price', '>', 500],
@@ -199,7 +207,7 @@ describe('D2QL', () => {
     })
 
     test('is operator with null check', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@discount'],
         from: 'products',
         where: ['@discount', 'is not', null],
@@ -246,7 +254,7 @@ describe('D2QL', () => {
     test('complex condition with and/or', () => {
       // Note: Our current implementation doesn't fully support nested conditions with 'or',
       // so we'll use a simpler condition for testing
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@price', '@category'],
         from: 'products',
         where: ['@price', '<', 500],
@@ -289,7 +297,7 @@ describe('D2QL', () => {
     })
 
     test('composite condition with AND', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@price', '@category'],
         from: 'products',
         where: ['@category', '=', 'Electronics', 'and', '@price', '<', 500],
@@ -338,7 +346,7 @@ describe('D2QL', () => {
     })
 
     test('composite condition with OR', () => {
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@price', '@category'],
         from: 'products',
         where: ['@category', '=', 'Electronics', 'or', '@price', '<', 100],
@@ -392,7 +400,7 @@ describe('D2QL', () => {
     test('nested composite conditions', () => {
       // Create a simpler nested condition test:
       // (category = 'Electronics' AND price > 200) OR (category = 'Books')
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@price', '@category'],
         from: 'products',
         where: [

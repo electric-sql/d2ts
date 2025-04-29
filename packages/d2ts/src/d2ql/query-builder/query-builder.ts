@@ -536,8 +536,8 @@ class BaseQueryBuilder<C extends Context<Schema>> {
   /**
    * Define a Common Table Expression (CTE) that can be referenced in the main query.
    * This allows referencing the CTE by name in subsequent from/join clauses.
-   * 
-   * @param name The name of the CTE 
+   *
+   * @param name The name of the CTE
    * @param queryBuilderCallback A function that builds the CTE query
    * @returns A new QueryBuilder with the CTE added
    */
@@ -570,7 +570,7 @@ class BaseQueryBuilder<C extends Context<Schema>> {
         schema: {}
       }>,
     )
-    
+
     // Get the query from the builder
     const cteQuery = cteQueryBuilder.buildQuery()
 

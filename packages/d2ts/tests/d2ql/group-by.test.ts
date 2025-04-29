@@ -8,7 +8,7 @@ import { v } from '../../src/order.js'
 import { MessageType } from '../../src/types.js'
 
 // Define a type for our test records
-interface OrderRecord {
+type OrderRecord = {
   order_id: number
   customer_id: number
   amount: number
@@ -16,6 +16,14 @@ interface OrderRecord {
   date: Date
 }
 
+type Context = {
+  baseSchema: {
+    orders: OrderRecord
+  }
+  schema: {
+    orders: OrderRecord
+  }
+}
 describe('D2QL GROUP BY', () => {
   let graph: D2
   let ordersInput: ReturnType<D2['newInput']>
@@ -97,7 +105,7 @@ describe('D2QL GROUP BY', () => {
   }
 
   test('should group by a single column', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: [
         '@customer_id',
         { total_amount: { SUM: '@amount' } as any },
@@ -152,7 +160,7 @@ describe('D2QL GROUP BY', () => {
   })
 
   test('should group by multiple columns', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: [
         '@customer_id',
         '@status',
@@ -218,7 +226,16 @@ describe('D2QL GROUP BY', () => {
   })
 
   test('should apply HAVING clause after grouping', () => {
-    const query: Query = {
+    const query: Query<
+      Context & {
+        schema: {
+          orders: OrderRecord & {
+            total_amount: number
+            order_count: number
+          }
+        }
+      }
+    > = {
       select: [
         '@customer_id',
         '@status',
@@ -276,7 +293,7 @@ describe('D2QL GROUP BY', () => {
   })
 
   test('should work with different aggregate functions', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: [
         '@customer_id',
         { total_amount: { SUM: '@amount' } as any },
@@ -340,7 +357,7 @@ describe('D2QL GROUP BY', () => {
   })
 
   test('should work with WHERE and GROUP BY together', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: [
         '@customer_id',
         { total_amount: { SUM: '@amount' } as any },
@@ -385,7 +402,7 @@ describe('D2QL GROUP BY', () => {
   })
 
   test('should handle a single string in groupBy', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: [
         '@status',
         { total_amount: { SUM: '@amount' } as any },

@@ -40,7 +40,10 @@ export function processSelect(
           }
 
           // Handle @table.* syntax - all columns from a specific table
-          if ((item as string).startsWith('@') && (item as string).endsWith('.*')) {
+          if (
+            (item as string).startsWith('@') &&
+            (item as string).endsWith('.*')
+          ) {
             const tableAlias = (item as string).slice(1, -2) // Remove the '@' and '.*' parts
 
             // For grouped results, check if we have columns from this table

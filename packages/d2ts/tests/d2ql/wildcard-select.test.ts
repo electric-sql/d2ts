@@ -8,7 +8,7 @@ import { v } from '../../src/order.js'
 import { MessageType } from '../../src/types.js'
 
 // Define types for our test records
-interface User {
+type User = {
   id: number
   name: string
   age: number
@@ -16,12 +16,23 @@ interface User {
   active: boolean
 }
 
-interface Order {
+type Order = {
   id: number
   userId: number
   product: string
   amount: number
   date: string
+}
+
+type Context = {
+  baseSchema: {
+    users: User
+    orders: Order
+  }
+  schema: {
+    users: User
+    orders: Order
+  }
 }
 
 describe('D2QL Wildcard Select', () => {
@@ -144,7 +155,7 @@ describe('D2QL Wildcard Select', () => {
   }
 
   test('select * from single table', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@*'],
       from: 'users',
     }
@@ -170,7 +181,7 @@ describe('D2QL Wildcard Select', () => {
   })
 
   test('select table.* from single table', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@users.*'],
       from: 'users',
       as: 'users',
@@ -197,7 +208,7 @@ describe('D2QL Wildcard Select', () => {
   })
 
   test('select * from joined tables', () => {
-    const query: Query = {
+    const query: Query<Context> = {
       select: ['@*'],
       from: 'users',
       as: 'u',
@@ -249,7 +260,13 @@ describe('D2QL Wildcard Select', () => {
   })
 
   test('select u.* from joined tables', () => {
-    const query: Query = {
+    const query: Query<
+      Context & {
+        schema: {
+          u: User
+        }
+      }
+    > = {
       select: ['@u.*'],
       from: 'users',
       as: 'u',
@@ -282,7 +299,13 @@ describe('D2QL Wildcard Select', () => {
   })
 
   test('select o.* from joined tables', () => {
-    const query: Query = {
+    const query: Query<
+      Context & {
+        schema: {
+          o: Order
+        }
+      }
+    > = {
       select: ['@o.*'],
       from: 'users',
       as: 'u',
@@ -315,7 +338,14 @@ describe('D2QL Wildcard Select', () => {
   })
 
   test('mix of wildcard and specific columns', () => {
-    const query: Query = {
+    const query: Query<
+      Context & {
+        schema: {
+          u: User
+          o: Order
+        }
+      }
+    > = {
       select: ['@u.*', { order_id: '@o.id' }],
       from: 'users',
       as: 'u',

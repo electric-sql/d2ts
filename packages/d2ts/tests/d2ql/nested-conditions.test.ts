@@ -22,6 +22,15 @@ type Product = {
   discount?: number
 }
 
+type Context = {
+  baseSchema: {
+    products: Product
+  }
+  schema: {
+    products: Product
+  }
+}
+
 // Sample data for tests
 const sampleProducts: Product[] = [
   {
@@ -94,7 +103,7 @@ describe('D2QL', () => {
   describe('Nested Conditions', () => {
     test('OR with simple conditions', () => {
       // Should select Books OR Furniture
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@category'],
         from: 'products',
         where: [
@@ -122,7 +131,7 @@ describe('D2QL', () => {
 
     test('AND with simple conditions', () => {
       // Should select inStock Electronics
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@category', '@inStock'],
         from: 'products',
         where: [
@@ -147,7 +156,7 @@ describe('D2QL', () => {
 
     test('Flat composite condition', () => {
       // Electronics with rating > 4 AND price < 1000
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@rating', '@price'],
         from: 'products',
         where: [
@@ -180,7 +189,7 @@ describe('D2QL', () => {
 
     test('Complex nested condition', () => {
       // (Electronics AND price > 500) OR (Furniture AND inStock)
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@category', '@price', '@inStock'],
         from: 'products',
         where: [
@@ -227,7 +236,7 @@ describe('D2QL', () => {
       // (Electronics with price > 1000) OR
       // (Books with rating > 4.5) OR
       // (Furniture with price < 200)
-      const query: Query = {
+      const query: Query<Context> = {
         select: ['@id', '@name', '@category', '@price', '@rating'],
         from: 'products',
         where: [
