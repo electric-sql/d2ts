@@ -40,8 +40,8 @@ export function processSelect(
           }
 
           // Handle @table.* syntax - all columns from a specific table
-          if (item.startsWith('@') && item.endsWith('.*')) {
-            const tableAlias = item.slice(1, -2) // Remove the '@' and '.*' parts
+          if ((item as string).startsWith('@') && (item as string).endsWith('.*')) {
+            const tableAlias = (item as string).slice(1, -2) // Remove the '@' and '.*' parts
 
             // For grouped results, check if we have columns from this table
             if (isGroupedResult) {
@@ -59,8 +59,8 @@ export function processSelect(
           }
 
           // Handle simple column references like "@table.column" or "@column"
-          if (item.startsWith('@')) {
-            const parts = item.split(' as ')
+          if ((item as string).startsWith('@')) {
+            const parts = (item as string).split(' as ')
             const columnRef = parts[0].substring(1)
             const alias = parts.length > 1 ? parts[1].trim() : columnRef
 
@@ -88,8 +88,8 @@ export function processSelect(
         } else {
           // Handle aliased columns like { alias: "@column_name" }
           for (const [alias, expr] of Object.entries(item)) {
-            if (typeof expr === 'string' && expr.startsWith('@')) {
-              const columnRef = expr.substring(1)
+            if (typeof expr === 'string' && (expr as string).startsWith('@')) {
+              const columnRef = (expr as string).substring(1)
 
               // For grouped results, check if the column is directly in the row first
               if (isGroupedResult && columnRef in nestedRow) {
@@ -103,7 +103,7 @@ export function processSelect(
                   undefined,
                 )
               }
-            } else if (typeof expr === 'string' && !expr.startsWith('@')) {
+            } else if (typeof expr === 'string' && !(expr as string).startsWith('@')) {
               // Handle expressions like "table1.col * table2.col"
               // This would need more advanced parsing - for now just log
               // Future: Parse and evaluate the expression
