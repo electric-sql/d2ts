@@ -202,10 +202,10 @@ describe('D2QL - JOIN Clauses', () => {
   it('should support basic INNER JOIN', () => {
     const query: Query = {
       select: [
-        '@orders.id as order_id',
-        '@users.name as user_name',
-        '@products.name as product_name',
-        '@orders.quantity',
+        { order_id: '@orders.id' },
+        { user_name: '@users.name' },
+        { product_name: '@products.name' },
+        { quantity: '@orders.quantity' },
       ],
       from: 'orders',
       join: [
@@ -253,9 +253,11 @@ describe('D2QL - JOIN Clauses', () => {
 
     const query: Query = {
       select: [
-        '@orders.id as order_id',
-        '@orders.productId',
-        '@products.name as product_name',
+        {
+          order_id: '@orders.id',
+          productId: '@orders.productId',
+          product_name: '@products.name',
+        },
       ],
       from: 'orders',
       join: [
@@ -287,9 +289,11 @@ describe('D2QL - JOIN Clauses', () => {
 
     const query: Query = {
       select: [
-        '@orders.id as order_id',
-        '@products.id as product_id',
-        '@products.name as product_name',
+        {
+          order_id: '@orders.id',
+          product_id: '@products.id',
+          product_name: '@products.name',
+        },
       ],
       from: 'orders',
       join: [
@@ -342,10 +346,12 @@ describe('D2QL - JOIN Clauses', () => {
 
     const query: Query = {
       select: [
-        '@orders.id as order_id',
-        '@products.id as product_id',
-        '@orders.productId',
-        '@products.name as product_name',
+        {
+          order_id: '@orders.id',
+          productId: '@orders.productId',
+          product_id: '@products.id',
+          product_name: '@products.name',
+        },
       ],
       from: 'orders',
       join: [
@@ -380,12 +386,13 @@ describe('D2QL - JOIN Clauses', () => {
   it('should support join conditions in SELECT', () => {
     const query: Query = {
       select: [
-        '@orders.id as order_id',
-        '@users.name as user_name',
-        '@products.name as product_name',
-        { total_price: 'orders.quantity * products.price' }, // This is not yet implemented
-        '@products.price',
-        '@orders.quantity',
+        {
+          order_id: '@orders.id',
+          user_name: '@users.name',
+          product_name: '@products.name',
+          price: '@products.price',
+          quantity: '@orders.quantity',
+        },
       ],
       from: 'orders',
       join: [
@@ -414,18 +421,17 @@ describe('D2QL - JOIN Clauses', () => {
     expect(results[0].product_name).toBeDefined()
     expect(results[0].price).toBeDefined()
     expect(results[0].quantity).toBeDefined()
-
-    // Note: The total_price calculation would require function implementation
-    // which is noted as a future enhancement
   })
 
   it('should support filtering with WHERE on joined data', () => {
     const query: Query = {
       select: [
-        '@orders.id as order_id',
-        '@users.name as user_name',
-        '@products.name as product_name',
-        '@products.category',
+        {
+          order_id: '@orders.id',
+          user_name: '@users.name',
+          product_name: '@products.name',
+          category: '@products.category',
+        },
       ],
       from: 'orders',
       join: [
@@ -461,9 +467,11 @@ describe('D2QL - JOIN Clauses', () => {
   it('should support filtering with a WHERE clause on the join', () => {
     const query: Query = {
       select: [
-        '@orders.id as order_id',
-        '@users.name as user_name',
-        '@products.name as product_name',
+        {
+          order_id: '@orders.id',
+          user_name: '@users.name',
+          product_name: '@products.name',
+        },
       ],
       from: 'orders',
       join: [

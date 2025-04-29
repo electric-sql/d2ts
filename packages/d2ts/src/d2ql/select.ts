@@ -60,9 +60,8 @@ export function processSelect(
 
           // Handle simple column references like "@table.column" or "@column"
           if ((item as string).startsWith('@')) {
-            const parts = (item as string).split(' as ')
-            const columnRef = parts[0].substring(1)
-            const alias = parts.length > 1 ? parts[1].trim() : columnRef
+            const columnRef = (item as string).substring(1)
+            const alias = columnRef
 
             // For grouped results, check if the column is directly in the row first
             if (isGroupedResult && columnRef in nestedRow) {
@@ -77,9 +76,9 @@ export function processSelect(
               )
             }
 
-            // If the alias contains a dot (table.column) and there's no explicit 'as',
+            // If the alias contains a dot (table.column),
             // use just the column part as the field name
-            if (alias.includes('.') && parts.length === 1) {
+            if (alias.includes('.')) {
               const columnName = alias.split('.')[1]
               result[columnName] = result[alias]
               delete result[alias]
@@ -103,10 +102,6 @@ export function processSelect(
                   undefined,
                 )
               }
-            } else if (typeof expr === 'string' && !(expr as string).startsWith('@')) {
-              // Handle expressions like "table1.col * table2.col"
-              // This would need more advanced parsing - for now just log
-              // Future: Parse and evaluate the expression
             } else if (typeof expr === 'object') {
               // For grouped results, the aggregate results are already in the row
               if (isGroupedResult && alias in nestedRow) {
