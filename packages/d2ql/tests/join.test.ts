@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { D2 } from '../../src/d2.js'
-import { MessageType } from '../../src/types.js'
-import { output } from '../../src/operators/index.js'
+import { D2 } from '../../d2ts/src/d2.js'
+import { MessageType } from '../../d2ts/src/types.js'
+import { output } from '../../d2ts/src/operators/index.js'
 import { Query, compileQuery } from '../../src/d2ql/index.js'
-import { RootStreamBuilder } from '../../src/d2.js'
-import { MultiSet } from '../../src/multiset.js'
+import { RootStreamBuilder } from '../../d2ts/src/d2.js'
+import { MultiSet } from '../../d2ts/src/multiset.js'
 import { type } from 'os'
 
 describe('D2QL - JOIN Clauses', () => {

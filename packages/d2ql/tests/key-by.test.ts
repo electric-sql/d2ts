@@ -1,12 +1,12 @@
 import { describe, test, expect } from 'vitest'
-import { D2 } from '../../src/d2.js'
-import { MultiSet } from '../../src/multiset.js'
-import { Message, MessageType } from '../../src/types.js'
-import { output } from '../../src/operators/index.js'
-import { v, Antichain } from '../../src/order.js'
+import { D2 } from '../../d2ts/src/d2.js'
+import { MultiSet } from '../../d2ts/src/multiset.js'
+import { Message, MessageType } from '../../d2ts/src/types.js'
+import { output } from '../../d2ts/src/operators/index.js'
+import { v, Antichain } from '../../d2ts/src/order.js'
 import { Query } from '../../src/d2ql/index.js'
 import { compileQuery } from '../../src/d2ql/compiler.js'
-import { Keyed } from '../../src/operators/keying.js'
+import { Keyed } from '../../d2ts/src/operators/keying.js'
 
 // Sample user type for tests
 type User = {

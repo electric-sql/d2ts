@@ -1,10 +1,10 @@
 import { describe, test, expect } from 'vitest'
-import { D2 } from '../../src/d2.js'
+import { D2 } from '../../d2ts/src/d2.js'
 import { Query } from '../../src/d2ql/index.js'
 import { compileQuery } from '../../src/d2ql/compiler.js'
-import { MultiSet } from '../../src/multiset.js'
-import { output } from '../../src/operators/index.js'
-import { MessageType } from '../../src/types.js'
+import { MultiSet } from '../../d2ts/src/multiset.js'
+import { output } from '../../d2ts/src/operators/index.js'
+import { MessageType } from '../../d2ts/src/types.js'
 
 type User = {
   id: number

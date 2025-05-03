@@ -1,11 +1,11 @@
 import { describe, test, expect, beforeEach } from 'vitest'
-import { D2 } from '../../src/d2.js'
+import { D2 } from '../../d2ts/src/d2.js'
 import { compileQuery } from '../../src/d2ql/compiler.js'
 import { Query } from '../../src/d2ql/schema.js'
-import { output } from '../../src/operators/index.js'
-import { MultiSet } from '../../src/multiset.js'
-import { v } from '../../src/order.js'
-import { MessageType } from '../../src/types.js'
+import { output } from '../../d2ts/src/operators/index.js'
+import { MultiSet } from '../../d2ts/src/multiset.js'
+import { v } from '../../d2ts/src/order.js'
+import { MessageType } from '../../d2ts/src/types.js'
 
 // Define types for our test records
 type User = {
