@@ -331,3 +331,13 @@ export function mode<T>(
     },
   }
 }
+
+export const groupByOperators = {
+  sum,
+  count,
+  avg,
+  min,
+  max,
+  median,
+  mode,
+}
