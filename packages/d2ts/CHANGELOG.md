@@ -1,5 +1,15 @@
 # @electric-sql/d2ts
 
+## 0.1.4
+
+### Patch Changes
+
+- 481a3c7: Add filterBy operator to filter elements of a keyed stream by keys from another stream
+- 546db4c: new orderBy and topK operators, with indexed and fractional indexed variants
+- 250ae73: Support for providing the sqlite database to operators via dependency injection
+- 0e98a5a: new `groupBy` operator with accompanying aggregate functions (`sum`, `count`, `avg`, `min`, `max`, `median`, `mode`)
+- 31d001d: fix the join implementation so that it returns correct results
+
 ## 0.1.3
 
 ### Patch Changes
