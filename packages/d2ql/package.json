@@ -1,8 +1,9 @@
 {
-  "name": "@electric-sql/d2ts",
-  "version": "0.1.3",
+  "name": "@electric-sql/d2ql",
+  "private": true,
+  "version": "0.1.0",
   "license": "Apache-2.0",
-  "description": "D2TS is a TypeScript implementation of Differential Dataflow.",
+  "description": "D2QL is a query language for D2TS.",
   "author": "Electric DB Limited",
   "homepage": "https://github.com/electric-sql/d2ts",
   "repository": {
@@ -25,13 +26,13 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./sqlite": {
-      "types": "./dist/sqlite/index.d.ts",
-      "default": "./dist/sqlite/index.js"
+    "./query-builder": {
+      "types": "./dist/query-builder/index.d.ts",
+      "default": "./dist/query-builder/index.js"
     },
-    "./electric": {
-      "types": "./dist/electric/index.d.ts",
-      "default": "./dist/electric/index.js"
+    "./store": {
+      "types": "./dist/store.d.ts",
+      "default": "./dist/store.js"
     }
   },
   "scripts": {
@@ -45,11 +46,10 @@
   },
   "devDependencies": {
     "@electric-sql/client": "^1.0.4",
-    "@types/better-sqlite3": "^7.6.13",
+    "@electric-sql/d2ts": "workspace:*",
     "@types/node": "^22.15.3",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
-    "better-sqlite3": "^11.9.1",
     "eslint": "^9.25.1",
     "eslint-config-prettier": "^10.1.2",
     "eslint-plugin-prettier": "^5.2.6",
@@ -59,18 +59,13 @@
     "vitest": "^3.1.2"
   },
   "peerDependencies": {
+    "@electric-sql/d2ts": "workspace:*",
     "@electric-sql/client": ">=1.0.0-beta.4",
     "better-sqlite3": "^11.7.0"
   },
   "peerDependenciesMeta": {
-    "@electric-sql/client": {
-      "optional": true
-    },
-    "better-sqlite3": {
-      "optional": true
+    "@electric-sql/d2ts": {
+      "optional": false
     }
-  },
-  "dependencies": {
-    "fractional-indexing": "^3.2.0"
   }
 }

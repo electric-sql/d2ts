@@ -6,7 +6,7 @@
  */
 
 import { D2, MultiSet, output, v, Antichain } from '@electric-sql/d2ts'
-import { Query, compileQuery } from '@electric-sql/d2ts/d2ql'
+import { Query, compileQuery } from '@electric-sql/d2ql'
 import { Message, MessageType } from '@electric-sql/d2ts'
 
 // Sample user type for examples
