@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Store } from '../src/store'
 import type { ChangeSet } from '../src/store'
-import { map, reduce, concat, join } from '../src/operators'
-import { Query, KeyedQuery } from '../src/d2ql/schema'
+import { map, reduce, concat, join } from '@electric-sql/d2ts'
+import { Query, KeyedQuery } from '../src/schema'
 
 describe('Store', () => {
   let store: Store<string, number>

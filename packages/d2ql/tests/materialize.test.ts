@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { D2 } from '../src/d2'
-import { MultiSet } from '../src/multiset'
-import { map } from '../src/operators'
-import { v } from '../src/order'
+import { D2, MultiSet, map, v } from '@electric-sql/d2ts'
 import { Store } from '../src/store'
 
 describe('StreamBuilder.materialize', () => {
