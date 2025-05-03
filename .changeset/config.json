@@ -7,5 +7,9 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@electric-sql/d2ql"]
+  "ignore": [
+    "@electric-sql/d2ql",
+    "@electric-sql/d2ts-electric-example",
+    "@electric-sql/d2ts-benchmark"
+  ]
 }
