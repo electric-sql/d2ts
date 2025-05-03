@@ -1,13 +1,14 @@
-import { describe, it, expect } from 'vitest'
-import { D2 } from '../../d2ts/src/d2.js'
-import { MessageType } from '../../d2ts/src/types.js'
-import { output } from '../../d2ts/src/operators/index.js'
-import { Query, compileQuery } from '../../src/d2ql/index.js'
-import { RootStreamBuilder } from '../../d2ts/src/d2.js'
-import { MultiSet } from '../../d2ts/src/multiset.js'
-import { type } from 'os'
+import { describe, it, expect } from "vitest"
+import {
+  D2,
+  MessageType,
+  output,
+  RootStreamBuilder,
+  MultiSet,
+} from "@electric-sql/d2ts"
+import { Query, compileQuery } from "../src/index.js"
 
-describe('D2QL - JOIN Clauses', () => {
+describe("Query - JOIN Clauses", () => {
   // Sample data for users
   type User = {
     id: number
@@ -49,27 +50,27 @@ describe('D2QL - JOIN Clauses', () => {
   const users: User[] = [
     {
       id: 1,
-      name: 'Alice Johnson',
-      email: 'alice@example.com',
-      role: 'admin',
+      name: "Alice Johnson",
+      email: "alice@example.com",
+      role: "admin",
     },
     {
       id: 2,
-      name: 'Bob Smith',
-      email: 'bob@example.com',
-      role: 'user',
+      name: "Bob Smith",
+      email: "bob@example.com",
+      role: "user",
     },
     {
       id: 3,
-      name: 'Carol Williams',
-      email: 'carol@example.com',
-      role: 'user',
+      name: "Carol Williams",
+      email: "carol@example.com",
+      role: "user",
     },
     {
       id: 4,
-      name: 'Dave Brown',
-      email: 'dave@example.com',
-      role: 'manager',
+      name: "Dave Brown",
+      email: "dave@example.com",
+      role: "manager",
     },
   ]
 
@@ -77,37 +78,37 @@ describe('D2QL - JOIN Clauses', () => {
   const products: Product[] = [
     {
       id: 1,
-      name: 'Laptop',
+      name: "Laptop",
       price: 1200,
-      category: 'Electronics',
+      category: "Electronics",
       creatorId: 1,
     },
     {
       id: 2,
-      name: 'Smartphone',
+      name: "Smartphone",
       price: 800,
-      category: 'Electronics',
+      category: "Electronics",
       creatorId: 1,
     },
     {
       id: 3,
-      name: 'Desk Chair',
+      name: "Desk Chair",
       price: 250,
-      category: 'Furniture',
+      category: "Furniture",
       creatorId: 2,
     },
     {
       id: 4,
-      name: 'Coffee Table',
+      name: "Coffee Table",
       price: 180,
-      category: 'Furniture',
+      category: "Furniture",
       creatorId: 2,
     },
     {
       id: 5,
-      name: 'Headphones',
+      name: "Headphones",
       price: 150,
-      category: 'Electronics',
+      category: "Electronics",
       creatorId: 3,
     },
   ]
@@ -119,42 +120,42 @@ describe('D2QL - JOIN Clauses', () => {
       userId: 1,
       productId: 1,
       quantity: 1,
-      orderDate: '2023-01-15',
+      orderDate: "2023-01-15",
     },
     {
       id: 2,
       userId: 1,
       productId: 5,
       quantity: 2,
-      orderDate: '2023-01-16',
+      orderDate: "2023-01-16",
     },
     {
       id: 3,
       userId: 2,
       productId: 3,
       quantity: 1,
-      orderDate: '2023-02-10',
+      orderDate: "2023-02-10",
     },
     {
       id: 4,
       userId: 3,
       productId: 2,
       quantity: 1,
-      orderDate: '2023-02-20',
+      orderDate: "2023-02-20",
     },
     {
       id: 5,
       userId: 4,
       productId: 4,
       quantity: 2,
-      orderDate: '2023-03-05',
+      orderDate: "2023-03-05",
     },
   ]
 
   function runQueryWithJoins<T extends Record<string, any>>(
     mainData: T[],
     query: Query,
-    additionalData: Record<string, any[]> = {},
+    additionalData: Record<string, any[]> = {}
   ): any[] {
     const graph = new D2({ initialFrontier: 0 })
 
@@ -183,7 +184,7 @@ describe('D2QL - JOIN Clauses', () => {
           const data = message.data.collection.getInner().map(([item]) => item)
           results.push(...data)
         }
-      }),
+      })
     )
 
     // Finalize the graph
@@ -211,25 +212,25 @@ describe('D2QL - JOIN Clauses', () => {
     return results
   }
 
-  it('should support basic INNER JOIN', () => {
+  it("should support basic INNER JOIN", () => {
     const query: Query<Context> = {
       select: [
-        { order_id: '@orders.id' },
-        { user_name: '@users.name' },
-        { product_name: '@products.name' },
-        { quantity: '@orders.quantity' },
+        { order_id: "@orders.id" },
+        { user_name: "@users.name" },
+        { product_name: "@products.name" },
+        { quantity: "@orders.quantity" },
       ],
-      from: 'orders',
+      from: "orders",
       join: [
         {
-          type: 'inner',
-          from: 'users',
-          on: ['@orders.userId', '=', '@users.id'],
+          type: "inner",
+          from: "users",
+          on: ["@orders.userId", "=", "@users.id"],
         },
         {
-          type: 'inner',
-          from: 'products',
-          on: ['@orders.productId', '=', '@products.id'],
+          type: "inner",
+          from: "products",
+          on: ["@orders.productId", "=", "@products.id"],
         },
       ],
     }
@@ -245,12 +246,12 @@ describe('D2QL - JOIN Clauses', () => {
     // Check a specific result
     const firstOrder = results.find((r) => r.order_id === 1)
     expect(firstOrder).toBeDefined()
-    expect(firstOrder.user_name).toBe('Alice Johnson')
-    expect(firstOrder.product_name).toBe('Laptop')
+    expect(firstOrder.user_name).toBe("Alice Johnson")
+    expect(firstOrder.product_name).toBe("Laptop")
     expect(firstOrder.quantity).toBe(1)
   })
 
-  it('should support LEFT JOIN', () => {
+  it("should support LEFT JOIN", () => {
     // Create an order without a matching product
     const ordersWithMissing = [
       ...orders,
@@ -259,24 +260,24 @@ describe('D2QL - JOIN Clauses', () => {
         userId: 3,
         productId: 99, // Non-existent product
         quantity: 1,
-        orderDate: '2023-04-01',
+        orderDate: "2023-04-01",
       },
     ]
 
     const query: Query<Context> = {
       select: [
         {
-          order_id: '@orders.id',
-          productId: '@orders.productId',
-          product_name: '@products.name',
+          order_id: "@orders.id",
+          productId: "@orders.productId",
+          product_name: "@products.name",
         },
       ],
-      from: 'orders',
+      from: "orders",
       join: [
         {
-          type: 'left',
-          from: 'products',
-          on: ['@orders.productId', '=', '@products.id'],
+          type: "left",
+          from: "products",
+          on: ["@orders.productId", "=", "@products.id"],
         },
       ],
     }
@@ -295,24 +296,24 @@ describe('D2QL - JOIN Clauses', () => {
     expect(lastOrder.product_name).toBeNull()
   })
 
-  it('should support RIGHT JOIN', () => {
+  it("should support RIGHT JOIN", () => {
     // Exclude one product from orders
     const partialOrders = orders.filter((o) => o.productId !== 4)
 
     const query: Query<Context> = {
       select: [
         {
-          order_id: '@orders.id',
-          product_id: '@products.id',
-          product_name: '@products.name',
+          order_id: "@orders.id",
+          product_id: "@products.id",
+          product_name: "@products.name",
         },
       ],
-      from: 'orders',
+      from: "orders",
       join: [
         {
-          type: 'right',
-          from: 'products',
-          on: ['@orders.productId', '=', '@products.id'],
+          type: "right",
+          from: "products",
+          on: ["@orders.productId", "=", "@products.id"],
         },
       ],
     }
@@ -327,11 +328,11 @@ describe('D2QL - JOIN Clauses', () => {
     // Product 4 should appear with null order info
     const product4 = results.find((r) => r.product_id === 4)
     expect(product4).toBeDefined()
-    expect(product4.product_name).toBe('Coffee Table')
+    expect(product4.product_name).toBe("Coffee Table")
     expect(product4.order_id).toBeNull()
   })
 
-  it('should support FULL JOIN', () => {
+  it("should support FULL JOIN", () => {
     // Add an order with no matching product
     const ordersWithMissing = [
       ...orders,
@@ -340,7 +341,7 @@ describe('D2QL - JOIN Clauses', () => {
         userId: 3,
         productId: 99, // Non-existent product
         quantity: 1,
-        orderDate: '2023-04-01',
+        orderDate: "2023-04-01",
       },
     ]
 
@@ -349,9 +350,9 @@ describe('D2QL - JOIN Clauses', () => {
       ...products,
       {
         id: 6,
-        name: 'TV',
+        name: "TV",
         price: 900,
-        category: 'Electronics',
+        category: "Electronics",
         creatorId: 1,
       },
     ]
@@ -359,18 +360,18 @@ describe('D2QL - JOIN Clauses', () => {
     const query: Query<Context> = {
       select: [
         {
-          order_id: '@orders.id',
-          productId: '@orders.productId',
-          product_id: '@products.id',
-          product_name: '@products.name',
+          order_id: "@orders.id",
+          productId: "@orders.productId",
+          product_id: "@products.id",
+          product_name: "@products.name",
         },
       ],
-      from: 'orders',
+      from: "orders",
       join: [
         {
-          type: 'full',
-          from: 'products',
-          on: ['@orders.productId', '=', '@products.id'],
+          type: "full",
+          from: "products",
+          on: ["@orders.productId", "=", "@products.id"],
         },
       ],
     }
@@ -391,32 +392,32 @@ describe('D2QL - JOIN Clauses', () => {
     // Product with no matching order
     const noOrderProduct = results.find((r) => r.product_id === 6)
     expect(noOrderProduct).toBeDefined()
-    expect(noOrderProduct.product_name).toBe('TV')
+    expect(noOrderProduct.product_name).toBe("TV")
     expect(noOrderProduct.order_id).toBeNull()
   })
 
-  it('should support join conditions in SELECT', () => {
+  it("should support join conditions in SELECT", () => {
     const query: Query<Context> = {
       select: [
         {
-          order_id: '@orders.id',
-          user_name: '@users.name',
-          product_name: '@products.name',
-          price: '@products.price',
-          quantity: '@orders.quantity',
+          order_id: "@orders.id",
+          user_name: "@users.name",
+          product_name: "@products.name",
+          price: "@products.price",
+          quantity: "@orders.quantity",
         },
       ],
-      from: 'orders',
+      from: "orders",
       join: [
         {
-          type: 'inner',
-          from: 'users',
-          on: ['@orders.userId', '=', '@users.id'],
+          type: "inner",
+          from: "users",
+          on: ["@orders.userId", "=", "@users.id"],
         },
         {
-          type: 'inner',
-          from: 'products',
-          on: ['@orders.productId', '=', '@products.id'],
+          type: "inner",
+          from: "products",
+          on: ["@orders.productId", "=", "@products.id"],
         },
       ],
     }
@@ -435,31 +436,31 @@ describe('D2QL - JOIN Clauses', () => {
     expect(results[0].quantity).toBeDefined()
   })
 
-  it('should support filtering with WHERE on joined data', () => {
+  it("should support filtering with WHERE on joined data", () => {
     const query: Query<Context> = {
       select: [
         {
-          order_id: '@orders.id',
-          user_name: '@users.name',
-          product_name: '@products.name',
-          category: '@products.category',
+          order_id: "@orders.id",
+          user_name: "@users.name",
+          product_name: "@products.name",
+          category: "@products.category",
         },
       ],
-      from: 'orders',
+      from: "orders",
       join: [
         {
-          type: 'inner',
-          from: 'users',
-          on: ['@orders.userId', '=', '@users.id'],
+          type: "inner",
+          from: "users",
+          on: ["@orders.userId", "=", "@users.id"],
         },
         {
-          type: 'inner',
-          from: 'products',
-          on: ['@orders.productId', '=', '@products.id'],
+          type: "inner",
+          from: "products",
+          on: ["@orders.productId", "=", "@products.id"],
         },
       ],
       // Filter to only include electronics orders
-      where: ['@products.category', '=', 'Electronics'],
+      where: ["@products.category", "=", "Electronics"],
     }
 
     const results = runQueryWithJoins(orders, query, {
@@ -472,32 +473,32 @@ describe('D2QL - JOIN Clauses', () => {
 
     // All results should be for electronics
     for (const result of results) {
-      expect(result.category).toBe('Electronics')
+      expect(result.category).toBe("Electronics")
     }
   })
 
-  it('should support filtering with a WHERE clause on the join', () => {
+  it("should support filtering with a WHERE clause on the join", () => {
     const query: Query<Context> = {
       select: [
         {
-          order_id: '@orders.id',
-          user_name: '@users.name',
-          product_name: '@products.name',
+          order_id: "@orders.id",
+          user_name: "@users.name",
+          product_name: "@products.name",
         },
       ],
-      from: 'orders',
+      from: "orders",
       join: [
         {
-          type: 'inner',
-          from: 'users',
-          on: ['@orders.userId', '=', '@users.id'],
+          type: "inner",
+          from: "users",
+          on: ["@orders.userId", "=", "@users.id"],
           // Only join with admin users
-          where: ['@users.role', '=', 'admin'],
+          where: ["@users.role", "=", "admin"],
         },
         {
-          type: 'inner',
-          from: 'products',
-          on: ['@orders.productId', '=', '@products.id'],
+          type: "inner",
+          from: "products",
+          on: ["@orders.productId", "=", "@products.id"],
         },
       ],
     }
@@ -512,7 +513,7 @@ describe('D2QL - JOIN Clauses', () => {
 
     // All results should be for the admin user
     for (const result of results) {
-      expect(result.user_name).toBe('Alice Johnson')
+      expect(result.user_name).toBe("Alice Johnson")
     }
   })
 })

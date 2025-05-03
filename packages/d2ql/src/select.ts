@@ -1,9 +1,8 @@
-import { ConditionOperand } from './schema'
-import { map } from '../operators/map'
-import { IStreamBuilder } from '../types'
-import { Query } from './schema'
-import { extractValueFromNestedRow } from './extractors'
-import { evaluateOperandOnNestedRow } from './extractors'
+import { map, IStreamBuilder } from "@electric-sql/d2ts"
+import { ConditionOperand } from "./schema"
+import { Query } from "./schema"
+import { extractValueFromNestedRow } from "./extractors"
+import { evaluateOperandOnNestedRow } from "./extractors"
 
 export function processSelect(
   pipeline: IStreamBuilder<Record<string, unknown>>,

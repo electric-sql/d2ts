@@ -1,14 +1,14 @@
-import { IStreamBuilder } from '../types.js'
-import { evaluateConditionOnNestedRow } from './evaluators.js'
-import { Query } from './index.js'
 import {
+  IStreamBuilder,
   filter,
   map,
   JoinType,
   consolidate,
   join as joinOperator,
-} from '../operators/index.js'
-import { extractJoinKey } from './extractors.js'
+} from "@electric-sql/d2ts"
+import { evaluateConditionOnNestedRow } from "./evaluators.js"
+import { Query } from "./index.js"
+import { extractJoinKey } from "./extractors.js"
 
 /**
  * Creates a processing pipeline for join clauses

@@ -1,17 +1,17 @@
-import { map } from '../operators/map'
-import { Query } from './schema'
-import { IStreamBuilder } from '../types'
-import { evaluateOperandOnNestedRow } from './extractors'
-import { ConditionOperand } from './schema'
-import { isOrderIndexFunctionCall } from './utils'
 import {
+  map,
   orderBy,
   orderByWithIndex,
   orderByWithFractionalIndex,
   topK,
   topKWithIndex,
   topKWithFractionalIndex,
-} from '../operators/index.js'
+  IStreamBuilder,
+} from "@electric-sql/d2ts"
+import { Query } from "./schema"
+import { evaluateOperandOnNestedRow } from "./extractors"
+import { ConditionOperand } from "./schema"
+import { isOrderIndexFunctionCall } from "./utils"
 
 export function processOrderBy(
   resultPipeline: IStreamBuilder<

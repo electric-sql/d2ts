@@ -1,12 +1,16 @@
-import { describe, it, expect } from 'vitest'
-import { D2 } from '../../d2ts/src/d2.js'
-import { MultiSet } from '../../d2ts/src/multiset.js'
-import { Message, MessageType } from '../../d2ts/src/types.js'
-import { output } from '../../d2ts/src/operators/index.js'
-import { v, Antichain } from '../../d2ts/src/order.js'
-import { Query, Condition, compileQuery } from '../../src/d2ql/index.js'
+import { describe, it, expect } from "vitest"
+import {
+  D2,
+  MessageType,
+  output,
+  v,
+  Antichain,
+  MultiSet,
+  Message,
+} from "@electric-sql/d2ts"
+import { Query, Condition, compileQuery } from "../src/index.js"
 
-describe('D2QL - HAVING Clause', () => {
+describe("Query - HAVING Clause", () => {
   // Define a sample data type for our tests
   type Product = {
     id: number
@@ -32,74 +36,74 @@ describe('D2QL - HAVING Clause', () => {
   const sampleProducts: Product[] = [
     {
       id: 1,
-      name: 'Laptop',
+      name: "Laptop",
       price: 1200,
-      category: 'Electronics',
+      category: "Electronics",
       inStock: true,
       rating: 4.5,
-      tags: ['tech', 'device'],
+      tags: ["tech", "device"],
     },
     {
       id: 2,
-      name: 'Smartphone',
+      name: "Smartphone",
       price: 800,
-      category: 'Electronics',
+      category: "Electronics",
       inStock: true,
       rating: 4.2,
-      tags: ['tech', 'mobile'],
+      tags: ["tech", "mobile"],
     },
     {
       id: 3,
-      name: 'Desk',
+      name: "Desk",
       price: 350,
-      category: 'Furniture',
+      category: "Furniture",
       inStock: false,
       rating: 3.8,
-      tags: ['home', 'office'],
+      tags: ["home", "office"],
     },
     {
       id: 4,
-      name: 'Book',
+      name: "Book",
       price: 25,
-      category: 'Books',
+      category: "Books",
       inStock: true,
       rating: 4.7,
-      tags: ['education', 'reading'],
+      tags: ["education", "reading"],
     },
     {
       id: 5,
-      name: 'Monitor',
+      name: "Monitor",
       price: 300,
-      category: 'Electronics',
+      category: "Electronics",
       inStock: true,
       rating: 4.0,
-      tags: ['tech', 'display'],
+      tags: ["tech", "display"],
     },
     {
       id: 6,
-      name: 'Chair',
+      name: "Chair",
       price: 150,
-      category: 'Furniture',
+      category: "Furniture",
       inStock: true,
       rating: 3.5,
-      tags: ['home', 'comfort'],
+      tags: ["home", "comfort"],
     },
     {
       id: 7,
-      name: 'Tablet',
+      name: "Tablet",
       price: 500,
-      category: 'Electronics',
+      category: "Electronics",
       inStock: false,
       rating: 4.3,
-      tags: ['tech', 'mobile'],
+      tags: ["tech", "mobile"],
     },
   ]
 
-  it('should filter products with HAVING clause', () => {
+  it("should filter products with HAVING clause", () => {
     const query: Query<Context> = {
-      select: ['@id', '@name', '@price', '@category'],
-      from: 'products',
-      having: ['@price', '>', 300] as Condition,
+      select: ["@id", "@name", "@price", "@category"],
+      from: "products",
+      having: ["@price", ">", 300] as Condition,
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -110,14 +114,14 @@ describe('D2QL - HAVING Clause', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
 
     input.sendData(
       v([1, 0]),
-      new MultiSet(sampleProducts.map((product) => [product, 1])),
+      new MultiSet(sampleProducts.map((product) => [product, 1]))
     )
     input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -125,7 +129,7 @@ describe('D2QL - HAVING Clause', () => {
 
     // Check the filtered results
     const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-    const results = dataMessages[0].data.collection
+    const results = dataMessages[0]!.data.collection
       .getInner()
       .map(([data]) => data)
 
@@ -137,13 +141,13 @@ describe('D2QL - HAVING Clause', () => {
     expect(results.map((p) => p.id)).toContain(3) // Desk
   })
 
-  it('should apply WHERE and HAVING in sequence', () => {
+  it("should apply WHERE and HAVING in sequence", () => {
     // Query to find in-stock products with price > 200
     const query: Query<Context> = {
-      select: ['@id', '@name', '@price', '@category', '@inStock'],
-      from: 'products',
-      where: ['@inStock', '=', true] as Condition,
-      having: ['@price', '>', 200] as Condition,
+      select: ["@id", "@name", "@price", "@category", "@inStock"],
+      from: "products",
+      where: ["@inStock", "=", true] as Condition,
+      having: ["@price", ">", 200] as Condition,
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -154,14 +158,14 @@ describe('D2QL - HAVING Clause', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
 
     input.sendData(
       v([1, 0]),
-      new MultiSet(sampleProducts.map((product) => [product, 1])),
+      new MultiSet(sampleProducts.map((product) => [product, 1]))
     )
     input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -169,7 +173,7 @@ describe('D2QL - HAVING Clause', () => {
 
     // Check the filtered results
     const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-    const results = dataMessages[0].data.collection
+    const results = dataMessages[0]!.data.collection
       .getInner()
       .map(([data]) => data)
 
@@ -181,17 +185,17 @@ describe('D2QL - HAVING Clause', () => {
     expect(results.map((p) => p.id)).toContain(5) // Monitor
   })
 
-  it('should support complex conditions in HAVING', () => {
+  it("should support complex conditions in HAVING", () => {
     // Query with complex HAVING condition
     const query: Query<Context> = {
-      select: ['@id', '@name', '@price', '@category', '@rating'],
-      from: 'products',
+      select: ["@id", "@name", "@price", "@category", "@rating"],
+      from: "products",
       having: [
-        ['@price', '>', 100],
-        'and',
-        ['@price', '<', 600],
-        'and',
-        ['@rating', '>=', 4.0],
+        ["@price", ">", 100],
+        "and",
+        ["@price", "<", 600],
+        "and",
+        ["@rating", ">=", 4.0],
       ] as unknown as Condition,
     }
 
@@ -203,14 +207,14 @@ describe('D2QL - HAVING Clause', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
 
     input.sendData(
       v([1, 0]),
-      new MultiSet(sampleProducts.map((product) => [product, 1])),
+      new MultiSet(sampleProducts.map((product) => [product, 1]))
     )
     input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -218,7 +222,7 @@ describe('D2QL - HAVING Clause', () => {
 
     // Check the filtered results
     const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-    const results = dataMessages[0].data.collection
+    const results = dataMessages[0]!.data.collection
       .getInner()
       .map(([data]) => data)
 
@@ -237,15 +241,15 @@ describe('D2QL - HAVING Clause', () => {
     })
   })
 
-  it('should support nested conditions in HAVING', () => {
+  it("should support nested conditions in HAVING", () => {
     // Query with nested HAVING condition
     const query: Query<Context> = {
-      select: ['@id', '@name', '@price', '@category', '@inStock'],
-      from: 'products',
+      select: ["@id", "@name", "@price", "@category", "@inStock"],
+      from: "products",
       having: [
-        [['@category', '=', 'Electronics'], 'and', ['@price', '<', 600]],
-        'or',
-        [['@category', '=', 'Furniture'], 'and', ['@inStock', '=', true]],
+        [["@category", "=", "Electronics"], "and", ["@price", "<", 600]],
+        "or",
+        [["@category", "=", "Furniture"], "and", ["@inStock", "=", true]],
       ] as unknown as Condition,
     }
 
@@ -257,14 +261,14 @@ describe('D2QL - HAVING Clause', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
 
     input.sendData(
       v([1, 0]),
-      new MultiSet(sampleProducts.map((product) => [product, 1])),
+      new MultiSet(sampleProducts.map((product) => [product, 1]))
     )
     input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -272,7 +276,7 @@ describe('D2QL - HAVING Clause', () => {
 
     // Check the filtered results
     const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-    const results = dataMessages[0].data.collection
+    const results = dataMessages[0]!.data.collection
       .getInner()
       .map(([data]) => data)
 
@@ -289,9 +293,9 @@ describe('D2QL - HAVING Clause', () => {
     results.forEach((product) => {
       // Check if it matches either condition
       const matchesCondition1 =
-        product.category === 'Electronics' && product.price < 600
+        product.category === "Electronics" && product.price < 600
       const matchesCondition2 =
-        product.category === 'Furniture' && product.inStock === true
+        product.category === "Furniture" && product.inStock === true
       expect(matchesCondition1 || matchesCondition2).toBeTruthy()
     })
   })

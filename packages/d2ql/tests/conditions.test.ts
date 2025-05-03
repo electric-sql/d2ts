@@ -1,15 +1,19 @@
-import { describe, test, expect } from 'vitest'
-import { D2 } from '../../d2ts/src/d2.js'
-import { MultiSet } from '../../d2ts/src/multiset.js'
-import { Message, MessageType } from '../../d2ts/src/types.js'
-import { output } from '../../d2ts/src/operators/index.js'
-import { v, Antichain } from '../../d2ts/src/order.js'
-import { Query, compileQuery } from '../../src/d2ql/index.js'
+import { describe, test, expect } from "vitest"
+import {
+  D2,
+  Message,
+  MessageType,
+  output,
+  v,
+  Antichain,
+  MultiSet,
+} from "@electric-sql/d2ts"
+import { Query, compileQuery } from "../src/index.js"
 import {
   FlatCompositeCondition,
   NestedCompositeCondition,
   LogicalOperator,
-} from '../../src/d2ql/schema.js'
+} from "../src/schema.js"
 
 // Sample data types for tests
 type Product = {
@@ -34,54 +38,54 @@ type Context = {
 const sampleProducts: Product[] = [
   {
     id: 1,
-    name: 'Laptop',
+    name: "Laptop",
     price: 1200,
-    category: 'Electronics',
+    category: "Electronics",
     inStock: true,
-    tags: ['tech', 'computer'],
+    tags: ["tech", "computer"],
   },
   {
     id: 2,
-    name: 'Smartphone',
+    name: "Smartphone",
     price: 800,
-    category: 'Electronics',
+    category: "Electronics",
     inStock: true,
-    tags: ['tech', 'mobile'],
+    tags: ["tech", "mobile"],
     discount: 10,
   },
   {
     id: 3,
-    name: 'Headphones',
+    name: "Headphones",
     price: 150,
-    category: 'Electronics',
+    category: "Electronics",
     inStock: false,
-    tags: ['tech', 'audio'],
+    tags: ["tech", "audio"],
   },
   {
     id: 4,
-    name: 'Book',
+    name: "Book",
     price: 20,
-    category: 'Books',
+    category: "Books",
     inStock: true,
-    tags: ['fiction', 'bestseller'],
+    tags: ["fiction", "bestseller"],
   },
   {
     id: 5,
-    name: 'Desk',
+    name: "Desk",
     price: 300,
-    category: 'Furniture',
+    category: "Furniture",
     inStock: true,
-    tags: ['home', 'office'],
+    tags: ["home", "office"],
   },
 ]
 
-describe('D2QL', () => {
-  describe('Condition Evaluation', () => {
-    test('equals operator', () => {
+describe("Query", () => {
+  describe("Condition Evaluation", () => {
+    test("equals operator", () => {
       const query: Query<Context> = {
-        select: ['@id', '@name'],
-        from: 'products',
-        where: ['@category', '=', 'Electronics'],
+        select: ["@id", "@name"],
+        from: "products",
+        where: ["@category", "=", "Electronics"],
       }
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -92,14 +96,14 @@ describe('D2QL', () => {
       pipeline.pipe(
         output((message) => {
           messages.push(message)
-        }),
+        })
       )
 
       graph.finalize()
 
       input.sendData(
         v([1, 0]),
-        new MultiSet(sampleProducts.map((product) => [product, 1])),
+        new MultiSet(sampleProducts.map((product) => [product, 1]))
       )
       input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -107,7 +111,7 @@ describe('D2QL', () => {
 
       // Check the filtered results
       const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-      const results = dataMessages[0].data.collection
+      const results = dataMessages[0]!.data.collection
         .getInner()
         .map(([data]) => data)
 
@@ -120,11 +124,11 @@ describe('D2QL', () => {
       })
     })
 
-    test('not equals operator', () => {
+    test("not equals operator", () => {
       const query: Query<Context> = {
-        select: ['@id', '@name', '@category'],
-        from: 'products',
-        where: ['@category', '!=', 'Electronics'],
+        select: ["@id", "@name", "@category"],
+        from: "products",
+        where: ["@category", "!=", "Electronics"],
       }
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -135,14 +139,14 @@ describe('D2QL', () => {
       pipeline.pipe(
         output((message) => {
           messages.push(message)
-        }),
+        })
       )
 
       graph.finalize()
 
       input.sendData(
         v([1, 0]),
-        new MultiSet(sampleProducts.map((product) => [product, 1])),
+        new MultiSet(sampleProducts.map((product) => [product, 1]))
       )
       input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -150,7 +154,7 @@ describe('D2QL', () => {
 
       // Check the filtered results
       const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-      const results = dataMessages[0].data.collection
+      const results = dataMessages[0]!.data.collection
         .getInner()
         .map(([data]) => data)
 
@@ -159,15 +163,15 @@ describe('D2QL', () => {
 
       // Check categories
       results.forEach((result) => {
-        expect(result.category).not.toBe('Electronics')
+        expect(result.category).not.toBe("Electronics")
       })
     })
 
-    test('greater than operator', () => {
+    test("greater than operator", () => {
       const query: Query<Context> = {
-        select: ['@id', '@name', '@price'],
-        from: 'products',
-        where: ['@price', '>', 500],
+        select: ["@id", "@name", "@price"],
+        from: "products",
+        where: ["@price", ">", 500],
       }
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -178,14 +182,14 @@ describe('D2QL', () => {
       pipeline.pipe(
         output((message) => {
           messages.push(message)
-        }),
+        })
       )
 
       graph.finalize()
 
       input.sendData(
         v([1, 0]),
-        new MultiSet(sampleProducts.map((product) => [product, 1])),
+        new MultiSet(sampleProducts.map((product) => [product, 1]))
       )
       input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -193,7 +197,7 @@ describe('D2QL', () => {
 
       // Check the filtered results
       const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-      const results = dataMessages[0].data.collection
+      const results = dataMessages[0]!.data.collection
         .getInner()
         .map(([data]) => data)
 
@@ -206,16 +210,16 @@ describe('D2QL', () => {
       })
     })
 
-    test('is operator with null check', () => {
+    test("is operator with null check", () => {
       const query: Query<Context> = {
-        select: ['@id', '@name', '@discount'],
-        from: 'products',
-        where: ['@discount', 'is not', null],
+        select: ["@id", "@name", "@discount"],
+        from: "products",
+        where: ["@discount", "is not", null],
       }
 
       // In our test data, only the Smartphone has a non-null discount
       const filteredProducts = sampleProducts.filter(
-        (p) => p.discount !== undefined,
+        (p) => p.discount !== undefined
       )
       expect(filteredProducts).toHaveLength(1)
 
@@ -227,14 +231,14 @@ describe('D2QL', () => {
       pipeline.pipe(
         output((message) => {
           messages.push(message)
-        }),
+        })
       )
 
       graph.finalize()
 
       input.sendData(
         v([1, 0]),
-        new MultiSet(sampleProducts.map((product) => [product, 1])),
+        new MultiSet(sampleProducts.map((product) => [product, 1]))
       )
       input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -242,7 +246,7 @@ describe('D2QL', () => {
 
       // Check the filtered results
       const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-      const results = dataMessages[0].data.collection
+      const results = dataMessages[0]!.data.collection
         .getInner()
         .map(([data]) => data)
 
@@ -251,13 +255,13 @@ describe('D2QL', () => {
       expect(results[0].id).toBe(2)
     })
 
-    test('complex condition with and/or', () => {
+    test("complex condition with and/or", () => {
       // Note: Our current implementation doesn't fully support nested conditions with 'or',
       // so we'll use a simpler condition for testing
       const query: Query<Context> = {
-        select: ['@id', '@name', '@price', '@category'],
-        from: 'products',
-        where: ['@price', '<', 500],
+        select: ["@id", "@name", "@price", "@category"],
+        from: "products",
+        where: ["@price", "<", 500],
       }
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -268,14 +272,14 @@ describe('D2QL', () => {
       pipeline.pipe(
         output((message) => {
           messages.push(message)
-        }),
+        })
       )
 
       graph.finalize()
 
       input.sendData(
         v([1, 0]),
-        new MultiSet(sampleProducts.map((product) => [product, 1])),
+        new MultiSet(sampleProducts.map((product) => [product, 1]))
       )
       input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -283,7 +287,7 @@ describe('D2QL', () => {
 
       // Check the filtered results
       const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-      const results = dataMessages[0].data.collection
+      const results = dataMessages[0]!.data.collection
         .getInner()
         .map(([data]) => data)
 
@@ -296,19 +300,19 @@ describe('D2QL', () => {
       })
     })
 
-    test('composite condition with AND', () => {
+    test("composite condition with AND", () => {
       const query: Query<Context> = {
-        select: ['@id', '@name', '@price', '@category'],
-        from: 'products',
-        where: ['@category', '=', 'Electronics', 'and', '@price', '<', 500],
+        select: ["@id", "@name", "@price", "@category"],
+        from: "products",
+        where: ["@category", "=", "Electronics", "and", "@price", "<", 500],
       }
 
       // Verify our test data - only Headphones should match both conditions
       const filteredProducts = sampleProducts.filter(
-        (p) => p.category === 'Electronics' && p.price < 500,
+        (p) => p.category === "Electronics" && p.price < 500
       )
       expect(filteredProducts).toHaveLength(1)
-      expect(filteredProducts[0].name).toBe('Headphones')
+      expect(filteredProducts[0]!.name).toBe("Headphones")
 
       const graph = new D2({ initialFrontier: v([0, 0]) })
       const input = graph.newInput<Product>()
@@ -318,14 +322,14 @@ describe('D2QL', () => {
       pipeline.pipe(
         output((message) => {
           messages.push(message)
-        }),
+        })
       )
 
       graph.finalize()
 
       input.sendData(
         v([1, 0]),
-        new MultiSet(sampleProducts.map((product) => [product, 1])),
+        new MultiSet(sampleProducts.map((product) => [product, 1]))
       )
       input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -333,7 +337,7 @@ describe('D2QL', () => {
 
       // Check the filtered results
       const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-      const results = dataMessages[0].data.collection
+      const results = dataMessages[0]!.data.collection
         .getInner()
         .map(([data]) => data)
 
@@ -341,20 +345,20 @@ describe('D2QL', () => {
       expect(results).toHaveLength(1) // Only Headphones
 
       // Check that results match both conditions
-      expect(results[0].category).toBe('Electronics')
+      expect(results[0].category).toBe("Electronics")
       expect(results[0].price).toBeLessThan(500)
     })
 
-    test('composite condition with OR', () => {
+    test("composite condition with OR", () => {
       const query: Query<Context> = {
-        select: ['@id', '@name', '@price', '@category'],
-        from: 'products',
-        where: ['@category', '=', 'Electronics', 'or', '@price', '<', 100],
+        select: ["@id", "@name", "@price", "@category"],
+        from: "products",
+        where: ["@category", "=", "Electronics", "or", "@price", "<", 100],
       }
 
       // Verify our test data - should match Electronics OR price < 100
       const filteredProducts = sampleProducts.filter(
-        (p) => p.category === 'Electronics' || p.price < 100,
+        (p) => p.category === "Electronics" || p.price < 100
       )
       // This should match all Electronics (3) plus the Book (1)
       expect(filteredProducts).toHaveLength(4)
@@ -367,14 +371,14 @@ describe('D2QL', () => {
       pipeline.pipe(
         output((message) => {
           messages.push(message)
-        }),
+        })
       )
 
       graph.finalize()
 
       input.sendData(
         v([1, 0]),
-        new MultiSet(sampleProducts.map((product) => [product, 1])),
+        new MultiSet(sampleProducts.map((product) => [product, 1]))
       )
       input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -382,7 +386,7 @@ describe('D2QL', () => {
 
       // Check the filtered results
       const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-      const results = dataMessages[0].data.collection
+      const results = dataMessages[0]!.data.collection
         .getInner()
         .map(([data]) => data)
 
@@ -391,38 +395,38 @@ describe('D2QL', () => {
 
       // Verify that each result matches at least one of the conditions
       results.forEach((result) => {
-        expect(result.category === 'Electronics' || result.price < 100).toBe(
-          true,
+        expect(result.category === "Electronics" || result.price < 100).toBe(
+          true
         )
       })
     })
 
-    test('nested composite conditions', () => {
+    test("nested composite conditions", () => {
       // Create a simpler nested condition test:
       // (category = 'Electronics' AND price > 200) OR (category = 'Books')
       const query: Query<Context> = {
-        select: ['@id', '@name', '@price', '@category'],
-        from: 'products',
+        select: ["@id", "@name", "@price", "@category"],
+        from: "products",
         where: [
           [
-            '@category',
-            '=',
-            'Electronics',
-            'and',
-            '@price',
-            '>',
+            "@category",
+            "=",
+            "Electronics",
+            "and",
+            "@price",
+            ">",
             200,
           ] as FlatCompositeCondition,
-          'or' as LogicalOperator,
-          ['@category', '=', 'Books'], // Simple condition for the right side
+          "or" as LogicalOperator,
+          ["@category", "=", "Books"], // Simple condition for the right side
         ] as NestedCompositeCondition,
       }
 
       // Verify our test data manually to confirm what should match
       const filteredProducts = sampleProducts.filter(
         (p) =>
-          (p.category === 'Electronics' && p.price > 200) ||
-          p.category === 'Books',
+          (p.category === "Electronics" && p.price > 200) ||
+          p.category === "Books"
       )
 
       // Should match Laptop (1), Smartphone (2) for electronics > 200, and Book (4)
@@ -436,14 +440,14 @@ describe('D2QL', () => {
       pipeline.pipe(
         output((message) => {
           messages.push(message)
-        }),
+        })
       )
 
       graph.finalize()
 
       input.sendData(
         v([1, 0]),
-        new MultiSet(sampleProducts.map((product) => [product, 1])),
+        new MultiSet(sampleProducts.map((product) => [product, 1]))
       )
       input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -452,7 +456,7 @@ describe('D2QL', () => {
       // Check the filtered results
       const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
 
-      const results = dataMessages[0].data.collection
+      const results = dataMessages[0]!.data.collection
         .getInner()
         .map(([data]) => data)
 
@@ -466,8 +470,8 @@ describe('D2QL', () => {
       // Verify that each result matches the complex condition
       results.forEach((result) => {
         const matches =
-          (result.category === 'Electronics' && result.price > 200) ||
-          result.category === 'Books'
+          (result.category === "Electronics" && result.price > 200) ||
+          result.category === "Books"
         expect(matches).toBe(true)
       })
     })

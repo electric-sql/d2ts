@@ -1,10 +1,15 @@
-import { output } from './operators/output'
-import { MessageType, IStreamBuilder } from './types'
-import { D2, RootStreamBuilder } from './d2'
-import { MultiSet, MultiSetArray } from './multiset'
-import { map } from './operators/map'
-import { compileQuery } from './d2ql/compiler'
-import { KeyedQuery } from './d2ql/schema'
+import {
+  D2,
+  MessageType,
+  IStreamBuilder,
+  map,
+  output,
+  RootStreamBuilder,
+  MultiSet,
+  MultiSetArray,
+} from '@electric-sql/d2ts'
+import { compileQuery } from './compiler.js'
+import { KeyedQuery } from './schema.js'
 
 export type ChangeInsert<K, V> = {
   type: 'insert'

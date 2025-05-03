@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { queryBuilder } from '../../../src/d2ql/query-builder/query-builder.js'
-import { Schema, Input } from '../../../src/d2ql/types.js'
+import { describe, it, expect } from "vitest"
+import { queryBuilder } from "../../src/query-builder/index.js"
+import { Schema, Input } from "../../src/types.js"
 
 // Test schema
 interface Employee extends Input {
@@ -23,82 +23,82 @@ interface TestSchema extends Schema {
   departments: Department
 }
 
-describe('QueryBuilder.keyBy', () => {
-  it('sets a single property reference as keyBy', () => {
+describe("QueryBuilder.keyBy", () => {
+  it("sets a single property reference as keyBy", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees')
-      .select('@id', '@name')
-      .keyBy('@id')
+      .from("employees")
+      .select("@id", "@name")
+      .keyBy("@id")
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.keyBy).toBe('@id')
+    expect(builtQuery.keyBy).toBe("@id")
   })
 
-  it('sets an array of property references as keyBy', () => {
+  it("sets an array of property references as keyBy", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees')
-      .select('@id', '@name', '@department_id')
-      .keyBy(['@id', '@department_id'])
+      .from("employees")
+      .select("@id", "@name", "@department_id")
+      .keyBy(["@id", "@department_id"])
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.keyBy).toEqual(['@id', '@department_id'])
+    expect(builtQuery.keyBy).toEqual(["@id", "@department_id"])
   })
 
-  it('overrides previous keyBy values', () => {
+  it("overrides previous keyBy values", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees')
-      .select('@id', '@name', '@department_id')
-      .keyBy('@id')
-      .keyBy('@department_id') // This should override
+      .from("employees")
+      .select("@id", "@name", "@department_id")
+      .keyBy("@id")
+      .keyBy("@department_id") // This should override
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.keyBy).toBe('@department_id')
+    expect(builtQuery.keyBy).toBe("@department_id")
   })
 
-  it('works with joined tables', () => {
+  it("works with joined tables", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees', 'e')
+      .from("employees", "e")
       .join({
-        type: 'inner',
-        from: 'departments',
-        as: 'd',
-        on: ['@e.department_id', '=', '@d.id'],
+        type: "inner",
+        from: "departments",
+        as: "d",
+        on: ["@e.department_id", "=", "@d.id"],
       })
-      .select('@e.id', '@e.name', '@d.name')
-      .keyBy('@d.id')
+      .select("@e.id", "@e.name", "@d.name")
+      .keyBy("@d.id")
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.keyBy).toBe('@d.id')
+    expect(builtQuery.keyBy).toBe("@d.id")
   })
 
-  it('can be combined with other query methods', () => {
+  it("can be combined with other query methods", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees', 'e')
+      .from("employees", "e")
       .join({
-        type: 'inner',
-        from: 'departments',
-        as: 'd',
-        on: ['@e.department_id', '=', '@d.id'],
+        type: "inner",
+        from: "departments",
+        as: "d",
+        on: ["@e.department_id", "=", "@d.id"],
       })
-      .where('@e.salary', '>', 50000)
-      .select('@e.id', '@e.name', '@d.name')
-      .orderBy('@e.salary')
+      .where("@e.salary", ">", 50000)
+      .select("@e.id", "@e.name", "@d.name")
+      .orderBy("@e.salary")
       .limit(10)
       .offset(5)
-      .keyBy('@e.id')
+      .keyBy("@e.id")
 
     const builtQuery = query.buildQuery()
 
     // Check keyBy
-    expect(builtQuery.keyBy).toBe('@e.id')
+    expect(builtQuery.keyBy).toBe("@e.id")
 
     // Also verify all other parts of the query are present
-    expect(builtQuery.from).toBe('employees')
-    expect(builtQuery.as).toBe('e')
+    expect(builtQuery.from).toBe("employees")
+    expect(builtQuery.as).toBe("e")
     expect(builtQuery.join).toBeDefined()
     expect(builtQuery.where).toBeDefined()
     expect(builtQuery.select).toHaveLength(3)
-    expect(builtQuery.orderBy).toBe('@e.salary')
+    expect(builtQuery.orderBy).toBe("@e.salary")
     expect(builtQuery.limit).toBe(10)
     expect(builtQuery.offset).toBe(5)
   })

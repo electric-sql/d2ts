@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { queryBuilder } from '../../../src/d2ql/query-builder/query-builder.js'
-import { Schema, Input } from '../../../src/d2ql/types.js'
+import { describe, it, expect } from "vitest"
+import { queryBuilder } from "../../src/query-builder/index.js"
+import { Schema, Input } from "../../src/types.js"
 
 // Test schema
 interface Employee extends Input {
@@ -23,55 +23,55 @@ interface TestSchema extends Schema {
   departments: Department
 }
 
-describe('QueryBuilder orderBy, limit, and offset', () => {
-  describe('orderBy', () => {
-    it('sets a simple string order', () => {
-      const query = queryBuilder<TestSchema>().from('employees').orderBy('@id')
+describe("QueryBuilder orderBy, limit, and offset", () => {
+  describe("orderBy", () => {
+    it("sets a simple string order", () => {
+      const query = queryBuilder<TestSchema>().from("employees").orderBy("@id")
 
       const builtQuery = query.buildQuery()
-      expect(builtQuery.orderBy).toBe('@id')
+      expect(builtQuery.orderBy).toBe("@id")
     })
 
-    it('sets an object with direction', () => {
+    it("sets an object with direction", () => {
       const query = queryBuilder<TestSchema>()
-        .from('employees')
-        .orderBy({ '@id': 'desc' })
+        .from("employees")
+        .orderBy({ "@id": "desc" })
 
       const builtQuery = query.buildQuery()
-      expect(builtQuery.orderBy).toEqual({ '@id': 'desc' })
+      expect(builtQuery.orderBy).toEqual({ "@id": "desc" })
     })
 
-    it('sets an array of orders', () => {
+    it("sets an array of orders", () => {
       const query = queryBuilder<TestSchema>()
-        .from('employees')
-        .orderBy(['@id', { '@name': 'asc' }])
+        .from("employees")
+        .orderBy(["@id", { "@name": "asc" }])
 
       const builtQuery = query.buildQuery()
-      expect(builtQuery.orderBy).toEqual(['@id', { '@name': 'asc' }])
+      expect(builtQuery.orderBy).toEqual(["@id", { "@name": "asc" }])
     })
 
-    it('overrides previous orderBy values', () => {
+    it("overrides previous orderBy values", () => {
       const query = queryBuilder<TestSchema>()
-        .from('employees')
-        .orderBy('@id')
-        .orderBy('@name') // This should override
+        .from("employees")
+        .orderBy("@id")
+        .orderBy("@name") // This should override
 
       const builtQuery = query.buildQuery()
-      expect(builtQuery.orderBy).toBe('@name')
+      expect(builtQuery.orderBy).toBe("@name")
     })
   })
 
-  describe('limit', () => {
-    it('sets a limit on the query', () => {
-      const query = queryBuilder<TestSchema>().from('employees').limit(10)
+  describe("limit", () => {
+    it("sets a limit on the query", () => {
+      const query = queryBuilder<TestSchema>().from("employees").limit(10)
 
       const builtQuery = query.buildQuery()
       expect(builtQuery.limit).toBe(10)
     })
 
-    it('overrides previous limit values', () => {
+    it("overrides previous limit values", () => {
       const query = queryBuilder<TestSchema>()
-        .from('employees')
+        .from("employees")
         .limit(10)
         .limit(20) // This should override
 
@@ -80,17 +80,17 @@ describe('QueryBuilder orderBy, limit, and offset', () => {
     })
   })
 
-  describe('offset', () => {
-    it('sets an offset on the query', () => {
-      const query = queryBuilder<TestSchema>().from('employees').offset(5)
+  describe("offset", () => {
+    it("sets an offset on the query", () => {
+      const query = queryBuilder<TestSchema>().from("employees").offset(5)
 
       const builtQuery = query.buildQuery()
       expect(builtQuery.offset).toBe(5)
     })
 
-    it('overrides previous offset values', () => {
+    it("overrides previous offset values", () => {
       const query = queryBuilder<TestSchema>()
-        .from('employees')
+        .from("employees")
         .offset(5)
         .offset(15) // This should override
 
@@ -99,30 +99,30 @@ describe('QueryBuilder orderBy, limit, and offset', () => {
     })
   })
 
-  describe('combined methods', () => {
-    it('builds a complex query with orderBy, limit, and offset', () => {
+  describe("combined methods", () => {
+    it("builds a complex query with orderBy, limit, and offset", () => {
       const query = queryBuilder<TestSchema>()
-        .from('employees', 'e')
+        .from("employees", "e")
         .join({
-          type: 'inner',
-          from: 'departments',
-          as: 'd',
-          on: ['@e.department_id', '=', '@d.id'],
+          type: "inner",
+          from: "departments",
+          as: "d",
+          on: ["@e.department_id", "=", "@d.id"],
         })
-        .where('@e.salary', '>', 50000)
-        .select('@e.id', '@e.name', '@d.name')
-        .orderBy(['@e.salary', { '@d.name': 'asc' }])
+        .where("@e.salary", ">", 50000)
+        .select("@e.id", "@e.name", "@d.name")
+        .orderBy(["@e.salary", { "@d.name": "asc" }])
         .limit(10)
         .offset(5)
 
       const builtQuery = query.buildQuery()
-      expect(builtQuery.orderBy).toEqual(['@e.salary', { '@d.name': 'asc' }])
+      expect(builtQuery.orderBy).toEqual(["@e.salary", { "@d.name": "asc" }])
       expect(builtQuery.limit).toBe(10)
       expect(builtQuery.offset).toBe(5)
 
       // Also verify all other parts of the query are present
-      expect(builtQuery.from).toBe('employees')
-      expect(builtQuery.as).toBe('e')
+      expect(builtQuery.from).toBe("employees")
+      expect(builtQuery.as).toBe("e")
       expect(builtQuery.join).toBeDefined()
       expect(builtQuery.where).toBeDefined()
       expect(builtQuery.select).toHaveLength(3)

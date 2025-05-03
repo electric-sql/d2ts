@@ -1,12 +1,11 @@
-import { filter, map } from '../operators/index.js'
-import { IStreamBuilder } from '../types.js'
-import { Query, Condition } from './schema.js'
-import { evaluateConditionOnNestedRow } from './evaluators.js'
-import { processJoinClause } from './joins.js'
-import { processGroupBy } from './group-by.js'
-import { processOrderBy } from './order-by.js'
-import { processKeyBy } from './key-by.js'
-import { processSelect } from './select.js'
+import { filter, map, IStreamBuilder } from "@electric-sql/d2ts"
+import { Query, Condition } from "./schema.js"
+import { evaluateConditionOnNestedRow } from "./evaluators.js"
+import { processJoinClause } from "./joins.js"
+import { processGroupBy } from "./group-by.js"
+import { processOrderBy } from "./order-by.js"
+import { processKeyBy } from "./key-by.js"
+import { processSelect } from "./select.js"
 
 /**
  * Compiles a D2QL query into a D2 pipeline

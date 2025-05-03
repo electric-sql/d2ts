@@ -1,22 +1,18 @@
-import { Query } from './schema'
 import {
   groupBy,
-  sum,
-  count,
-  avg,
-  min,
-  max,
-  median,
-  mode,
-} from '../operators/groupBy.js'
-import { IStreamBuilder } from '../types.js'
+  map,
+  groupByOperators,
+  IStreamBuilder,
+} from "@electric-sql/d2ts"
+import { Query } from "./schema"
 import {
   evaluateOperandOnNestedRow,
   extractValueFromNestedRow,
-} from './extractors'
-import { ConditionOperand, FunctionCall } from './schema'
-import { isAggregateFunctionCall } from './utils'
-import { map } from '../operators/index.js'
+} from "./extractors"
+import { ConditionOperand, FunctionCall } from "./schema"
+import { isAggregateFunctionCall } from "./utils"
+
+const { sum, count, avg, min, max, median, mode } = groupByOperators
 
 /**
  * Process the groupBy clause in a D2QL query

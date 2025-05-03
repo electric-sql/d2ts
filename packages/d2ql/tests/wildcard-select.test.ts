@@ -1,11 +1,7 @@
-import { describe, test, expect, beforeEach } from 'vitest'
-import { D2 } from '../../d2ts/src/d2.js'
-import { compileQuery } from '../../src/d2ql/compiler.js'
-import { Query } from '../../src/d2ql/schema.js'
-import { output } from '../../d2ts/src/operators/index.js'
-import { MultiSet } from '../../d2ts/src/multiset.js'
-import { v } from '../../d2ts/src/order.js'
-import { MessageType } from '../../d2ts/src/types.js'
+import { describe, test, expect, beforeEach } from "vitest"
+import { D2, MessageType, output, v, MultiSet } from "@electric-sql/d2ts"
+import { compileQuery } from "../src/compiler.js"
+import { Query } from "../src/schema.js"
 
 // Define types for our test records
 type User = {
@@ -35,37 +31,37 @@ type Context = {
   }
 }
 
-describe('D2QL Wildcard Select', () => {
+describe("Query Wildcard Select", () => {
   let graph: D2
-  let usersInput: ReturnType<D2['newInput']>
-  let ordersInput: ReturnType<D2['newInput']>
+  let usersInput: ReturnType<D2["newInput"]>
+  let ordersInput: ReturnType<D2["newInput"]>
   let messages: any[] = []
 
   // Sample data for tests
   const sampleUsers: User[] = [
-    { id: 1, name: 'Alice', age: 25, email: 'alice@example.com', active: true },
-    { id: 2, name: 'Bob', age: 19, email: 'bob@example.com', active: true },
+    { id: 1, name: "Alice", age: 25, email: "alice@example.com", active: true },
+    { id: 2, name: "Bob", age: 19, email: "bob@example.com", active: true },
     {
       id: 3,
-      name: 'Charlie',
+      name: "Charlie",
       age: 30,
-      email: 'charlie@example.com',
+      email: "charlie@example.com",
       active: false,
     },
-    { id: 4, name: 'Dave', age: 22, email: 'dave@example.com', active: true },
+    { id: 4, name: "Dave", age: 22, email: "dave@example.com", active: true },
   ]
 
   const sampleOrders: Order[] = [
-    { id: 101, userId: 1, product: 'Laptop', amount: 1200, date: '2023-01-15' },
-    { id: 102, userId: 2, product: 'Phone', amount: 800, date: '2023-01-20' },
+    { id: 101, userId: 1, product: "Laptop", amount: 1200, date: "2023-01-15" },
+    { id: 102, userId: 2, product: "Phone", amount: 800, date: "2023-01-20" },
     {
       id: 103,
       userId: 1,
-      product: 'Headphones',
+      product: "Headphones",
       amount: 100,
-      date: '2023-02-05',
+      date: "2023-02-05",
     },
-    { id: 104, userId: 3, product: 'Monitor', amount: 300, date: '2023-02-10' },
+    { id: 104, userId: 3, product: "Monitor", amount: 300, date: "2023-02-10" },
   ]
 
   beforeEach(() => {
@@ -84,7 +80,9 @@ describe('D2QL Wildcard Select', () => {
     // For single table queries, we need to extract all items from the MultiSet
     const allItems: any[] = []
     for (const message of dataMessages) {
-      const items = message.data.collection.getInner().map(([item]) => item)
+      const items = message.data.collection
+        .getInner()
+        .map(([item]: [any, number]) => item)
       allItems.push(...items)
     }
     return allItems
@@ -154,10 +152,10 @@ describe('D2QL Wildcard Select', () => {
     return extractResults(messages)
   }
 
-  test('select * from single table', () => {
+  test("select * from single table", () => {
     const query: Query<Context> = {
-      select: ['@*'],
-      from: 'users',
+      select: ["@*"],
+      from: "users",
     }
 
     const results = runUserQuery(query)
@@ -171,20 +169,20 @@ describe('D2QL Wildcard Select', () => {
 
       expect(result).toEqual(user)
       expect(Object.keys(result)).toEqual([
-        'id',
-        'name',
-        'age',
-        'email',
-        'active',
+        "id",
+        "name",
+        "age",
+        "email",
+        "active",
       ])
     }
   })
 
-  test('select table.* from single table', () => {
+  test("select table.* from single table", () => {
     const query: Query<Context> = {
-      select: ['@users.*'],
-      from: 'users',
-      as: 'users',
+      select: ["@users.*"],
+      from: "users",
+      as: "users",
     }
 
     const results = runUserQuery(query)
@@ -198,26 +196,26 @@ describe('D2QL Wildcard Select', () => {
 
       expect(result).toEqual(user)
       expect(Object.keys(result)).toEqual([
-        'id',
-        'name',
-        'age',
-        'email',
-        'active',
+        "id",
+        "name",
+        "age",
+        "email",
+        "active",
       ])
     }
   })
 
-  test('select * from joined tables', () => {
+  test("select * from joined tables", () => {
     const query: Query<Context> = {
-      select: ['@*'],
-      from: 'users',
-      as: 'u',
+      select: ["@*"],
+      from: "users",
+      as: "u",
       join: [
         {
-          type: 'inner',
-          from: 'orders',
-          as: 'o',
-          on: ['@u.id', '=', '@o.userId'],
+          type: "inner",
+          from: "orders",
+          as: "o",
+          on: ["@u.id", "=", "@o.userId"],
         },
       ],
     }
@@ -232,15 +230,15 @@ describe('D2QL Wildcard Select', () => {
     for (const result of results) {
       // Check that the result has all user fields and all order fields
       const expectedFields = [
-        'id',
-        'name',
-        'age',
-        'email',
-        'active', // User fields
-        'userId',
-        'product',
-        'amount',
-        'date', // Order fields (note: id is already included)
+        "id",
+        "name",
+        "age",
+        "email",
+        "active", // User fields
+        "userId",
+        "product",
+        "amount",
+        "date", // Order fields (note: id is already included)
       ]
 
       for (const field of expectedFields) {
@@ -259,7 +257,7 @@ describe('D2QL Wildcard Select', () => {
     }
   })
 
-  test('select u.* from joined tables', () => {
+  test("select u.* from joined tables", () => {
     const query: Query<
       Context & {
         schema: {
@@ -267,15 +265,15 @@ describe('D2QL Wildcard Select', () => {
         }
       }
     > = {
-      select: ['@u.*'],
-      from: 'users',
-      as: 'u',
+      select: ["@u.*"],
+      from: "users",
+      as: "u",
       join: [
         {
-          type: 'inner',
-          from: 'orders',
-          as: 'o',
-          on: ['@u.id', '=', '@o.userId'],
+          type: "inner",
+          from: "orders",
+          as: "o",
+          on: ["@u.id", "=", "@o.userId"],
         },
       ],
     }
@@ -288,7 +286,7 @@ describe('D2QL Wildcard Select', () => {
     // Check that each result has only user fields
     for (const result of results) {
       // Check that the result has only user fields
-      const expectedFields = ['id', 'name', 'age', 'email', 'active']
+      const expectedFields = ["id", "name", "age", "email", "active"]
       expect(Object.keys(result).sort()).toEqual(expectedFields.sort())
 
       // Verify the user exists in our sample data
@@ -298,7 +296,7 @@ describe('D2QL Wildcard Select', () => {
     }
   })
 
-  test('select o.* from joined tables', () => {
+  test("select o.* from joined tables", () => {
     const query: Query<
       Context & {
         schema: {
@@ -306,15 +304,15 @@ describe('D2QL Wildcard Select', () => {
         }
       }
     > = {
-      select: ['@o.*'],
-      from: 'users',
-      as: 'u',
+      select: ["@o.*"],
+      from: "users",
+      as: "u",
       join: [
         {
-          type: 'inner',
-          from: 'orders',
-          as: 'o',
-          on: ['@u.id', '=', '@o.userId'],
+          type: "inner",
+          from: "orders",
+          as: "o",
+          on: ["@u.id", "=", "@o.userId"],
         },
       ],
     }
@@ -327,7 +325,7 @@ describe('D2QL Wildcard Select', () => {
     // Check that each result has only order fields
     for (const result of results) {
       // Check that the result has only order fields
-      const expectedFields = ['id', 'userId', 'product', 'amount', 'date']
+      const expectedFields = ["id", "userId", "product", "amount", "date"]
       expect(Object.keys(result).sort()).toEqual(expectedFields.sort())
 
       // Verify the order exists in our sample data
@@ -337,7 +335,7 @@ describe('D2QL Wildcard Select', () => {
     }
   })
 
-  test('mix of wildcard and specific columns', () => {
+  test("mix of wildcard and specific columns", () => {
     const query: Query<
       Context & {
         schema: {
@@ -346,15 +344,15 @@ describe('D2QL Wildcard Select', () => {
         }
       }
     > = {
-      select: ['@u.*', { order_id: '@o.id' }],
-      from: 'users',
-      as: 'u',
+      select: ["@u.*", { order_id: "@o.id" }],
+      from: "users",
+      as: "u",
       join: [
         {
-          type: 'inner',
-          from: 'orders',
-          as: 'o',
-          on: ['@u.id', '=', '@o.userId'],
+          type: "inner",
+          from: "orders",
+          as: "o",
+          on: ["@u.id", "=", "@o.userId"],
         },
       ],
     }
@@ -368,12 +366,12 @@ describe('D2QL Wildcard Select', () => {
     for (const result of results) {
       // Check that the result has all user fields plus order_id
       const expectedFields = [
-        'id',
-        'name',
-        'age',
-        'email',
-        'active',
-        'order_id',
+        "id",
+        "name",
+        "age",
+        "email",
+        "active",
+        "order_id",
       ]
       expect(Object.keys(result).sort()).toEqual(expectedFields.sort())
 

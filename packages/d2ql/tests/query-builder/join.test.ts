@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { queryBuilder } from '../../../src/d2ql/query-builder/query-builder.js'
-import { Schema, Input } from '../../../src/d2ql/types.js'
+import { describe, it, expect } from "vitest"
+import { queryBuilder } from "../../src/query-builder/index.js"
+import { Schema, Input } from "../../src/types.js"
 
 // Test schema
 interface Employee extends Input {
@@ -23,15 +23,15 @@ interface TestSchema extends Schema {
   departments: Department
 }
 
-describe('QueryBuilder.join', () => {
-  it('adds a simple inner join', () => {
+describe("QueryBuilder.join", () => {
+  it("adds a simple inner join", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees', 'e')
+      .from("employees", "e")
       .join({
-        type: 'inner',
-        from: 'departments',
-        as: 'd',
-        on: ['@e.department_id', '=', '@d.id'],
+        type: "inner",
+        from: "departments",
+        as: "d",
+        on: ["@e.department_id", "=", "@d.id"],
       })
 
     const builtQuery = query.buildQuery()
@@ -39,133 +39,133 @@ describe('QueryBuilder.join', () => {
     const join = builtQuery.join!
     expect(join).toHaveLength(1)
     expect(join[0]).toMatchObject({
-      type: 'inner',
-      from: 'departments',
-      as: 'd',
-      on: ['@e.department_id', '=', '@d.id'],
+      type: "inner",
+      from: "departments",
+      as: "d",
+      on: ["@e.department_id", "=", "@d.id"],
     })
   })
 
-  it('supports all join types', () => {
-    const joinTypes = ['inner', 'left', 'right', 'full', 'cross'] as const
+  it("supports all join types", () => {
+    const joinTypes = ["inner", "left", "right", "full", "cross"] as const
 
     for (const type of joinTypes) {
       const query = queryBuilder<TestSchema>()
-        .from('employees', 'e')
+        .from("employees", "e")
         .join({
           type,
-          from: 'departments',
-          as: 'd',
-          on: ['@e.department_id', '=', '@d.id'],
+          from: "departments",
+          as: "d",
+          on: ["@e.department_id", "=", "@d.id"],
         })
 
       const builtQuery = query.buildQuery()
       expect(builtQuery.join).toBeDefined()
-      expect(builtQuery.join![0].type).toBe(type)
+      expect(builtQuery.join![0]!.type).toBe(type)
     }
   })
 
-  it('supports multiple joins', () => {
+  it("supports multiple joins", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees', 'e')
+      .from("employees", "e")
       .join({
-        type: 'inner',
-        from: 'departments',
-        as: 'd1',
-        on: ['@e.department_id', '=', '@d1.id'],
+        type: "inner",
+        from: "departments",
+        as: "d1",
+        on: ["@e.department_id", "=", "@d1.id"],
       })
       .join({
-        type: 'left',
-        from: 'departments',
-        as: 'd2',
-        on: ['@e.department_id', '=', '@d2.id'],
+        type: "left",
+        from: "departments",
+        as: "d2",
+        on: ["@e.department_id", "=", "@d2.id"],
       })
 
     const builtQuery = query.buildQuery()
     expect(builtQuery.join).toBeDefined()
     const join = builtQuery.join!
     expect(join).toHaveLength(2)
-    expect(join[0].type).toBe('inner')
-    expect(join[0].as).toBe('d1')
-    expect(join[1].type).toBe('left')
-    expect(join[1].as).toBe('d2')
+    expect(join[0]!.type).toBe("inner")
+    expect(join[0]!.as).toBe("d1")
+    expect(join[1]!.type).toBe("left")
+    expect(join[1]!.as).toBe("d2")
   })
 
-  it('allows join with a where condition', () => {
+  it("allows join with a where condition", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees', 'e')
+      .from("employees", "e")
       .join({
-        type: 'inner',
-        from: 'departments',
-        as: 'd',
-        on: ['@e.department_id', '=', '@d.id'],
-        where: ['@d.budget', '>', 1000000],
+        type: "inner",
+        from: "departments",
+        as: "d",
+        on: ["@e.department_id", "=", "@d.id"],
+        where: ["@d.budget", ">", 1000000],
       })
 
     const builtQuery = query.buildQuery()
     expect(builtQuery.join).toBeDefined()
-    expect(builtQuery.join![0].where).toEqual(['@d.budget', '>', 1000000])
+    expect(builtQuery.join![0]!.where).toEqual(["@d.budget", ">", 1000000])
   })
 
-  it('allows accessing joined table in select', () => {
+  it("allows accessing joined table in select", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees', 'e')
+      .from("employees", "e")
       .join({
-        type: 'inner',
-        from: 'departments',
-        as: 'd',
-        on: ['@e.department_id', '=', '@d.id'],
+        type: "inner",
+        from: "departments",
+        as: "d",
+        on: ["@e.department_id", "=", "@d.id"],
       })
-      .select('@e.id', '@e.name', '@d.name', '@d.budget')
+      .select("@e.id", "@e.name", "@d.name", "@d.budget")
 
     const builtQuery = query.buildQuery()
     expect(builtQuery.select).toEqual([
-      '@e.id',
-      '@e.name',
-      '@d.name',
-      '@d.budget',
+      "@e.id",
+      "@e.name",
+      "@d.name",
+      "@d.budget",
     ])
   })
 
-  it('allows accessing joined table in where', () => {
+  it("allows accessing joined table in where", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees', 'e')
+      .from("employees", "e")
       .join({
-        type: 'inner',
-        from: 'departments',
-        as: 'd',
-        on: ['@e.department_id', '=', '@d.id'],
+        type: "inner",
+        from: "departments",
+        as: "d",
+        on: ["@e.department_id", "=", "@d.id"],
       })
-      .where('@d.budget', '>', 1000000)
+      .where("@d.budget", ">", 1000000)
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.where).toEqual(['@d.budget', '>', 1000000])
+    expect(builtQuery.where).toEqual(["@d.budget", ">", 1000000])
   })
 
-  it('creates a complex query with multiple joins, select and where', () => {
+  it("creates a complex query with multiple joins, select and where", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees', 'e')
+      .from("employees", "e")
       .join({
-        type: 'inner',
-        from: 'departments',
-        as: 'd',
-        on: ['@e.department_id', '=', '@d.id'],
+        type: "inner",
+        from: "departments",
+        as: "d",
+        on: ["@e.department_id", "=", "@d.id"],
       })
-      .where('@e.salary', '>', 50000)
-      .where('@d.budget', '>', 1000000)
-      .select('@e.id', '@e.name', '@d.name', {
-        dept_location: '@d.location',
+      .where("@e.salary", ">", 50000)
+      .where("@d.budget", ">", 1000000)
+      .select("@e.id", "@e.name", "@d.name", {
+        dept_location: "@d.location",
       })
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.from).toBe('employees')
-    expect(builtQuery.as).toBe('e')
+    expect(builtQuery.from).toBe("employees")
+    expect(builtQuery.as).toBe("e")
     expect(builtQuery.join).toBeDefined()
     const join = builtQuery.join!
     expect(join).toHaveLength(1)
-    expect(join[0].type).toBe('inner')
-    expect(join[0].from).toBe('departments')
-    expect(join[0].as).toBe('d')
+    expect(join[0]!.type).toBe("inner")
+    expect(join[0]!.from).toBe("departments")
+    expect(join[0]!.as).toBe("d")
     expect(builtQuery.where).toBeDefined()
     expect(builtQuery.select).toHaveLength(4)
   })

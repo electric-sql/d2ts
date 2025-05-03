@@ -1,6 +1,5 @@
-import { keyBy } from '../operators/keying'
-import { IStreamBuilder } from '../types'
-import { Query } from './schema'
+import { keyBy, IStreamBuilder } from "@electric-sql/d2ts"
+import { Query } from "./schema"
 
 export function processKeyBy(
   resultPipeline: IStreamBuilder<

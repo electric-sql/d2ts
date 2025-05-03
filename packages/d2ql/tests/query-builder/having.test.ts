@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { queryBuilder } from '../../../src/d2ql/query-builder/query-builder.js'
-import { Schema, Input } from '../../../src/d2ql/types.js'
+import { describe, it, expect } from "vitest"
+import { queryBuilder } from "../../src/query-builder/index.js"
+import { Schema, Input } from "../../src/types.js"
 
 // Test schema
 interface Employee extends Input {
@@ -24,34 +24,34 @@ interface TestSchema extends Schema {
   departments: Department
 }
 
-describe('QueryBuilder.having', () => {
-  it('sets a simple having condition with property reference and literal', () => {
+describe("QueryBuilder.having", () => {
+  it("sets a simple having condition with property reference and literal", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees')
-      .having('@salary', '>', 50000)
+      .from("employees")
+      .having("@salary", ">", 50000)
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.having).toEqual(['@salary', '>', 50000])
+    expect(builtQuery.having).toEqual(["@salary", ">", 50000])
   })
 
-  it('supports various comparison operators', () => {
+  it("supports various comparison operators", () => {
     const operators = [
-      '=',
-      '!=',
-      '<',
-      '<=',
-      '>',
-      '>=',
-      'like',
-      'in',
-      'is',
-      'is not',
+      "=",
+      "!=",
+      "<",
+      "<=",
+      ">",
+      ">=",
+      "like",
+      "in",
+      "is",
+      "is not",
     ] as const
 
     for (const op of operators) {
       const query = queryBuilder<TestSchema>()
-        .from('employees')
-        .having('@salary', op as any, 50000)
+        .from("employees")
+        .having("@salary", op as any, 50000)
 
       const builtQuery = query.buildQuery()
       expect(builtQuery.having).toBeDefined()
@@ -60,85 +60,85 @@ describe('QueryBuilder.having', () => {
     }
   })
 
-  it('allows comparing property references to property references', () => {
+  it("allows comparing property references to property references", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees', 'e')
+      .from("employees", "e")
       .join({
-        type: 'inner',
-        from: 'departments',
-        as: 'd',
-        on: ['@e.department_id', '=', '@d.id'],
+        type: "inner",
+        from: "departments",
+        as: "d",
+        on: ["@e.department_id", "=", "@d.id"],
       })
-      .having('@e.salary', '>', '@d.budget')
+      .having("@e.salary", ">", "@d.budget")
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.having).toEqual(['@e.salary', '>', '@d.budget'])
+    expect(builtQuery.having).toEqual(["@e.salary", ">", "@d.budget"])
   })
 
-  it('allows comparing literals to property references', () => {
+  it("allows comparing literals to property references", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees')
-      .having(50000, '<', '@salary')
+      .from("employees")
+      .having(50000, "<", "@salary")
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.having).toEqual([50000, '<', '@salary'])
+    expect(builtQuery.having).toEqual([50000, "<", "@salary"])
   })
 
-  it('combines multiple having calls with AND', () => {
+  it("combines multiple having calls with AND", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees')
-      .having('@salary', '>', 50000)
-      .having('@active', '=', true)
+      .from("employees")
+      .having("@salary", ">", 50000)
+      .having("@active", "=", true)
 
     const builtQuery = query.buildQuery()
     expect(builtQuery.having).toEqual([
-      ['@salary', '>', 50000],
-      'and',
-      ['@active', '=', true],
+      ["@salary", ">", 50000],
+      "and",
+      ["@active", "=", true],
     ])
   })
 
-  it('supports passing a complete condition', () => {
-    const condition = ['@salary', '>', 50000] as any
+  it("supports passing a complete condition", () => {
+    const condition = ["@salary", ">", 50000] as any
 
-    const query = queryBuilder<TestSchema>().from('employees').having(condition)
+    const query = queryBuilder<TestSchema>().from("employees").having(condition)
 
     const builtQuery = query.buildQuery()
     expect(builtQuery.having).toEqual(condition)
   })
 
-  it('works in a practical example with groupBy', () => {
+  it("works in a practical example with groupBy", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees', 'e')
+      .from("employees", "e")
       .join({
-        type: 'inner',
-        from: 'departments',
-        as: 'd',
-        on: ['@e.department_id', '=', '@d.id'],
+        type: "inner",
+        from: "departments",
+        as: "d",
+        on: ["@e.department_id", "=", "@d.id"],
       })
-      .select('@d.name', { avg_salary: { SUM: '@e.salary' } as any })
-      .groupBy('@d.name')
-      .having({ SUM: '@e.salary' } as any, '>', 100000)
+      .select("@d.name", { avg_salary: { SUM: "@e.salary" } as any })
+      .groupBy("@d.name")
+      .having({ SUM: "@e.salary" } as any, ">", 100000)
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.groupBy).toBe('@d.name')
-    expect(builtQuery.having).toEqual([{ SUM: '@e.salary' }, '>', 100000])
+    expect(builtQuery.groupBy).toBe("@d.name")
+    expect(builtQuery.having).toEqual([{ SUM: "@e.salary" }, ">", 100000])
   })
 
-  it('allows combining with other query methods', () => {
+  it("allows combining with other query methods", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees', 'e')
+      .from("employees", "e")
       .join({
-        type: 'inner',
-        from: 'departments',
-        as: 'd',
-        on: ['@e.department_id', '=', '@d.id'],
+        type: "inner",
+        from: "departments",
+        as: "d",
+        on: ["@e.department_id", "=", "@d.id"],
       })
-      .where('@e.active', '=', true)
-      .groupBy('@d.name')
-      .having('@e.salary', '>', 50000)
-      .select('@d.name', { total_salary: { SUM: '@e.salary' } as any })
-      .orderBy('@d.name')
+      .where("@e.active", "=", true)
+      .groupBy("@d.name")
+      .having("@e.salary", ">", 50000)
+      .select("@d.name", { total_salary: { SUM: "@e.salary" } as any })
+      .orderBy("@d.name")
       .limit(10)
 
     const builtQuery = query.buildQuery()

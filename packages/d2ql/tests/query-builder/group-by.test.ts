@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { queryBuilder } from '../../../src/d2ql/query-builder/query-builder.js'
-import { Schema, Input } from '../../../src/d2ql/types.js'
+import { describe, it, expect } from "vitest"
+import { queryBuilder } from "../../src/query-builder/index.js"
+import { Schema, Input } from "../../src/types.js"
 
 // Test schema
 interface Employee extends Input {
@@ -23,95 +23,95 @@ interface TestSchema extends Schema {
   departments: Department
 }
 
-describe('QueryBuilder.groupBy', () => {
-  it('sets a single property reference as groupBy', () => {
+describe("QueryBuilder.groupBy", () => {
+  it("sets a single property reference as groupBy", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees')
-      .select('@department_id', { count: { COUNT: '@id' } as any })
-      .groupBy('@department_id')
+      .from("employees")
+      .select("@department_id", { count: { COUNT: "@id" } as any })
+      .groupBy("@department_id")
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.groupBy).toBe('@department_id')
+    expect(builtQuery.groupBy).toBe("@department_id")
   })
 
-  it('sets an array of property references as groupBy', () => {
+  it("sets an array of property references as groupBy", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees')
-      .select('@department_id', '@salary', { count: { COUNT: '@id' } as any })
-      .groupBy(['@department_id', '@salary'])
+      .from("employees")
+      .select("@department_id", "@salary", { count: { COUNT: "@id" } as any })
+      .groupBy(["@department_id", "@salary"])
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.groupBy).toEqual(['@department_id', '@salary'])
+    expect(builtQuery.groupBy).toEqual(["@department_id", "@salary"])
   })
 
-  it('overrides previous groupBy values', () => {
+  it("overrides previous groupBy values", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees')
-      .select('@department_id', '@salary', { count: { COUNT: '@id' } as any })
-      .groupBy('@department_id')
-      .groupBy('@salary') // This should override
+      .from("employees")
+      .select("@department_id", "@salary", { count: { COUNT: "@id" } as any })
+      .groupBy("@department_id")
+      .groupBy("@salary") // This should override
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.groupBy).toBe('@salary')
+    expect(builtQuery.groupBy).toBe("@salary")
   })
 
-  it('works with joined tables', () => {
+  it("works with joined tables", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees', 'e')
+      .from("employees", "e")
       .join({
-        type: 'inner',
-        from: 'departments',
-        as: 'd',
-        on: ['@e.department_id', '=', '@d.id'],
+        type: "inner",
+        from: "departments",
+        as: "d",
+        on: ["@e.department_id", "=", "@d.id"],
       })
-      .select('@d.name', { avg_salary: { AVG: '@e.salary' } as any })
-      .groupBy('@d.name')
+      .select("@d.name", { avg_salary: { AVG: "@e.salary" } as any })
+      .groupBy("@d.name")
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.groupBy).toBe('@d.name')
+    expect(builtQuery.groupBy).toBe("@d.name")
   })
 
-  it('allows combining with having for filtered aggregations', () => {
+  it("allows combining with having for filtered aggregations", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees', 'e')
+      .from("employees", "e")
       .join({
-        type: 'inner',
-        from: 'departments',
-        as: 'd',
-        on: ['@e.department_id', '=', '@d.id'],
+        type: "inner",
+        from: "departments",
+        as: "d",
+        on: ["@e.department_id", "=", "@d.id"],
       })
-      .select('@d.name', { total_salary: { SUM: '@e.salary' } as any })
-      .groupBy('@d.name')
-      .having({ SUM: '@e.salary' } as any, '>', 100000)
+      .select("@d.name", { total_salary: { SUM: "@e.salary" } as any })
+      .groupBy("@d.name")
+      .having({ SUM: "@e.salary" } as any, ">", 100000)
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.groupBy).toBe('@d.name')
-    expect(builtQuery.having).toEqual([{ SUM: '@e.salary' }, '>', 100000])
+    expect(builtQuery.groupBy).toBe("@d.name")
+    expect(builtQuery.having).toEqual([{ SUM: "@e.salary" }, ">", 100000])
   })
 
-  it('can be combined with other query methods', () => {
+  it("can be combined with other query methods", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees', 'e')
+      .from("employees", "e")
       .join({
-        type: 'inner',
-        from: 'departments',
-        as: 'd',
-        on: ['@e.department_id', '=', '@d.id'],
+        type: "inner",
+        from: "departments",
+        as: "d",
+        on: ["@e.department_id", "=", "@d.id"],
       })
-      .where('@e.salary', '>', 50000)
-      .select('@d.name', { count: { COUNT: '@e.id' } as any })
-      .groupBy('@d.name')
-      .having({ COUNT: '@e.id' } as any, '>', 5)
-      .orderBy('@d.name')
+      .where("@e.salary", ">", 50000)
+      .select("@d.name", { count: { COUNT: "@e.id" } as any })
+      .groupBy("@d.name")
+      .having({ COUNT: "@e.id" } as any, ">", 5)
+      .orderBy("@d.name")
       .limit(10)
 
     const builtQuery = query.buildQuery()
 
     // Check groupBy
-    expect(builtQuery.groupBy).toBe('@d.name')
+    expect(builtQuery.groupBy).toBe("@d.name")
 
     // Also verify all other parts of the query are present
-    expect(builtQuery.from).toBe('employees')
+    expect(builtQuery.from).toBe("employees")
     expect(builtQuery.join).toBeDefined()
     expect(builtQuery.where).toBeDefined()
     expect(builtQuery.select).toBeDefined()

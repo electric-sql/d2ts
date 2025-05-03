@@ -1,5 +1,5 @@
 import { map, reduce, consolidate } from '@electric-sql/d2ts'
-import { Store } from '@electric-sql/d2ts/store'
+import { Store } from '@electric-sql/d2ql/store'
 
 type FruitOrder = {
   name: string

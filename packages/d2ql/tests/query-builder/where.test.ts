@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { queryBuilder } from '../../../src/d2ql/query-builder/query-builder.js'
-import { Schema, Input } from '../../../src/d2ql/types.js'
+import { describe, it, expect } from "vitest"
+import { queryBuilder } from "../../src/query-builder/index.js"
+import { Schema, Input } from "../../src/types.js"
 
 // Test schema
 interface Employee extends Input {
@@ -23,34 +23,34 @@ interface TestSchema extends Schema {
   departments: Department
 }
 
-describe('QueryBuilder.where', () => {
-  it('sets a simple condition with property reference and literal', () => {
+describe("QueryBuilder.where", () => {
+  it("sets a simple condition with property reference and literal", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees')
-      .where('@id', '=', 1)
+      .from("employees")
+      .where("@id", "=", 1)
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.where).toEqual(['@id', '=', 1])
+    expect(builtQuery.where).toEqual(["@id", "=", 1])
   })
 
-  it('supports various comparison operators', () => {
+  it("supports various comparison operators", () => {
     const operators = [
-      '=',
-      '!=',
-      '<',
-      '<=',
-      '>',
-      '>=',
-      'like',
-      'in',
-      'is',
-      'is not',
+      "=",
+      "!=",
+      "<",
+      "<=",
+      ">",
+      ">=",
+      "like",
+      "in",
+      "is",
+      "is not",
     ] as const
 
     for (const op of operators) {
       const query = queryBuilder<TestSchema>()
-        .from('employees')
-        .where('@id', op as any, 1)
+        .from("employees")
+        .where("@id", op as any, 1)
 
       const builtQuery = query.buildQuery()
       expect(builtQuery.where).toBeDefined()
@@ -60,83 +60,83 @@ describe('QueryBuilder.where', () => {
     }
   })
 
-  it('allows comparing property references to property references', () => {
+  it("allows comparing property references to property references", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees', 'e')
-      .where('@e.department_id', '=', '@department.id')
+      .from("employees", "e")
+      .where("@e.department_id", "=", "@department.id")
 
     const builtQuery = query.buildQuery()
     expect(builtQuery.where).toEqual([
-      '@e.department_id',
-      '=',
-      '@department.id',
+      "@e.department_id",
+      "=",
+      "@department.id",
     ])
   })
 
-  it('allows comparing literals to property references', () => {
+  it("allows comparing literals to property references", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees')
-      .where(10000, '<', '@salary')
+      .from("employees")
+      .where(10000, "<", "@salary")
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.where).toEqual([10000, '<', '@salary'])
+    expect(builtQuery.where).toEqual([10000, "<", "@salary"])
   })
 
-  it('supports boolean literals', () => {
+  it("supports boolean literals", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees')
-      .where('@active', '=', true)
+      .from("employees")
+      .where("@active", "=", true)
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.where).toEqual(['@active', '=', true])
+    expect(builtQuery.where).toEqual(["@active", "=", true])
   })
 
-  it('combines multiple where calls with AND', () => {
+  it("combines multiple where calls with AND", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees')
-      .where('@id', '>', 10)
-      .where('@salary', '>=', 50000)
+      .from("employees")
+      .where("@id", ">", 10)
+      .where("@salary", ">=", 50000)
 
     const builtQuery = query.buildQuery()
     expect(builtQuery.where).toEqual([
-      ['@id', '>', 10],
-      'and',
-      ['@salary', '>=', 50000],
+      ["@id", ">", 10],
+      "and",
+      ["@salary", ">=", 50000],
     ])
   })
 
-  it('handles multiple chained where clauses', () => {
+  it("handles multiple chained where clauses", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees')
-      .where('@id', '>', 10)
-      .where('@salary', '>=', 50000)
-      .where('@active', '=', true)
+      .from("employees")
+      .where("@id", ">", 10)
+      .where("@salary", ">=", 50000)
+      .where("@active", "=", true)
 
     const builtQuery = query.buildQuery()
     expect(builtQuery.where).toEqual([
-      [['@id', '>', 10], 'and', ['@salary', '>=', 50000]],
-      'and',
-      ['@active', '=', true],
+      [["@id", ">", 10], "and", ["@salary", ">=", 50000]],
+      "and",
+      ["@active", "=", true],
     ])
   })
 
-  it('supports passing a complete condition', () => {
-    const condition = ['@id', '=', 1] as any
+  it("supports passing a complete condition", () => {
+    const condition = ["@id", "=", 1] as any
 
-    const query = queryBuilder<TestSchema>().from('employees').where(condition)
+    const query = queryBuilder<TestSchema>().from("employees").where(condition)
 
     const builtQuery = query.buildQuery()
     expect(builtQuery.where).toEqual(condition)
   })
 
-  it('allows combining with other methods', () => {
+  it("allows combining with other methods", () => {
     const query = queryBuilder<TestSchema>()
-      .from('employees')
-      .where('@salary', '>', 50000)
-      .select('@id', '@name', '@salary')
+      .from("employees")
+      .where("@salary", ">", 50000)
+      .select("@id", "@name", "@salary")
 
     const builtQuery = query.buildQuery()
-    expect(builtQuery.where).toEqual(['@salary', '>', 50000])
-    expect(builtQuery.select).toEqual(['@id', '@name', '@salary'])
+    expect(builtQuery.where).toEqual(["@salary", ">", 50000])
+    expect(builtQuery.select).toEqual(["@id", "@name", "@salary"])
   })
 })

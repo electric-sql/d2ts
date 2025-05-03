@@ -29,6 +29,10 @@
     "./query-builder": {
       "types": "./dist/query-builder/index.d.ts",
       "default": "./dist/query-builder/index.js"
+    },
+    "./store": {
+      "types": "./dist/store.d.ts",
+      "default": "./dist/store.js"
     }
   },
   "scripts": {

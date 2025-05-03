@@ -32,18 +32,6 @@
     "./electric": {
       "types": "./dist/electric/index.d.ts",
       "default": "./dist/electric/index.js"
-    },
-    "./store": {
-      "types": "./dist/store.d.ts",
-      "default": "./dist/store.js"
-    },
-    "./d2ql": {
-      "types": "./dist/d2ql/index.d.ts",
-      "default": "./dist/d2ql/index.js"
-    },
-    "./d2ql/query-builder": {
-      "types": "./dist/d2ql/query-builder/index.d.ts",
-      "default": "./dist/d2ql/query-builder/index.js"
     }
   },
   "scripts": {

@@ -1,12 +1,14 @@
-import { describe, test, expect } from 'vitest'
-import { D2 } from '../../d2ts/src/d2.js'
-import { MultiSet } from '../../d2ts/src/multiset.js'
-import { Message, MessageType } from '../../d2ts/src/types.js'
-import { output } from '../../d2ts/src/operators/index.js'
-import { v, Antichain } from '../../d2ts/src/order.js'
-import { Query } from '../../src/d2ql/index.js'
-import { compileQuery } from '../../src/d2ql/compiler.js'
-import { Keyed } from '../../d2ts/src/operators/keying.js'
+import { describe, test, expect } from "vitest"
+import {
+  D2,
+  MessageType,
+  output,
+  MultiSet,
+  Message,
+  Keyed,
+} from "@electric-sql/d2ts"
+import { v, Antichain } from "@electric-sql/d2ts"
+import { Query, compileQuery } from "../src/index.js"
 
 // Sample user type for tests
 type User = {
@@ -34,56 +36,56 @@ type Context = {
 const sampleUsers: User[] = [
   {
     id: 1,
-    name: 'Alice',
+    name: "Alice",
     age: 25,
-    email: 'alice@example.com',
+    email: "alice@example.com",
     active: true,
     metadata: {
-      createdAt: '2023-01-01',
-      tags: ['admin', 'user'],
+      createdAt: "2023-01-01",
+      tags: ["admin", "user"],
     },
   },
   {
     id: 2,
-    name: 'Bob',
+    name: "Bob",
     age: 19,
-    email: 'bob@example.com',
+    email: "bob@example.com",
     active: true,
     metadata: {
-      createdAt: '2023-02-15',
-      tags: ['user'],
+      createdAt: "2023-02-15",
+      tags: ["user"],
     },
   },
   {
     id: 3,
-    name: 'Charlie',
+    name: "Charlie",
     age: 30,
-    email: 'charlie@example.com',
+    email: "charlie@example.com",
     active: false,
     metadata: {
-      createdAt: '2023-03-20',
-      tags: ['user', 'tester'],
+      createdAt: "2023-03-20",
+      tags: ["user", "tester"],
     },
   },
   {
     id: 4,
-    name: 'Dave',
+    name: "Dave",
     age: 22,
-    email: 'dave@example.com',
+    email: "dave@example.com",
     active: true,
     metadata: {
-      createdAt: '2023-04-10',
-      tags: ['user'],
+      createdAt: "2023-04-10",
+      tags: ["user"],
     },
   },
 ]
 
-describe('D2QL keyBy', () => {
-  test('keyBy with a single string column', () => {
+describe("Query keyBy", () => {
+  test("keyBy with a single string column", () => {
     const query: Query<Context> = {
-      select: ['@id', '@name', '@age', '@email'],
-      from: 'users',
-      keyBy: '@id',
+      select: ["@id", "@name", "@age", "@email"],
+      from: "users",
+      keyBy: "@id",
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -94,14 +96,14 @@ describe('D2QL keyBy', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
 
     input.sendData(
       v([1, 0]),
-      new MultiSet(sampleUsers.map((user) => [user, 1])),
+      new MultiSet(sampleUsers.map((user) => [user, 1]))
     )
     input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -112,7 +114,7 @@ describe('D2QL keyBy', () => {
     expect(dataMessages).toHaveLength(1)
 
     // Get the keyed data from the message
-    const keyedData = dataMessages[0].data.collection.getInner()
+    const keyedData = dataMessages[0]!.data.collection.getInner()
     expect(keyedData).toHaveLength(4)
 
     // Check that the data is keyed by id
@@ -120,24 +122,24 @@ describe('D2QL keyBy', () => {
       const [key, value] = keyedItem as Keyed<number, Record<string, unknown>>
 
       // The key should be a number (the id)
-      expect(typeof key).toBe('number')
+      expect(typeof key).toBe("number")
 
       // The value should have the id, name, age, and email properties
-      expect(value).toHaveProperty('id', key)
-      expect(value).toHaveProperty('name')
-      expect(value).toHaveProperty('age')
-      expect(value).toHaveProperty('email')
+      expect(value).toHaveProperty("id", key)
+      expect(value).toHaveProperty("name")
+      expect(value).toHaveProperty("age")
+      expect(value).toHaveProperty("email")
 
       // Verify that the key matches the id in the value
       expect(key).toBe(value.id)
     })
   })
 
-  test('keyBy with a single numeric column', () => {
+  test("keyBy with a single numeric column", () => {
     const query: Query<Context> = {
-      select: ['@id', '@name', '@age', '@email'],
-      from: 'users',
-      keyBy: '@age',
+      select: ["@id", "@name", "@age", "@email"],
+      from: "users",
+      keyBy: "@age",
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -148,14 +150,14 @@ describe('D2QL keyBy', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
 
     input.sendData(
       v([1, 0]),
-      new MultiSet(sampleUsers.map((user) => [user, 1])),
+      new MultiSet(sampleUsers.map((user) => [user, 1]))
     )
     input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -163,25 +165,25 @@ describe('D2QL keyBy', () => {
 
     // Get the keyed data from the message
     const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-    const keyedData = dataMessages[0].data.collection.getInner()
+    const keyedData = dataMessages[0]!.data.collection.getInner()
 
     // Check that the data is keyed by age
     keyedData.forEach(([keyedItem]) => {
       const [key, value] = keyedItem as Keyed<number, Record<string, unknown>>
 
       // The key should be a number (the age)
-      expect(typeof key).toBe('number')
+      expect(typeof key).toBe("number")
 
       // Verify that the key matches the age in the value
       expect(key).toBe(value.age)
     })
   })
 
-  test('keyBy with a complex object column (JSON serialized)', () => {
+  test("keyBy with a complex object column (JSON serialized)", () => {
     const query: Query<Context> = {
-      select: ['@id', '@name', '@metadata'],
-      from: 'users',
-      keyBy: '@metadata',
+      select: ["@id", "@name", "@metadata"],
+      from: "users",
+      keyBy: "@metadata",
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -192,14 +194,14 @@ describe('D2QL keyBy', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
 
     input.sendData(
       v([1, 0]),
-      new MultiSet(sampleUsers.map((user) => [user, 1])),
+      new MultiSet(sampleUsers.map((user) => [user, 1]))
     )
     input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -207,30 +209,30 @@ describe('D2QL keyBy', () => {
 
     // Get the keyed data from the message
     const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-    const keyedData = dataMessages[0].data.collection.getInner()
+    const keyedData = dataMessages[0]!.data.collection.getInner()
 
     // Check that the data is keyed by metadata (serialized)
     keyedData.forEach(([keyedItem]) => {
       const [key, value] = keyedItem as Keyed<string, Record<string, unknown>>
 
       // The key should be a string (serialized metadata)
-      expect(typeof key).toBe('string')
+      expect(typeof key).toBe("string")
 
       // We should be able to parse it back to an object
       const parsedKey = JSON.parse(key)
-      expect(parsedKey).toHaveProperty('createdAt')
-      expect(parsedKey).toHaveProperty('tags')
+      expect(parsedKey).toHaveProperty("createdAt")
+      expect(parsedKey).toHaveProperty("tags")
 
       // The parsed key should match the metadata in the value
       expect(parsedKey).toEqual(value.metadata)
     })
   })
 
-  test('keyBy with multiple columns', () => {
+  test("keyBy with multiple columns", () => {
     const query: Query<Context> = {
-      select: ['@id', '@name', '@age', '@active'],
-      from: 'users',
-      keyBy: ['@name', '@age'],
+      select: ["@id", "@name", "@age", "@active"],
+      from: "users",
+      keyBy: ["@name", "@age"],
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -241,14 +243,14 @@ describe('D2QL keyBy', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
 
     input.sendData(
       v([1, 0]),
-      new MultiSet(sampleUsers.map((user) => [user, 1])),
+      new MultiSet(sampleUsers.map((user) => [user, 1]))
     )
     input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -256,19 +258,19 @@ describe('D2QL keyBy', () => {
 
     // Get the keyed data from the message
     const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-    const keyedData = dataMessages[0].data.collection.getInner()
+    const keyedData = dataMessages[0]!.data.collection.getInner()
 
     // Check that the data is keyed by name and age
     keyedData.forEach(([keyedItem]) => {
       const [key, value] = keyedItem as Keyed<string, Record<string, unknown>>
 
       // The key should be a string (serialized object with name and age)
-      expect(typeof key).toBe('string')
+      expect(typeof key).toBe("string")
 
       // We should be able to parse it back to an object
       const parsedKey = JSON.parse(key)
-      expect(parsedKey).toHaveProperty('name')
-      expect(parsedKey).toHaveProperty('age')
+      expect(parsedKey).toHaveProperty("name")
+      expect(parsedKey).toHaveProperty("age")
 
       // The parsed key should match the name and age in the value
       expect(parsedKey.name).toBe(value.name)
@@ -276,11 +278,11 @@ describe('D2QL keyBy', () => {
     })
   })
 
-  test('keyBy with wildcard select', () => {
+  test("keyBy with wildcard select", () => {
     const query: Query<Context> = {
-      select: ['@*'],
-      from: 'users',
-      keyBy: '@id',
+      select: ["@*"],
+      from: "users",
+      keyBy: "@id",
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -291,14 +293,14 @@ describe('D2QL keyBy', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
 
     input.sendData(
       v([1, 0]),
-      new MultiSet(sampleUsers.map((user) => [user, 1])),
+      new MultiSet(sampleUsers.map((user) => [user, 1]))
     )
     input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -306,30 +308,30 @@ describe('D2QL keyBy', () => {
 
     // Get the keyed data from the message
     const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-    const keyedData = dataMessages[0].data.collection.getInner()
+    const keyedData = dataMessages[0]!.data.collection.getInner()
 
     // Check that the data is keyed by id
     keyedData.forEach(([keyedItem]) => {
       const [key, value] = keyedItem as Keyed<number, Record<string, unknown>>
 
       // The key should be a number (the id)
-      expect(typeof key).toBe('number')
+      expect(typeof key).toBe("number")
 
       // The value should have all properties
-      expect(value).toHaveProperty('id', key)
-      expect(value).toHaveProperty('name')
-      expect(value).toHaveProperty('age')
-      expect(value).toHaveProperty('email')
-      expect(value).toHaveProperty('active')
-      expect(value).toHaveProperty('metadata')
+      expect(value).toHaveProperty("id", key)
+      expect(value).toHaveProperty("name")
+      expect(value).toHaveProperty("age")
+      expect(value).toHaveProperty("email")
+      expect(value).toHaveProperty("active")
+      expect(value).toHaveProperty("metadata")
     })
   })
 
-  test('keyBy with column not in select throws error', () => {
+  test("keyBy with column not in select throws error", () => {
     const query: Query<Context> = {
-      select: ['@id', '@name'],
-      from: 'users',
-      keyBy: '@age', // age is not in select
+      select: ["@id", "@name"],
+      from: "users",
+      keyBy: "@age", // age is not in select
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -345,7 +347,7 @@ describe('D2QL keyBy', () => {
 
       input.sendData(
         v([1, 0]),
-        new MultiSet(sampleUsers.map((user) => [user, 1])),
+        new MultiSet(sampleUsers.map((user) => [user, 1]))
       )
       input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -353,12 +355,12 @@ describe('D2QL keyBy', () => {
     }).toThrow(/Key column "age" not found in result set/)
   })
 
-  test('keyBy with filtered data', () => {
+  test("keyBy with filtered data", () => {
     const query: Query<Context> = {
-      select: ['@id', '@name', '@age', '@active'],
-      from: 'users',
-      where: ['@age', '>', 20],
-      keyBy: '@id',
+      select: ["@id", "@name", "@age", "@active"],
+      from: "users",
+      where: ["@age", ">", 20],
+      keyBy: "@id",
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -369,14 +371,14 @@ describe('D2QL keyBy', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
 
     input.sendData(
       v([1, 0]),
-      new MultiSet(sampleUsers.map((user) => [user, 1])),
+      new MultiSet(sampleUsers.map((user) => [user, 1]))
     )
     input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -384,7 +386,7 @@ describe('D2QL keyBy', () => {
 
     // Get the keyed data from the message
     const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-    const keyedData = dataMessages[0].data.collection.getInner()
+    const keyedData = dataMessages[0]!.data.collection.getInner()
 
     // Should only have users with age > 20
     expect(keyedData).toHaveLength(3) // Alice, Charlie, Dave
@@ -394,7 +396,7 @@ describe('D2QL keyBy', () => {
       const [key, value] = keyedItem as Keyed<number, Record<string, unknown>>
 
       // The key should be a number (the id)
-      expect(typeof key).toBe('number')
+      expect(typeof key).toBe("number")
 
       // The value should have age > 20
       expect(Number(value.age)).toBeGreaterThan(20)

@@ -1,12 +1,16 @@
-import { describe, it, expect } from 'vitest'
-import { D2 } from '../../d2ts/src/d2.js'
-import { MultiSet } from '../../d2ts/src/multiset.js'
-import { Message, MessageType } from '../../d2ts/src/types.js'
-import { output } from '../../d2ts/src/operators/index.js'
-import { v, Antichain } from '../../d2ts/src/order.js'
-import { Query, Condition, compileQuery } from '../../src/d2ql/index.js'
+import { describe, it, expect } from "vitest"
+import {
+  D2,
+  MessageType,
+  output,
+  v,
+  Antichain,
+  MultiSet,
+  Message,
+} from "@electric-sql/d2ts"
+import { Query, Condition, compileQuery } from "../src/index.js"
 
-describe('D2QL - IN Operator', () => {
+describe("Query - IN Operator", () => {
   // Sample test data
   type TestItem = {
     id: number
@@ -31,53 +35,53 @@ describe('D2QL - IN Operator', () => {
   const testData: TestItem[] = [
     {
       id: 1,
-      name: 'Laptop',
-      tags: ['electronics', 'tech', 'portable'],
-      category: 'Electronics',
+      name: "Laptop",
+      tags: ["electronics", "tech", "portable"],
+      category: "Electronics",
       price: 1200,
       isActive: true,
-      metadata: { brand: 'TechBrand', model: 'X15' },
+      metadata: { brand: "TechBrand", model: "X15" },
     },
     {
       id: 2,
-      name: 'Smartphone',
-      tags: ['electronics', 'tech', 'mobile'],
-      category: 'Electronics',
+      name: "Smartphone",
+      tags: ["electronics", "tech", "mobile"],
+      category: "Electronics",
       price: 800,
       isActive: true,
-      metadata: { brand: 'PhoneCo', model: 'P10' },
+      metadata: { brand: "PhoneCo", model: "P10" },
     },
     {
       id: 3,
-      name: 'Desk',
-      tags: ['furniture', 'office', 'wood'],
-      category: 'Furniture',
+      name: "Desk",
+      tags: ["furniture", "office", "wood"],
+      category: "Furniture",
       price: 350,
       isActive: false,
     },
     {
       id: 4,
-      name: 'Book',
-      tags: ['education', 'reading'],
-      category: 'Books',
+      name: "Book",
+      tags: ["education", "reading"],
+      category: "Books",
       price: 25,
       isActive: true,
     },
     {
       id: 5,
-      name: 'Headphones',
-      tags: ['electronics', 'audio'],
-      category: 'Electronics',
+      name: "Headphones",
+      tags: ["electronics", "audio"],
+      category: "Electronics",
       price: 150,
       isActive: undefined,
     },
   ]
 
-  it('should handle basic IN operator with simple values', () => {
+  it("should handle basic IN operator with simple values", () => {
     const query: Query<Context> = {
-      select: ['@id', '@name', '@category'],
-      from: 'items',
-      where: ['@category', 'in', ['Electronics', 'Books']] as Condition,
+      select: ["@id", "@name", "@category"],
+      from: "items",
+      where: ["@category", "in", ["Electronics", "Books"]] as Condition,
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -88,7 +92,7 @@ describe('D2QL - IN Operator', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
@@ -107,11 +111,11 @@ describe('D2QL - IN Operator', () => {
     expect(results.map((item) => item.id).sort()).toEqual([1, 2, 4, 5])
   })
 
-  it('should use case-sensitive string matching by default', () => {
+  it("should use case-sensitive string matching by default", () => {
     const query: Query<Context> = {
-      select: ['@id', '@name'],
-      from: 'items',
-      where: ['@category', 'in', ['electronics', 'books']] as Condition, // lowercase categories
+      select: ["@id", "@name"],
+      from: "items",
+      where: ["@category", "in", ["electronics", "books"]] as Condition, // lowercase categories
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -122,7 +126,7 @@ describe('D2QL - IN Operator', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
@@ -141,11 +145,11 @@ describe('D2QL - IN Operator', () => {
     expect(results).toHaveLength(0) // No results due to case-sensitivity
   })
 
-  it('should handle NOT IN operator correctly', () => {
+  it("should handle NOT IN operator correctly", () => {
     const query: Query<Context> = {
-      select: ['@id', '@name', '@category'],
-      from: 'items',
-      where: ['@category', 'not in', ['Electronics', 'Books']] as Condition,
+      select: ["@id", "@name", "@category"],
+      from: "items",
+      where: ["@category", "not in", ["Electronics", "Books"]] as Condition,
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -156,7 +160,7 @@ describe('D2QL - IN Operator', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
@@ -173,14 +177,14 @@ describe('D2QL - IN Operator', () => {
     // Should return items NOT in Electronics or Books categories (just Furniture - id 3)
     expect(results).toHaveLength(1)
     expect(results[0].id).toBe(3)
-    expect(results[0].category).toBe('Furniture')
+    expect(results[0].category).toBe("Furniture")
   })
 
-  it('should handle type coercion between numbers and strings', () => {
+  it("should handle type coercion between numbers and strings", () => {
     const query: Query<Context> = {
-      select: ['@id', '@name'],
-      from: 'items',
-      where: ['@id', 'in', ['1', '2', '3']] as Condition, // String IDs instead of numbers
+      select: ["@id", "@name"],
+      from: "items",
+      where: ["@id", "in", ["1", "2", "3"]] as Condition, // String IDs instead of numbers
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -191,7 +195,7 @@ describe('D2QL - IN Operator', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
@@ -210,18 +214,18 @@ describe('D2QL - IN Operator', () => {
     expect(results.map((item) => item.id).sort()).toEqual([1, 2, 3])
   })
 
-  it('should handle array-to-array comparisons with IN operator', () => {
+  it("should handle array-to-array comparisons with IN operator", () => {
     // Note: This test is still experimental. The proper syntax for array-to-array
-    // comparisons needs further investigation. Currently, D2QL doesn't handle
+    // comparisons needs further investigation. Currently, Query doesn't handle
     // the array-to-array case in the way we tried to test here.
     //
     // FUTURE ENHANCEMENT: Implement a specialized function or operator for checking
     // if any element of array1 exists in array2.
     const query: Query<Context> = {
-      select: ['@id', '@name', '@tags'],
-      from: 'items',
+      select: ["@id", "@name", "@tags"],
+      from: "items",
       where: [
-        ['@tags', 'in', [['electronics'], ['audio']]] as unknown as Condition,
+        ["@tags", "in", [["electronics"], ["audio"]]] as unknown as Condition,
       ] as unknown as Condition,
     }
 
@@ -233,7 +237,7 @@ describe('D2QL - IN Operator', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
@@ -247,15 +251,14 @@ describe('D2QL - IN Operator', () => {
     const results =
       dataMessages[0]?.data.collection.getInner().map(([data]) => data) || []
 
-    // This test is to verify array-to-array functionality - we need to investigate the proper syntax
-    // for now, we'll skip the assertions
+    // TODO: Finish this test!
   })
 
-  it('should handle null values correctly with IN operator', () => {
+  it("should handle null values correctly with IN operator", () => {
     const query: Query<Context> = {
-      select: ['@id', '@name', '@isActive'],
-      from: 'items',
-      where: ['@isActive', 'in', [null, false]] as Condition,
+      select: ["@id", "@name", "@isActive"],
+      from: "items",
+      where: ["@isActive", "in", [null, false]] as Condition,
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -266,7 +269,7 @@ describe('D2QL - IN Operator', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
@@ -285,7 +288,7 @@ describe('D2QL - IN Operator', () => {
     expect(results.map((item) => item.id).sort()).toEqual([3, 5])
   })
 
-  it('should handle object comparison with IN operator', () => {
+  it("should handle object comparison with IN operator", () => {
     // Note: This test is still experimental. The current JSON stringification approach
     // for comparing objects is not perfect. It doesn't handle object key ordering differences
     // and may have limitations with nested or circular structures.
@@ -293,14 +296,14 @@ describe('D2QL - IN Operator', () => {
     // FUTURE ENHANCEMENT: Implement a more robust deep equality check that can handle
     // object key ordering, nested structures, and special cases like Date objects.
     const query: Query<Context> = {
-      select: ['@id', '@name', '@metadata'],
-      from: 'items',
+      select: ["@id", "@name", "@metadata"],
+      from: "items",
       where: [
-        '@metadata',
-        'in',
+        "@metadata",
+        "in",
         [
-          { value: { brand: 'TechBrand', model: 'X15' } },
-          { value: { brand: 'OtherBrand', model: 'Y20' } },
+          { value: { brand: "TechBrand", model: "X15" } },
+          { value: { brand: "OtherBrand", model: "Y20" } },
         ],
       ] as Condition,
     }
@@ -313,7 +316,7 @@ describe('D2QL - IN Operator', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
@@ -327,16 +330,14 @@ describe('D2QL - IN Operator', () => {
     const results =
       dataMessages[0]?.data.collection.getInner().map(([data]) => data) || []
 
-    // For now, we'll skip the assertions for this test
-    // The direct object comparison is complex and might require more work
-    // We'll come back to this
+    // TODO: Finish this test!
   })
 
-  it('should handle empty arrays correctly', () => {
+  it("should handle empty arrays correctly", () => {
     const query: Query<Context> = {
-      select: ['@id', '@name'],
-      from: 'items',
-      where: ['@category', 'in', []] as Condition, // Empty array
+      select: ["@id", "@name"],
+      from: "items",
+      where: ["@category", "in", []] as Condition, // Empty array
     }
 
     const graph = new D2({ initialFrontier: v([0, 0]) })
@@ -347,7 +348,7 @@ describe('D2QL - IN Operator', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()
@@ -365,14 +366,14 @@ describe('D2QL - IN Operator', () => {
     expect(results).toHaveLength(0)
   })
 
-  it('should handle complex nested conditions with IN operator', () => {
+  it("should handle complex nested conditions with IN operator", () => {
     const query: Query<Context> = {
-      select: ['@id', '@name', '@category', '@price'],
-      from: 'items',
+      select: ["@id", "@name", "@category", "@price"],
+      from: "items",
       where: [
-        ['@category', 'in', ['Electronics', 'Books']],
-        'and',
-        ['@price', '>', 100],
+        ["@category", "in", ["Electronics", "Books"]],
+        "and",
+        ["@price", ">", 100],
       ] as unknown as Condition,
     }
 
@@ -384,7 +385,7 @@ describe('D2QL - IN Operator', () => {
     pipeline.pipe(
       output((message) => {
         messages.push(message)
-      }),
+      })
     )
 
     graph.finalize()

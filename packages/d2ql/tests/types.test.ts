@@ -1,5 +1,5 @@
-import { describe, it } from 'vitest'
-import { expectTypeOf } from 'vitest'
+import { describe, it } from "vitest"
+import { expectTypeOf } from "vitest"
 import {
   Input,
   Schema,
@@ -8,7 +8,7 @@ import {
   WildcardReference,
   TypeFromPropertyReference,
   InputReference,
-} from '../../src/d2ql/types'
+} from "../src/types.js"
 
 // Define a test schema
 interface TestSchema extends Schema {
@@ -36,80 +36,80 @@ interface TestSchema extends Schema {
 interface UsersContext extends Context<TestSchema> {
   baseSchema: TestSchema
   schema: TestSchema
-  default: 'users'
+  default: "users"
 }
 
-describe('d2ql types', () => {
-  describe('Input type', () => {
-    it('should handle basic input objects', () => {
+describe("Query types", () => {
+  describe("Input type", () => {
+    it("should handle basic input objects", () => {
       expectTypeOf<Input>().toBeObject()
-      expectTypeOf<TestSchema['users']>().toMatchTypeOf<Input>()
+      expectTypeOf<TestSchema["users"]>().toMatchTypeOf<Input>()
     })
   })
 
-  describe('Schema type', () => {
-    it('should be a collection of inputs', () => {
+  describe("Schema type", () => {
+    it("should be a collection of inputs", () => {
       expectTypeOf<Schema>().toBeObject()
       expectTypeOf<TestSchema>().toMatchTypeOf<Schema>()
-      expectTypeOf<TestSchema>().toHaveProperty('users')
-      expectTypeOf<TestSchema>().toHaveProperty('posts')
-      expectTypeOf<TestSchema>().toHaveProperty('comments')
+      expectTypeOf<TestSchema>().toHaveProperty("users")
+      expectTypeOf<TestSchema>().toHaveProperty("posts")
+      expectTypeOf<TestSchema>().toHaveProperty("comments")
     })
   })
 
-  describe('Context type', () => {
-    it('should have schema and default properties', () => {
+  describe("Context type", () => {
+    it("should have schema and default properties", () => {
       expectTypeOf<Context<TestSchema>>().toBeObject()
-      expectTypeOf<Context<TestSchema>>().toHaveProperty('schema')
-      expectTypeOf<Context<TestSchema>>().toHaveProperty('default')
-      expectTypeOf<UsersContext['default']>().toEqualTypeOf<'users'>()
+      expectTypeOf<Context<TestSchema>>().toHaveProperty("schema")
+      expectTypeOf<Context<TestSchema>>().toHaveProperty("default")
+      expectTypeOf<UsersContext["default"]>().toEqualTypeOf<"users">()
     })
   })
 
-  describe('PropertyReference type', () => {
-    it('should accept qualified references with string format', () => {
-      expectTypeOf<'@users.id'>().toMatchTypeOf<
+  describe("PropertyReference type", () => {
+    it("should accept qualified references with string format", () => {
+      expectTypeOf<"@users.id">().toMatchTypeOf<
         PropertyReference<UsersContext>
       >()
-      expectTypeOf<'@posts.authorId'>().toMatchTypeOf<
-        PropertyReference<UsersContext>
-      >()
-    })
-
-    it('should accept qualified references with object format', () => {
-      expectTypeOf<{ col: 'users.id' }>().toMatchTypeOf<
-        PropertyReference<UsersContext>
-      >()
-      expectTypeOf<{ col: 'posts.authorId' }>().toMatchTypeOf<
+      expectTypeOf<"@posts.authorId">().toMatchTypeOf<
         PropertyReference<UsersContext>
       >()
     })
 
-    it('should accept default references with string format', () => {
-      expectTypeOf<'@id'>().toMatchTypeOf<PropertyReference<UsersContext>>()
-      expectTypeOf<'@name'>().toMatchTypeOf<PropertyReference<UsersContext>>()
-    })
-
-    it('should accept default references with object format', () => {
-      expectTypeOf<{ col: 'id' }>().toMatchTypeOf<
+    it("should accept qualified references with object format", () => {
+      expectTypeOf<{ col: "users.id" }>().toMatchTypeOf<
         PropertyReference<UsersContext>
       >()
-      expectTypeOf<{ col: 'name' }>().toMatchTypeOf<
+      expectTypeOf<{ col: "posts.authorId" }>().toMatchTypeOf<
         PropertyReference<UsersContext>
       >()
     })
 
-    it('should accept unique references with string format', () => {
+    it("should accept default references with string format", () => {
+      expectTypeOf<"@id">().toMatchTypeOf<PropertyReference<UsersContext>>()
+      expectTypeOf<"@name">().toMatchTypeOf<PropertyReference<UsersContext>>()
+    })
+
+    it("should accept default references with object format", () => {
+      expectTypeOf<{ col: "id" }>().toMatchTypeOf<
+        PropertyReference<UsersContext>
+      >()
+      expectTypeOf<{ col: "name" }>().toMatchTypeOf<
+        PropertyReference<UsersContext>
+      >()
+    })
+
+    it("should accept unique references with string format", () => {
       // 'views' only exists in posts
-      expectTypeOf<'@views'>().toMatchTypeOf<PropertyReference<UsersContext>>()
+      expectTypeOf<"@views">().toMatchTypeOf<PropertyReference<UsersContext>>()
       // 'content' exists in both posts and comments, so not a unique reference
       // This should fail type checking if uncommented:
       // expectTypeOf<'@content'>().toMatchTypeOf<PropertyReference<UsersContext>>();
     })
 
-    it('should accept unique references with object format', () => {
+    it("should accept unique references with object format", () => {
       // 'views' only exists in posts
-      expectTypeOf<{ col: 'views' }>().toMatchTypeOf<
+      expectTypeOf<{ col: "views" }>().toMatchTypeOf<
         PropertyReference<UsersContext>
       >()
       // 'content' exists in both posts and comments, so not a unique reference
@@ -118,107 +118,107 @@ describe('d2ql types', () => {
     })
   })
 
-  describe('WildcardReference type', () => {
-    it('should accept input wildcards with string format', () => {
-      expectTypeOf<'@users.*'>().toMatchTypeOf<
+  describe("WildcardReference type", () => {
+    it("should accept input wildcards with string format", () => {
+      expectTypeOf<"@users.*">().toMatchTypeOf<
         WildcardReference<UsersContext>
       >()
-      expectTypeOf<'@posts.*'>().toMatchTypeOf<
-        WildcardReference<UsersContext>
-      >()
-    })
-
-    it('should accept input wildcards with object format', () => {
-      expectTypeOf<{ col: 'users.*' }>().toMatchTypeOf<
-        WildcardReference<UsersContext>
-      >()
-      expectTypeOf<{ col: 'posts.*' }>().toMatchTypeOf<
+      expectTypeOf<"@posts.*">().toMatchTypeOf<
         WildcardReference<UsersContext>
       >()
     })
 
-    it('should accept global wildcard with string format', () => {
-      expectTypeOf<'@*'>().toMatchTypeOf<WildcardReference<UsersContext>>()
+    it("should accept input wildcards with object format", () => {
+      expectTypeOf<{ col: "users.*" }>().toMatchTypeOf<
+        WildcardReference<UsersContext>
+      >()
+      expectTypeOf<{ col: "posts.*" }>().toMatchTypeOf<
+        WildcardReference<UsersContext>
+      >()
     })
 
-    it('should accept global wildcard with object format', () => {
-      expectTypeOf<{ col: '*' }>().toMatchTypeOf<
+    it("should accept global wildcard with string format", () => {
+      expectTypeOf<"@*">().toMatchTypeOf<WildcardReference<UsersContext>>()
+    })
+
+    it("should accept global wildcard with object format", () => {
+      expectTypeOf<{ col: "*" }>().toMatchTypeOf<
         WildcardReference<UsersContext>
       >()
     })
   })
 
-  describe('TypeFromPropertyReference type', () => {
-    it('should resolve qualified references with string format', () => {
+  describe("TypeFromPropertyReference type", () => {
+    it("should resolve qualified references with string format", () => {
       expectTypeOf<
-        TypeFromPropertyReference<UsersContext, '@users.id'>
+        TypeFromPropertyReference<UsersContext, "@users.id">
       >().toEqualTypeOf<number>()
 
       expectTypeOf<
-        TypeFromPropertyReference<UsersContext, '@posts.title'>
+        TypeFromPropertyReference<UsersContext, "@posts.title">
       >().toEqualTypeOf<string>()
     })
 
-    it('should resolve qualified references with object format', () => {
+    it("should resolve qualified references with object format", () => {
       expectTypeOf<
-        TypeFromPropertyReference<UsersContext, { col: 'users.id' }>
+        TypeFromPropertyReference<UsersContext, { col: "users.id" }>
       >().toEqualTypeOf<number>()
 
       expectTypeOf<
-        TypeFromPropertyReference<UsersContext, { col: 'posts.title' }>
+        TypeFromPropertyReference<UsersContext, { col: "posts.title" }>
       >().toEqualTypeOf<string>()
     })
 
-    it('should resolve default references with string format', () => {
+    it("should resolve default references with string format", () => {
       expectTypeOf<
-        TypeFromPropertyReference<UsersContext, '@id'>
+        TypeFromPropertyReference<UsersContext, "@id">
       >().toEqualTypeOf<number>()
 
       expectTypeOf<
-        TypeFromPropertyReference<UsersContext, '@name'>
+        TypeFromPropertyReference<UsersContext, "@name">
       >().toEqualTypeOf<string>()
     })
 
-    it('should resolve default references with object format', () => {
+    it("should resolve default references with object format", () => {
       expectTypeOf<
-        TypeFromPropertyReference<UsersContext, { col: 'id' }>
+        TypeFromPropertyReference<UsersContext, { col: "id" }>
       >().toEqualTypeOf<number>()
 
       expectTypeOf<
-        TypeFromPropertyReference<UsersContext, { col: 'name' }>
+        TypeFromPropertyReference<UsersContext, { col: "name" }>
       >().toEqualTypeOf<string>()
     })
 
-    it('should resolve unique references with string format', () => {
+    it("should resolve unique references with string format", () => {
       // 'views' only exists in posts
       expectTypeOf<
-        TypeFromPropertyReference<UsersContext, '@views'>
+        TypeFromPropertyReference<UsersContext, "@views">
       >().toEqualTypeOf<number>()
 
       // 'authorId' only exists in posts
       expectTypeOf<
-        TypeFromPropertyReference<UsersContext, '@authorId'>
+        TypeFromPropertyReference<UsersContext, "@authorId">
       >().toEqualTypeOf<number>()
     })
 
-    it('should resolve unique references with object format', () => {
+    it("should resolve unique references with object format", () => {
       // 'views' only exists in posts
       expectTypeOf<
-        TypeFromPropertyReference<UsersContext, { col: 'views' }>
+        TypeFromPropertyReference<UsersContext, { col: "views" }>
       >().toEqualTypeOf<number>()
 
       // 'authorId' only exists in posts
       expectTypeOf<
-        TypeFromPropertyReference<UsersContext, { col: 'authorId' }>
+        TypeFromPropertyReference<UsersContext, { col: "authorId" }>
       >().toEqualTypeOf<number>()
     })
   })
 
-  describe('InputReference type', () => {
-    it('should extract input names from the context schema', () => {
+  describe("InputReference type", () => {
+    it("should extract input names from the context schema", () => {
       // Should be a union of all input names
       expectTypeOf<InputReference<UsersContext>>().toEqualTypeOf<
-        'users' | 'posts' | 'comments'
+        "users" | "posts" | "comments"
       >()
 
       // Test with a context containing only one input
@@ -228,11 +228,11 @@ describe('d2ql types', () => {
       type SingleInputContext = {
         baseSchema: SingleInputSchema
         schema: SingleInputSchema
-        default: 'singleInput'
+        default: "singleInput"
       }
       expectTypeOf<
         InputReference<SingleInputContext>
-      >().toEqualTypeOf<'singleInput'>()
+      >().toEqualTypeOf<"singleInput">()
     })
   })
 })

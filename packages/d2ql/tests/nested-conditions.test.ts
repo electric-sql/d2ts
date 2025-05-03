@@ -1,14 +1,11 @@
-import { describe, test, expect } from 'vitest'
-import { D2 } from '../../d2ts/src/d2.js'
-import { MultiSet } from '../../d2ts/src/multiset.js'
-import { Message, MessageType } from '../../d2ts/src/types.js'
-import { output } from '../../d2ts/src/operators/index.js'
-import { v, Antichain } from '../../d2ts/src/order.js'
-import { Query, compileQuery } from '../../src/d2ql/index.js'
+import { describe, test, expect } from "vitest"
+import { D2, MessageType, output, MultiSet, Message } from "@electric-sql/d2ts"
+import { v, Antichain } from "@electric-sql/d2ts"
+import { Query, compileQuery } from "../src/index.js"
 import {
   FlatCompositeCondition,
   NestedCompositeCondition,
-} from '../../src/d2ql/schema.js'
+} from "../src/schema.js"
 
 // Sample data type for testing
 type Product = {
@@ -35,81 +32,81 @@ type Context = {
 const sampleProducts: Product[] = [
   {
     id: 1,
-    name: 'Laptop',
+    name: "Laptop",
     price: 1200,
-    category: 'Electronics',
+    category: "Electronics",
     inStock: true,
     rating: 4.5,
-    tags: ['tech', 'computer'],
+    tags: ["tech", "computer"],
   },
   {
     id: 2,
-    name: 'Smartphone',
+    name: "Smartphone",
     price: 800,
-    category: 'Electronics',
+    category: "Electronics",
     inStock: true,
     rating: 4.2,
-    tags: ['tech', 'mobile'],
+    tags: ["tech", "mobile"],
     discount: 10,
   },
   {
     id: 3,
-    name: 'Headphones',
+    name: "Headphones",
     price: 150,
-    category: 'Electronics',
+    category: "Electronics",
     inStock: false,
     rating: 3.8,
-    tags: ['tech', 'audio'],
+    tags: ["tech", "audio"],
   },
   {
     id: 4,
-    name: 'Book',
+    name: "Book",
     price: 20,
-    category: 'Books',
+    category: "Books",
     inStock: true,
     rating: 4.7,
-    tags: ['fiction', 'bestseller'],
+    tags: ["fiction", "bestseller"],
   },
   {
     id: 5,
-    name: 'Desk',
+    name: "Desk",
     price: 300,
-    category: 'Furniture',
+    category: "Furniture",
     inStock: true,
     rating: 4.0,
-    tags: ['home', 'office'],
+    tags: ["home", "office"],
   },
   {
     id: 6,
-    name: 'Chair',
+    name: "Chair",
     price: 150,
-    category: 'Furniture',
+    category: "Furniture",
     inStock: true,
     rating: 3.5,
-    tags: ['home', 'office'],
+    tags: ["home", "office"],
   },
   {
     id: 7,
-    name: 'Tablet',
+    name: "Tablet",
     price: 350,
-    category: 'Electronics',
+    category: "Electronics",
     inStock: false,
     rating: 4.1,
-    tags: ['tech', 'mobile'],
+    tags: ["tech", "mobile"],
   },
 ]
 
-describe('D2QL', () => {
-  describe('Nested Conditions', () => {
-    test('OR with simple conditions', () => {
+describe("Query", () => {
+  describe("Nested Conditions", () => {
+    test("OR with simple conditions", () => {
       // Should select Books OR Furniture
       const query: Query<Context> = {
-        select: ['@id', '@name', '@category'],
-        from: 'products',
+        select: ["@id", "@name", "@category"],
+        from: "products",
         where: [
-          ['@category', '=', 'Books'],
-          'or',
-          ['@category', '=', 'Furniture'],
+          ["@category", "=", "Books"],
+          "or",
+          ["@category", "=", "Furniture"],
         ] as NestedCompositeCondition,
       }
 
@@ -125,19 +122,19 @@ describe('D2QL', () => {
 
       // Verify all results match the condition
       results.forEach((r) => {
-        expect(['Books', 'Furniture']).toContain(r.category)
+        expect(["Books", "Furniture"]).toContain(r.category)
       })
     })
 
-    test('AND with simple conditions', () => {
+    test("AND with simple conditions", () => {
       // Should select inStock Electronics
       const query: Query<Context> = {
-        select: ['@id', '@name', '@category', '@inStock'],
-        from: 'products',
+        select: ["@id", "@name", "@category", "@inStock"],
+        from: "products",
         where: [
-          ['@category', '=', 'Electronics'],
-          'and',
-          ['@inStock', '=', true],
+          ["@category", "=", "Electronics"],
+          "and",
+          ["@inStock", "=", true],
         ] as NestedCompositeCondition,
       }
 
@@ -149,27 +146,27 @@ describe('D2QL', () => {
 
       // Verify conditions are met
       results.forEach((r) => {
-        expect(r.category).toBe('Electronics')
+        expect(r.category).toBe("Electronics")
         expect(r.inStock).toBe(true)
       })
     })
 
-    test('Flat composite condition', () => {
+    test("Flat composite condition", () => {
       // Electronics with rating > 4 AND price < 1000
       const query: Query<Context> = {
-        select: ['@id', '@name', '@rating', '@price'],
-        from: 'products',
+        select: ["@id", "@name", "@rating", "@price"],
+        from: "products",
         where: [
-          '@category',
-          '=',
-          'Electronics',
-          'and',
-          '@rating',
-          '>',
+          "@category",
+          "=",
+          "Electronics",
+          "and",
+          "@rating",
+          ">",
           4,
-          'and',
-          '@price',
-          '<',
+          "and",
+          "@price",
+          "<",
           1000,
         ] as FlatCompositeCondition,
       }
@@ -187,29 +184,29 @@ describe('D2QL', () => {
       })
     })
 
-    test('Complex nested condition', () => {
+    test("Complex nested condition", () => {
       // (Electronics AND price > 500) OR (Furniture AND inStock)
       const query: Query<Context> = {
-        select: ['@id', '@name', '@category', '@price', '@inStock'],
-        from: 'products',
+        select: ["@id", "@name", "@category", "@price", "@inStock"],
+        from: "products",
         where: [
           [
-            '@category',
-            '=',
-            'Electronics',
-            'and',
-            '@price',
-            '>',
+            "@category",
+            "=",
+            "Electronics",
+            "and",
+            "@price",
+            ">",
             500,
           ] as FlatCompositeCondition,
-          'or',
+          "or",
           [
-            '@category',
-            '=',
-            'Furniture',
-            'and',
-            '@inStock',
-            '=',
+            "@category",
+            "=",
+            "Furniture",
+            "and",
+            "@inStock",
+            "=",
             true,
           ] as FlatCompositeCondition,
         ] as NestedCompositeCondition,
@@ -223,50 +220,50 @@ describe('D2QL', () => {
 
       // Verify that each result satisfies at least one of the conditions
       results.forEach((r) => {
-        const matchesCondition1 = r.category === 'Electronics' && r.price > 500
+        const matchesCondition1 = r.category === "Electronics" && r.price > 500
         const matchesCondition2 =
-          r.category === 'Furniture' && r.inStock === true
+          r.category === "Furniture" && r.inStock === true
 
         expect(matchesCondition1 || matchesCondition2).toBe(true)
       })
     })
 
-    test('Nested OR + AND combination', () => {
+    test("Nested OR + AND combination", () => {
       // Products that are:
       // (Electronics with price > 1000) OR
       // (Books with rating > 4.5) OR
       // (Furniture with price < 200)
       const query: Query<Context> = {
-        select: ['@id', '@name', '@category', '@price', '@rating'],
-        from: 'products',
+        select: ["@id", "@name", "@category", "@price", "@rating"],
+        from: "products",
         where: [
           [
-            '@category',
-            '=',
-            'Electronics',
-            'and',
-            '@price',
-            '>',
+            "@category",
+            "=",
+            "Electronics",
+            "and",
+            "@price",
+            ">",
             1000,
           ] as FlatCompositeCondition,
-          'or',
+          "or",
           [
-            '@category',
-            '=',
-            'Books',
-            'and',
-            '@rating',
-            '>',
+            "@category",
+            "=",
+            "Books",
+            "and",
+            "@rating",
+            ">",
             4.5,
           ] as FlatCompositeCondition,
-          'or',
+          "or",
           [
-            '@category',
-            '=',
-            'Furniture',
-            'and',
-            '@price',
-            '<',
+            "@category",
+            "=",
+            "Furniture",
+            "and",
+            "@price",
+            "<",
             200,
           ] as FlatCompositeCondition,
         ] as NestedCompositeCondition,
@@ -280,18 +277,18 @@ describe('D2QL', () => {
 
       // Verify specific products are included
       const names = results.map((r) => r.name).sort()
-      expect(names).toContain('Laptop')
-      expect(names).toContain('Book')
-      expect(names).toContain('Chair')
+      expect(names).toContain("Laptop")
+      expect(names).toContain("Book")
+      expect(names).toContain("Chair")
 
       // Verify that each result satisfies at least one of the conditions
       results.forEach((r) => {
-        const matchesCondition1 = r.category === 'Electronics' && r.price > 1000
-        const matchesCondition2 = r.category === 'Books' && r.rating > 4.5
-        const matchesCondition3 = r.category === 'Furniture' && r.price < 200
+        const matchesCondition1 = r.category === "Electronics" && r.price > 1000
+        const matchesCondition2 = r.category === "Books" && r.rating > 4.5
+        const matchesCondition3 = r.category === "Furniture" && r.price < 200
 
         expect(
-          matchesCondition1 || matchesCondition2 || matchesCondition3,
+          matchesCondition1 || matchesCondition2 || matchesCondition3
         ).toBe(true)
       })
     })
@@ -308,14 +305,14 @@ function runQuery(query: Query): any[] {
   pipeline.pipe(
     output((message) => {
       messages.push(message)
-    }),
+    })
   )
 
   graph.finalize()
 
   input.sendData(
     v([1, 0]),
-    new MultiSet(sampleProducts.map((product) => [product, 1])),
+    new MultiSet(sampleProducts.map((product) => [product, 1]))
   )
   input.sendFrontier(new Antichain([v([1, 0])]))
 
@@ -327,5 +324,5 @@ function runQuery(query: Query): any[] {
     return []
   }
 
-  return dataMessages[0].data.collection.getInner().map(([data]) => data)
+  return dataMessages[0]!.data.collection.getInner().map(([data]) => data)
 }
