@@ -93,7 +93,15 @@ export class Index<K, V> implements IndexType<K, V> {
       if (!this.#compactionFrontier.lessEqualVersion(rawVersion)) {
         version = rawVersion.advanceBy(this.#compactionFrontier)
       }
-      out.set(version, values)
+      if (out.has(version)) {
+        const updatedValues = [...out.get(version)]
+        for (const [value, multiplicity] of values) {
+          updatedValues.push([value, multiplicity])
+        }
+        out.set(version, updatedValues)
+      } else {
+        out.set(version, values)
+      }
     }
     return out
   }
