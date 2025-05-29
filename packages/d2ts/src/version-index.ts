@@ -1,6 +1,6 @@
 import { Version, Antichain } from './order.js'
 import { MultiSet } from './multiset.js'
-import { DefaultMap, chunkedArrayPush } from './utils.js'
+import { DefaultMap, chunkedArrayPush, hash } from './utils.js'
 
 type VersionMap<T> = DefaultMap<Version, T[]>
 type IndexMap<K, V> = DefaultMap<K, VersionMap<[V, number]>>
@@ -209,10 +209,10 @@ export class Index<K, V> implements IndexType<K, V> {
 
     const consolidateValues = (values: [V, number][]): [V, number][] => {
       // Use string representation of values as keys for proper deduplication
-      const consolidated = new Map<string, [V, number]>()
+      const consolidated = new Map<string | number, [V, number]>()
 
       for (const [value, multiplicity] of values) {
-        const key = JSON.stringify(value)
+        const key = hash(value)
         const existing = consolidated.get(key)
         if (existing) {
           consolidated.set(key, [value, existing[1] + multiplicity])
