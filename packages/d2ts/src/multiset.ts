@@ -1,4 +1,4 @@
-import { DefaultMap, chunkedArrayPush } from './utils.js'
+import { DefaultMap, chunkedArrayPush, hash } from './utils.js'
 
 export type MultiSetArray<T> = [T, number][]
 export type KeyedData<T> = [key: string, value: T]
@@ -67,6 +67,7 @@ export class MultiSet<T> {
    */
   consolidate(): MultiSet<T> {
     const consolidated = new DefaultMap<string | number, number>(() => 0)
+    const values = new Map<string, any>()
 
     let hasString = false
     let hasNumber = false
@@ -85,14 +86,17 @@ export class MultiSet<T> {
     const requireJson = hasOther || (hasString && hasNumber)
 
     for (const [data, multiplicity] of this.#inner) {
-      const key = requireJson ? JSON.stringify(data) : (data as string | number)
+      const key = requireJson ? hash(data) : (data as string | number)
+      if (requireJson && !values.has(key as string)) {
+        values.set(key as string, data)
+      }
       consolidated.update(key, (count) => count + multiplicity)
     }
 
     const result: MultiSetArray<T> = []
     for (const [key, multiplicity] of consolidated.entries()) {
       if (multiplicity !== 0) {
-        const parsedKey = requireJson ? JSON.parse(key as string) : key
+        const parsedKey = requireJson ? values.get(key as string) : key
         result.push([parsedKey as T, multiplicity])
       }
     }
@@ -256,7 +260,7 @@ export class MultiSet<T> {
       const consolidated = new Map<string, [T, number]>()
 
       for (const [val, multiplicity] of vals) {
-        const key = JSON.stringify(val)
+        const key = hash(val)
         const current = consolidated.get(key)?.[1] || 0
         consolidated.set(key, [val, current + multiplicity])
       }

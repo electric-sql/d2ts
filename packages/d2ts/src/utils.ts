@@ -67,3 +67,36 @@ export function chunkedArrayPush(array: unknown[], other: unknown[]) {
     }
   }
 }
+
+const hashCache = new WeakMap()
+
+/**
+ * A hash method that caches the hash of a value in a week map
+ */
+export function hash(data: any): string {
+  if (typeof data !== 'object') {
+    return JSON.stringify(data)
+  }
+
+  if (hashCache.has(data)) {
+    return hashCache.get(data)
+  }
+
+  const str = JSON.stringify(data)
+  let h = 0
+
+  for (let i = 0; i < str.length; i++) {
+    h = (Math.imul(31, h) + str.charCodeAt(i)) | 0
+  }
+
+  const hash = Math.abs(h).toString(36)
+
+  try {
+    hashCache.set(data, hash)
+  } catch (e) {
+    // Invalid type for a weakMap key
+    return str
+  }
+
+  return hash
+}
