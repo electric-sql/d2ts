@@ -209,7 +209,7 @@ export class Index<K, V> implements IndexType<K, V> {
 
     const consolidateValues = (values: [V, number][]): [V, number][] => {
       // Use string representation of values as keys for proper deduplication
-      const consolidated = new Map<string, [V, number]>()
+      const consolidated = new Map<string | number, [V, number]>()
 
       for (const [value, multiplicity] of values) {
         const key = hash(value)

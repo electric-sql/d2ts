@@ -257,7 +257,7 @@ export class MultiSet<T> {
    */
   distinct(): MultiSet<KeyedData<T>> {
     return this.reduce((vals: [T, number][]): [T, number][] => {
-      const consolidated = new Map<string, [T, number]>()
+      const consolidated = new Map<string | number, [T, number]>()
 
       for (const [val, multiplicity] of vals) {
         const key = hash(val)

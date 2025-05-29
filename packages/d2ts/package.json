@@ -71,6 +71,8 @@
     }
   },
   "dependencies": {
-    "fractional-indexing": "^3.2.0"
+    "@types/murmurhash-js": "^1.0.6",
+    "fractional-indexing": "^3.2.0",
+    "murmurhash-js": "^1.0.0"
   }
 }

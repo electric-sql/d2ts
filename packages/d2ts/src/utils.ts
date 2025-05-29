@@ -1,3 +1,5 @@
+import murmurhash from 'murmurhash-js'
+
 /**
  * A map that uses WeakRefs to store objects, and automatically removes them when
  * they are no longer referenced.
@@ -73,7 +75,7 @@ const hashCache = new WeakMap()
 /**
  * A hash method that caches the hash of a value in a week map
  */
-export function hash(data: any): string {
+export function hash(data: any): string | number {
   if (typeof data !== 'object') {
     return JSON.stringify(data)
   }
@@ -82,21 +84,15 @@ export function hash(data: any): string {
     return hashCache.get(data)
   }
 
-  const str = JSON.stringify(data)
-  let h = 0
-
-  for (let i = 0; i < str.length; i++) {
-    h = (Math.imul(31, h) + str.charCodeAt(i)) | 0
-  }
-
-  const hash = Math.abs(h).toString(36)
+  const hashed = murmurhash.murmur3(JSON.stringify(JSON.stringify(data)))
 
   try {
-    hashCache.set(data, hash)
+    hashCache.set(data, hashed)
   } catch (e) {
     // Invalid type for a weakMap key
-    return str
+    // we just return the hash
+    return hashed
   }
 
-  return hash
+  return hashed
 }
