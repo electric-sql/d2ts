@@ -76,7 +76,7 @@ const hashCache = new WeakMap()
  * A hash method that caches the hash of a value in a week map
  */
 export function hash(data: any): string | number {
-  if (typeof data !== 'object') {
+  if (data === null || data === undefined || typeof data !== 'object') {
     return JSON.stringify(data)
   }
 
@@ -84,15 +84,5 @@ export function hash(data: any): string | number {
     return hashCache.get(data)
   }
 
-  const hashed = murmurhash.murmur3(JSON.stringify(JSON.stringify(data)))
-
-  try {
-    hashCache.set(data, hashed)
-  } catch (e) {
-    // Invalid type for a weakMap key
-    // we just return the hash
-    return hashed
-  }
-
-  return hashed
+  return murmurhash.murmur3(JSON.stringify(JSON.stringify(data)))
 }
