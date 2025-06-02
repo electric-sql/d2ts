@@ -25,7 +25,7 @@
 
 # D2TS - Differential Dataflow in TypeScript <!-- omit in toc -->
 
-D2TS is a TypeScript implementation of [differential dataflow](https://github.com/MaterializeInc/differential) - a powerful data-parallel programming framework that enables incremental computations over changing input data.
+D2TS is a TypeScript implementation of [differential dataflow](https://github.com/TimelyDataflow/differential-dataflow) - a powerful data-parallel programming framework that enables incremental computations over changing input data.
 
 You can use D2TS to build data pipelines that can be executed incrementally, meaning you can process data as it comes in, and only recompute the parts that have changed. This could be as simple as remapping data, or as complex as performing a full join combining two datasources where one is a computed aggregate.
 
