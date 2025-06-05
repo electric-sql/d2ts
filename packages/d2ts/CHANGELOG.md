@@ -1,5 +1,11 @@
 # @electric-sql/d2ts
 
+## 0.1.6
+
+### Patch Changes
+
+- 192f677: better hashing in the consolidate and compaction methods
+
 ## 0.1.5
 
 ### Patch Changes
