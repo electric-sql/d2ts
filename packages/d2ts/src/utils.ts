@@ -73,16 +73,45 @@ export function chunkedArrayPush(array: unknown[], other: unknown[]) {
 const hashCache = new WeakMap()
 
 /**
+ * Replacer function for JSON.stringify that converts unsupported types to strings
+ */
+function hashReplacer(_key: string, value: any): any {
+  if (typeof value === 'bigint') {
+    return String(value)
+  } else if (typeof value === 'symbol') {
+    return String(value)
+  } else if (typeof value === 'function') {
+    return String(value)
+  } else if (value === undefined) {
+    return 'undefined'
+  } else if (value instanceof Map) {
+    return `Map(${JSON.stringify(Array.from(value.entries()), hashReplacer)})`
+  } else if (value instanceof Set) {
+    return `Set(${JSON.stringify(Array.from(value.values()), hashReplacer)})`
+  }
+  return value
+}
+
+/**
  * A hash method that caches the hash of a value in a week map
  */
 export function hash(data: any): string | number {
-  if (data === null || data === undefined || typeof data !== 'object') {
-    return JSON.stringify(data)
+  if (
+    data === null ||
+    data === undefined ||
+    (typeof data !== 'object' && typeof data !== 'function')
+  ) {
+    // Can't be cached in the weak map because it's not an object
+    const serialized = JSON.stringify(data, hashReplacer)
+    return murmurhash.murmur3(serialized)
   }
 
   if (hashCache.has(data)) {
     return hashCache.get(data)
   }
 
-  return murmurhash.murmur3(JSON.stringify(JSON.stringify(data)))
+  const serialized = JSON.stringify(data, hashReplacer)
+  const hashValue = murmurhash.murmur3(JSON.stringify(serialized))
+  hashCache.set(data, hashValue)
+  return hashValue
 }
