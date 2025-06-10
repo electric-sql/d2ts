@@ -29,6 +29,7 @@ export class Index<K, V> implements IndexType<K, V> {
   #inner: IndexMap<K, V>
   #compactionFrontier: Antichain | null
   #modifiedKeys: Set<K>
+  #compactionPromise: Promise<void>
 
   constructor() {
     this.#inner = new DefaultMap<K, VersionMap<[V, number]>>(
@@ -42,6 +43,7 @@ export class Index<K, V> implements IndexType<K, V> {
     // }
     this.#compactionFrontier = null
     this.#modifiedKeys = new Set()
+    this.#compactionPromise = Promise.resolve()
   }
 
   toString(indent = false): string {
@@ -197,7 +199,10 @@ export class Index<K, V> implements IndexType<K, V> {
     return result as [Version, MultiSet<[K, [V, V2]]>][]
   }
 
-  compact(compactionFrontier: Antichain, keys: K[] = []): void {
+  compact(
+    compactionFrontier: Antichain,
+    keys: K[] = Array.from(this.#modifiedKeys),
+  ): void {
     if (
       this.#compactionFrontier &&
       !this.#compactionFrontier.lessEqual(compactionFrontier)
@@ -226,10 +231,7 @@ export class Index<K, V> implements IndexType<K, V> {
       )
     }
 
-    const keysToProcess =
-      keys.length > 0 ? keys : Array.from(this.#modifiedKeys)
-
-    for (const key of keysToProcess) {
+    for (const key of keys) {
       const versions = this.#inner.get(key)
 
       const toCompact = Array.from(versions.keys()).filter(
@@ -262,6 +264,87 @@ export class Index<K, V> implements IndexType<K, V> {
     }
 
     this.#compactionFrontier = compactionFrontier
+  }
+
+  /**
+   * Asynchronous version of compact that processes one key at a time and yields to the event loop.
+   * This prevents blocking the event loop during compaction of large datasets.
+   * Multiple calls to compactAsync are chained to ensure sequential execution.
+   * WARNING: Never interleave calls to compactAsync with calls to compact.
+   *          Those will not be chained and may interleave, resulting in wrong compaction.
+   */
+  async compactAsync(
+    compactionFrontier: Antichain,
+    keys: K[] = Array.from(this.#modifiedKeys),
+  ): Promise<void> {
+    // Chain this compaction operation to the previous one
+    this.#compactionPromise = this.#compactionPromise.then(async () => {
+      if (
+        this.#compactionFrontier &&
+        !this.#compactionFrontier.lessEqual(compactionFrontier)
+      ) {
+        throw new Error('Invalid compaction frontier')
+      }
+
+      this.#validate(compactionFrontier)
+
+      const consolidateValues = (values: [V, number][]): [V, number][] => {
+        const consolidated = new Map<string | number, [V, number]>()
+
+        for (const [value, multiplicity] of values) {
+          const key = hash(value)
+          const existing = consolidated.get(key)
+          if (existing) {
+            consolidated.set(key, [value, existing[1] + multiplicity])
+          } else {
+            consolidated.set(key, [value, multiplicity])
+          }
+        }
+
+        return Array.from(consolidated.values()).filter(
+          ([_, multiplicity]) => multiplicity !== 0,
+        )
+      }
+
+      for (const key of keys) {
+        const versions = this.#inner.get(key)
+
+        const toCompact = Array.from(versions.keys()).filter(
+          (version) => !compactionFrontier.lessEqualVersion(version),
+        )
+
+        const toConsolidate = new Set<Version>()
+
+        for (const version of toCompact) {
+          const values = versions.get(version)
+          versions.delete(version)
+
+          const newVersion = version.advanceBy(compactionFrontier)
+          versions.update(newVersion, (existing) => {
+            chunkedArrayPush(existing, values)
+            return existing
+          })
+          toConsolidate.add(newVersion)
+        }
+
+        for (const version of toConsolidate) {
+          const newValues = consolidateValues(versions.get(version))
+          if (newValues.length > 0) {
+            versions.set(version, newValues)
+          } else {
+            this.#inner.delete(key)
+          }
+        }
+        this.#modifiedKeys.delete(key)
+
+        // Yield to the event loop after processing each key
+        await new Promise(resolve => setTimeout(resolve, 0))
+      }
+
+      this.#compactionFrontier = compactionFrontier
+    })
+
+    return this.#compactionPromise
   }
 
   keys(): K[] {
