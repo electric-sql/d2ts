@@ -146,44 +146,26 @@ export class Index<K, V> implements IndexType<K, V> {
     )
 
     // We want to iterate over the smaller of the two indexes to reduce the
-    // number of operations we need to do.
-    if (this.#inner.size <= other.#inner.size) {
-      for (const [key, versions] of this.#inner) {
-        if (!other.has(key)) continue
-        const otherVersions = other.get(key)
-        for (const [rawVersion1, data1] of versions) {
-          const version1 =
-            this.#compactionFrontier &&
-            this.#compactionFrontier.lessEqualVersion(rawVersion1)
-              ? rawVersion1.advanceBy(this.#compactionFrontier)
-              : rawVersion1
-          for (const [version2, data2] of otherVersions) {
-            for (const [val1, mul1] of data1) {
-              for (const [val2, mul2] of data2) {
-                const resultVersion = version1.join(version2)
-                collections.update(resultVersion, (existing) => {
-                  existing.push([key, [val1, val2], mul1 * mul2])
-                  return existing
-                })
-              }
-            }
-          }
-        }
-      }
-    } else {
-      for (const [key, otherVersions] of other.entries()) {
-        if (!this.has(key)) continue
-        const versions = this.get(key)
+    // number of operations we need to do.    
+    const thisIsTheSmallerIndex = this.#inner.size <= other.#inner.size
+    const [smallestIndex, otherIndex] =
+      thisIsTheSmallerIndex ? [this, other] : [other, this]
+
+    for (const [key, versions] of smallestIndex.#inner) {
+      if (!otherIndex.has(key)) continue
+      const otherVersions = otherIndex.get(key)
+      for (const [version1, data1] of versions) {
         for (const [version2, data2] of otherVersions) {
-          for (const [version1, data1] of versions) {
+          for (const [val1, mul1] of data1) {
             for (const [val2, mul2] of data2) {
-              for (const [val1, mul1] of data1) {
-                const resultVersion = version1.join(version2)
-                collections.update(resultVersion, (existing) => {
-                  existing.push([key, [val1, val2], mul1 * mul2])
-                  return existing
-                })
-              }
+              const resultVersion = version1.join(version2)
+              collections.update(resultVersion, (existing) => {
+                const values: [V, V2] = thisIsTheSmallerIndex
+                  ? [val1 as V, val2 as V2]
+                  : [val2 as V, val1 as V2]
+                existing.push([key, values, mul1 * mul2])
+                return existing
+              })
             }
           }
         }
