@@ -1,5 +1,11 @@
 # @electric-sql/d2ts
 
+## 0.1.7
+
+### Patch Changes
+
+- be25ba2: improve the hashing of messages in the query pipeline
+
 ## 0.1.6
 
 ### Patch Changes
