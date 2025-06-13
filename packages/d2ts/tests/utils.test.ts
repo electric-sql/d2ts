@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { DefaultMap, WeakRefMap, hash } from '../src/utils.js'
+import { describe, it, expect, vi } from 'vitest'
+import { DefaultMap, WeakRefMap, hash, WeakRefBasedFinalizationRegistry } from '../src/utils.js'
 
 describe('DefaultMap', () => {
   it('should return default value for missing keys', () => {
@@ -392,5 +392,83 @@ describe('hash', () => {
       expect(hashes.every(h => h === firstHash)).toBe(true)
       expect(typeof firstHash).toBe('number')
     })
+  })
+})
+
+describe('WeakRefBasedFinalizationRegistry', () => {
+  it('should register and unregister objects', () => {
+    const finalizeSpy = vi.fn()
+    const registry = new WeakRefBasedFinalizationRegistry(finalizeSpy)
+    
+    const target = { test: 'value' }
+    const token = { token: 'value' }
+    const value = 'test value'
+    
+    registry.register(target, value, token)
+    registry.unregister(token)
+    
+    // The finalize callback should not have been called since we unregistered
+    expect(finalizeSpy).not.toHaveBeenCalled()
+  })
+
+  // TODO: find a way to make this actually work...
+  // it('should call finalize when target is garbage collected', async () => {
+  //   const finalizeSpy = vi.fn()
+  //   const registry = new WeakRefBasedFinalizationRegistry(finalizeSpy, 100) // Use 100ms interval for testing
+    
+  //   // Create object in a scope that will end
+  //   {
+  //     const target = { test: 'value' }
+  //     const value = 'test value'
+  //     registry.register(target, value, target)
+  //   }
+    
+  //   // Force garbage collection if possible
+  //   if (global.gc) {
+  //     // Run GC multiple times to ensure cleanup
+  //     for (let i = 0; i < 3; i++) {
+  //       global.gc()
+  //       // Give finalizers a chance to run
+  //       await new Promise(resolve => setTimeout(resolve, 0))
+  //     }
+      
+  //     // Wait for the sweep interval (plus a small buffer)
+  //     await new Promise(resolve => setTimeout(resolve, 200))
+      
+  //     // The finalize callback should have been called
+  //     expect(finalizeSpy).toHaveBeenCalledWith('test value')
+  //   } else {
+  //     console.warn('Test skipped: garbage collection not exposed. Run Node.js with --expose-gc flag.')
+  //   }
+  // })
+
+  it('should handle multiple registrations', () => {
+    const finalizeSpy = vi.fn()
+    const registry = new WeakRefBasedFinalizationRegistry(finalizeSpy)
+    
+    const target1 = { test: 'value1' }
+    const target2 = { test: 'value2' }
+    const token1 = { token: 'value1' }
+    const token2 = { token: 'value2' }
+    
+    registry.register(target1, 'value1', token1)
+    registry.register(target2, 'value2', token2)
+    
+    // Unregister one token
+    registry.unregister(token1)
+    
+    // The finalize callback should not have been called
+    expect(finalizeSpy).not.toHaveBeenCalled()
+  })
+
+  it('should handle null token in unregister', () => {
+    const finalizeSpy = vi.fn()
+    const registry = new WeakRefBasedFinalizationRegistry(finalizeSpy)
+    
+    const target = { test: 'value' }
+    registry.register(target, 'value', null)
+    
+    // Should not throw when unregistering with null token
+    expect(() => registry.unregister(null)).not.toThrow()
   })
 })
