@@ -6,7 +6,7 @@ import murmurhash from 'murmurhash-js'
  */
 export class WeakRefMap<K, V extends object> {
   private cacheMap = new Map<K, WeakRef<V>>()
-  private finalizer = new FinalizationRegistry((key: K) => {
+  private finalizer = new AnyFinalizationRegistry((key: K) => {
     this.cacheMap.delete(key)
   })
 
@@ -115,3 +115,69 @@ export function hash(data: any): string | number {
   hashCache.set(data, hashValue)
   return hashValue
 }
+
+/**
+ * This is a mock implementation of FinalizationRegistry which uses WeakRef to
+ * track the target objects. It's used in environments where FinalizationRegistry
+ * is not available but WeakRef is (e.g. React Native >=0.75 on New Architecture).
+ * Based on https://gist.github.com/cray0000/abecb1ca71fd28a1d8efff2be9e0f6c5
+ * MIT License - Copyright Cray0000
+ */
+export class WeakRefBasedFinalizationRegistry {
+  private counter = 0
+  private registrations = new Map()
+  private sweepTimeout: NodeJS.Timeout | undefined
+  private finalize: (value: any) => void
+  private sweepIntervalMs = 10_000
+
+  constructor(finalize: (value: any) => void, sweepIntervalMs?: number) {
+    this.finalize = finalize
+    if (sweepIntervalMs !== undefined) {
+      this.sweepIntervalMs = sweepIntervalMs
+    }
+  }
+
+  register(target: any, value: any, token: any) {
+    this.registrations.set(this.counter, {
+      targetRef: new WeakRef(target),
+      tokenRef: token != null ? new WeakRef(token) : undefined,
+      value,
+    })
+    this.counter++
+    this.scheduleSweep()
+  }
+
+  unregister(token: any) {
+    if (token == null) return
+    this.registrations.forEach((registration, key) => {
+      if (registration.tokenRef?.deref() === token) {
+        this.registrations.delete(key)
+      }
+    })
+  }
+
+  // Bound so it can be used directly as setTimeout callback.
+  private sweep = () => {
+    clearTimeout(this.sweepTimeout)
+    this.sweepTimeout = undefined
+
+    this.registrations.forEach((registration, key) => {
+      if (registration.targetRef.deref() !== undefined) return
+      const value = registration.value
+      this.registrations.delete(key)
+      this.finalize(value)
+    })
+
+    if (this.registrations.size > 0) this.scheduleSweep()
+  }
+
+  private scheduleSweep() {
+    if (this.sweepTimeout) return
+    this.sweepTimeout = setTimeout(this.sweep, this.sweepIntervalMs)
+  }
+}
+
+const AnyFinalizationRegistry =
+  typeof FinalizationRegistry !== 'undefined'
+    ? FinalizationRegistry
+    : WeakRefBasedFinalizationRegistry

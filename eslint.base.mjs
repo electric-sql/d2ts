@@ -47,14 +47,31 @@ export default [
       ecmaVersion: 2020,
       sourceType: 'module',
       globals: {
-        node: true,
+        // Node.js globals
+        process: true,
+        __dirname: true,
+        __filename: true,
+        exports: true,
+        module: true,
+        require: true,
+        Buffer: true,
         console: true,
+        global: true,
+        globalThis: true,
+        // Browser globals
         window: true,
         document: true,
-        globalThis: true,
         EventTarget: true,
         CustomEvent: true,
-        EventListener: true
+        EventListener: true,
+        // Node.js types
+        NodeJS: true,
+        setTimeout: true,
+        clearTimeout: true,
+        setInterval: true,
+        clearInterval: true,
+        setImmediate: true,
+        clearImmediate: true
       },
     },
     ignores: ['dist/', 'node_modules/'],
