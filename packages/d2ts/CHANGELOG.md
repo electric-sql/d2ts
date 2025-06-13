@@ -1,5 +1,11 @@
 # @electric-sql/d2ts
 
+## 0.1.8
+
+### Patch Changes
+
+- 2434e40: Use a polyfill FinalizationRegistry when the native one isn't available to enable React Native support
+
 ## 0.1.7
 
 ### Patch Changes
