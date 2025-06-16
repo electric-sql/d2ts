@@ -1,5 +1,8 @@
-# D2Mini is a minimal IVM implementation based on Differential Dataflow but without versions and frontiers.
+# D2Mini is a minimal IVM implementation based on Differential Dataflow
 
+D2Mini is a minimal implementation of the D2TS dataflow graph library but simplified and without the complexities of multi-dimensional versioning.
+
+The API is almost identical to D2TS, but without the need to specify a version when sending data, or to send a frontier to mark the end of a version.
 
 ### Basic Usage
 

@@ -1,7 +1,7 @@
 import { IStreamBuilder, PipedOperator } from '../types.js'
 import { DifferenceStreamWriter } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
-import { LinearUnaryOperator } from './base.js'
+import { LinearUnaryOperator } from '../graph.js'
 import { MultiSet } from '../multiset.js'
 
 /**
