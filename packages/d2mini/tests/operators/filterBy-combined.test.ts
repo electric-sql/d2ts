@@ -1,280 +1,279 @@
-import { describe, test, expect, beforeEach, afterEach } from 'vitest'
+import { describe, test, expect } from 'vitest'
 import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
-import {
-  filterBy as inMemoryFilterBy,
-  output,
-} from '../../src/operators/index.js'
-import { filterBy as sqliteFilterBy } from '../../src/sqlite/operators/filterBy.js'
-import { Message, MessageType } from '../../src/types.js'
+import { filterBy, output } from '../../src/operators/index.js'
 import { KeyValue } from '../../src/types.js'
-import { BetterSQLite3Wrapper } from '../../src/sqlite/database.js'
-import Database from 'better-sqlite3'
 
 describe('Operators', () => {
   describe('FilterBy operation', () => {
-    testFilterBy(inMemoryFilterBy)
-  })
-})
-
-describe('SQLite Operators', () => {
-  describe('FilterBy operation', () => {
-    let db: BetterSQLite3Wrapper
-
-    beforeEach(() => {
-      const sqlite = new Database(':memory:')
-      db = new BetterSQLite3Wrapper(sqlite)
+    test('filterBy operator exists', () => {
+      expect(typeof filterBy).toBe('function')
     })
 
-    afterEach(() => {
-      db.close()
+    test('filterBy basic test', () => {
+      const graph = new D2()
+      const inputA = graph.newInput<KeyValue<number, string>>()
+      const inputB = graph.newInput<KeyValue<number, boolean>>()
+      const messages: MultiSet<KeyValue<number, string>>[] = []
+
+      // Use the filterBy operator
+      inputA.pipe(
+        filterBy(inputB),
+        output((message) => {
+          messages.push(message)
+        }),
+      )
+
+      graph.finalize()
+
+      // Send data to the main stream
+      inputA.sendData(
+        new MultiSet<KeyValue<number, string>>([
+          [[1, 'apple'], 1],
+          [[2, 'banana'], 1],
+        ]),
+      )
+
+      // Send filter keys to the filter stream
+      inputB.sendData(
+        new MultiSet<KeyValue<number, boolean>>([[[1, true], 1]]),
+      )
+
+      graph.run()
+
+      // Check if we got the filtered result
+      expect(messages).toHaveLength(1)
+      expect(messages[0].getInner()).toEqual([[[1, 'apple'], 1]])
     })
 
-    const wrappedFilterBy = ((stream) => {
-      return sqliteFilterBy(stream, db)
-    }) as typeof inMemoryFilterBy
+    test('filterBy with empty filter stream', () => {
+      const graph = new D2()
+      const inputA = graph.newInput<KeyValue<number, string>>()
+      const inputB = graph.newInput<KeyValue<number, boolean>>()
+      const messages: MultiSet<KeyValue<number, string>>[] = []
 
-    testFilterBy(wrappedFilterBy)
-  })
-})
+      inputA.pipe(
+        filterBy(inputB),
+        output((message) => {
+          messages.push(message)
+        }),
+      )
 
-function testFilterBy(filterBy: typeof inMemoryFilterBy) {
-  test('filterBy operator exists', () => {
-    expect(typeof filterBy).toBe('function')
-  })
+      graph.finalize()
 
-  test('filterBy basic test', () => {
-    const graph = new D2({ initialFrontier: 0 })
-    const inputA = graph.newInput<KeyValue<number, string>>()
-    const inputB = graph.newInput<KeyValue<number, boolean>>()
-    const messages: Message<any>[] = []
+      // Send data to the main stream
+      inputA.sendData(
+        new MultiSet<KeyValue<number, string>>([
+          [[1, 'apple'], 1],
+          [[2, 'banana'], 1],
+        ]),
+      )
 
-    // Use the filterBy operator
-    inputA.pipe(
-      filterBy(inputB),
-      output((message) => {
-        messages.push(message)
-      }),
-    )
+      // Send empty filter data
+      inputB.sendData(new MultiSet([]))
 
-    graph.finalize()
+      graph.run()
 
-    // Send data to the main stream
-    inputA.sendData(
-      1,
-      new MultiSet<KeyValue<number, string>>([
-        [[1, 'apple'], 1],
-        [[2, 'banana'], 1],
-      ]),
-    )
-    inputA.sendFrontier(1)
+      // No data messages should be returned since filter stream is empty
+      expect(messages).toHaveLength(0)
+    })
 
-    // Send filter keys to the filter stream
-    inputB.sendData(
-      1,
-      new MultiSet<KeyValue<number, boolean>>([[[1, true], 1]]),
-    )
-    inputB.sendFrontier(1)
+    test('filterBy with multiple filter keys', () => {
+      const graph = new D2()
+      const inputA = graph.newInput<KeyValue<number, string>>()
+      const inputB = graph.newInput<KeyValue<number, boolean>>()
+      const messages: MultiSet<KeyValue<number, string>>[] = []
 
-    graph.run()
+      inputA.pipe(
+        filterBy(inputB),
+        output((message) => {
+          messages.push(message)
+        }),
+      )
 
-    // Check if we got any frontier messages
-    const frontierMessages = messages.filter(
-      (m) => m.type === MessageType.FRONTIER,
-    )
-    expect(frontierMessages.length).toBeGreaterThan(0)
-  })
+      graph.finalize()
 
-  test('filterBy with empty filter stream', () => {
-    const graph = new D2({ initialFrontier: 0 })
-    const inputA = graph.newInput<KeyValue<number, string>>()
-    const inputB = graph.newInput<KeyValue<number, boolean>>()
-    const messages: Message<any>[] = []
+      // Send data to the main stream
+      inputA.sendData(
+        new MultiSet<KeyValue<number, string>>([
+          [[1, 'apple'], 1],
+          [[2, 'banana'], 1],
+          [[3, 'cherry'], 1],
+        ]),
+      )
 
-    inputA.pipe(
-      filterBy(inputB),
-      output((message) => {
-        messages.push(message)
-      }),
-    )
+      // Send filter keys
+      inputB.sendData(
+        new MultiSet<KeyValue<number, boolean>>([
+          [[2, true], 1],
+          [[3, false], 1], // Value doesn't matter, only key presence
+        ]),
+      )
 
-    graph.finalize()
+      graph.run()
 
-    // Send data to the main stream
-    inputA.sendData(
-      1,
-      new MultiSet<KeyValue<number, string>>([
-        [[1, 'apple'], 1],
-        [[2, 'banana'], 1],
-      ]),
-    )
-    inputA.sendFrontier(1)
-
-    // Send empty filter data
-    inputB.sendData(1, new MultiSet([]))
-    inputB.sendFrontier(1)
-
-    graph.run()
-
-    // No data messages should be returned since filter stream is empty
-    const dataMessages = messages.filter((m) => m.type === MessageType.DATA)
-    expect(dataMessages.length).toBe(0)
-  })
-
-  test('filterBy with late arriving filter data', () => {
-    const graph = new D2({ initialFrontier: 0 })
-    const inputA = graph.newInput<KeyValue<number, string>>()
-    const inputB = graph.newInput<KeyValue<number, boolean>>()
-    const messages: Message<any>[] = []
-
-    inputA.pipe(
-      filterBy(inputB),
-      output((message) => {
-        messages.push(message)
-      }),
-    )
-
-    graph.finalize()
-
-    // Send data to the main stream first
-    inputA.sendData(
-      1,
-      new MultiSet<KeyValue<number, string>>([
-        [[1, 'apple'], 1],
+      // Should get items with keys 2 and 3
+      expect(messages).toHaveLength(1)
+      const result = messages[0].getInner().sort((a, b) => a[0][0] - b[0][0])
+      expect(result).toEqual([
         [[2, 'banana'], 1],
         [[3, 'cherry'], 1],
-      ]),
-    )
-    inputA.sendFrontier(1)
+      ])
+    })
 
-    graph.run()
+    test('filterBy with incremental updates', () => {
+      const graph = new D2()
+      const inputA = graph.newInput<KeyValue<number, string>>()
+      const inputB = graph.newInput<KeyValue<number, boolean>>()
+      const messages: MultiSet<KeyValue<number, string>>[] = []
 
-    // No data messages yet because filter stream hasn't provided any keys
-    const initialDataMessages = messages.filter(
-      (m) => m.type === MessageType.DATA,
-    )
-    expect(initialDataMessages.length).toBe(0)
+      inputA.pipe(
+        filterBy(inputB),
+        output((message) => {
+          messages.push(message)
+        }),
+      )
 
-    // Now send filter keys
-    inputB.sendData(
-      1,
-      new MultiSet<KeyValue<number, boolean>>([
-        [[2, true], 1],
-        [[3, false], 1],
-      ]),
-    )
-    inputB.sendFrontier(1)
+      graph.finalize()
 
-    graph.run()
+      // Send initial data
+      inputA.sendData(
+        new MultiSet<KeyValue<number, string>>([
+          [[1, 'apple'], 1],
+          [[2, 'banana'], 1],
+          [[3, 'cherry'], 1],
+          [[4, 'date'], 1],
+        ]),
+      )
 
-    // Now we should have frontier messages
-    const frontierMessages = messages.filter(
-      (m) => m.type === MessageType.FRONTIER,
-    )
-    expect(frontierMessages.length).toBeGreaterThan(0)
-  })
+      // Send initial filter keys
+      inputB.sendData(
+        new MultiSet<KeyValue<number, boolean>>([
+          [[1, true], 1],
+          [[3, true], 1],
+        ]),
+      )
 
-  test('filterBy with updates to filter stream', () => {
-    const graph = new D2({ initialFrontier: 0 })
-    const inputA = graph.newInput<KeyValue<number, string>>()
-    const inputB = graph.newInput<KeyValue<number, boolean>>()
-    const messages: Message<any>[] = []
+      graph.run()
 
-    inputA.pipe(
-      filterBy(inputB),
-      output((message) => {
-        messages.push(message)
-      }),
-    )
-
-    graph.finalize()
-
-    // Send initial data
-    inputA.sendData(
-      1,
-      new MultiSet<KeyValue<number, string>>([
+      // Should get items with keys 1 and 3
+      expect(messages).toHaveLength(1)
+      let result = messages[0].getInner().sort((a, b) => a[0][0] - b[0][0])
+      expect(result).toEqual([
         [[1, 'apple'], 1],
-        [[2, 'banana'], 1],
         [[3, 'cherry'], 1],
+      ])
+
+      // Now update the filter stream with new keys
+      inputB.sendData(
+        new MultiSet<KeyValue<number, boolean>>([
+          [[2, true], 1],
+          [[4, true], 1],
+        ]),
+      )
+
+      graph.run()
+
+      // Should get new items with keys 2 and 4
+      expect(messages).toHaveLength(2)
+      result = messages[1].getInner().sort((a, b) => a[0][0] - b[0][0])
+      expect(result).toEqual([
+        [[2, 'banana'], 1],
         [[4, 'date'], 1],
-      ]),
-    )
-    inputA.sendFrontier(1)
+      ])
+    })
 
-    // Send initial filter keys
-    inputB.sendData(
-      1,
-      new MultiSet<KeyValue<number, boolean>>([
-        [[1, true], 1],
-        [[3, true], 1],
-      ]),
-    )
-    inputB.sendFrontier(1)
+    test('filterBy with negative multiplicities', () => {
+      const graph = new D2()
+      const inputA = graph.newInput<KeyValue<number, string>>()
+      const inputB = graph.newInput<KeyValue<number, boolean>>()
+      const messages: MultiSet<KeyValue<number, string>>[] = []
 
-    graph.run()
+      inputA.pipe(
+        filterBy(inputB),
+        output((message) => {
+          messages.push(message)
+        }),
+      )
 
-    // Now update the filter stream with new keys
-    inputB.sendData(
-      2,
-      new MultiSet<KeyValue<number, boolean>>([
-        [[2, true], 1],
-        [[4, true], 1],
-      ]),
-    )
-    inputB.sendFrontier(2)
+      graph.finalize()
 
-    graph.run()
+      // Send data to the main stream with negative multiplicity
+      inputA.sendData(
+        new MultiSet<KeyValue<number, string>>([
+          [[1, 'apple'], 1],
+          [[2, 'banana'], -1],
+          [[3, 'cherry'], 1],
+        ]),
+      )
 
-    // We should have frontier messages
-    const frontierMessages = messages.filter(
-      (m) => m.type === MessageType.FRONTIER,
-    )
-    expect(frontierMessages.length).toBeGreaterThan(0)
-  })
+      // Send filter keys
+      inputB.sendData(
+        new MultiSet<KeyValue<number, boolean>>([
+          [[1, true], 1],
+          [[2, true], 1],
+          [[3, true], 1],
+        ]),
+      )
 
-  test('filterBy with negative multiplicities', () => {
-    const graph = new D2({ initialFrontier: 0 })
-    const inputA = graph.newInput<KeyValue<number, string>>()
-    const inputB = graph.newInput<KeyValue<number, boolean>>()
-    const messages: Message<any>[] = []
+      graph.run()
 
-    inputA.pipe(
-      filterBy(inputB),
-      output((message) => {
-        messages.push(message)
-      }),
-    )
-
-    graph.finalize()
-
-    // Send data to the main stream with negative multiplicity
-    inputA.sendData(
-      1,
-      new MultiSet<KeyValue<number, string>>([
+      // Should get filtered results with proper multiplicities
+      expect(messages).toHaveLength(1)
+      const result = messages[0].getInner().sort((a, b) => a[0][0] - b[0][0])
+      expect(result).toEqual([
         [[1, 'apple'], 1],
         [[2, 'banana'], -1],
         [[3, 'cherry'], 1],
-      ]),
-    )
-    inputA.sendFrontier(1)
+      ])
+    })
 
-    // Send filter keys
-    inputB.sendData(
-      1,
-      new MultiSet<KeyValue<number, boolean>>([
-        [[1, true], 1],
-        [[2, true], 1],
-        [[3, true], 1],
-      ]),
-    )
-    inputB.sendFrontier(1)
+    test('filterBy with data arriving before filter keys', () => {
+      const graph = new D2()
+      const inputA = graph.newInput<KeyValue<number, string>>()
+      const inputB = graph.newInput<KeyValue<number, boolean>>()
+      const messages: MultiSet<KeyValue<number, string>>[] = []
 
-    graph.run()
+      inputA.pipe(
+        filterBy(inputB),
+        output((message) => {
+          messages.push(message)
+        }),
+      )
 
-    // We should have frontier messages
-    const frontierMessages = messages.filter(
-      (m) => m.type === MessageType.FRONTIER,
-    )
-    expect(frontierMessages.length).toBeGreaterThan(0)
+      graph.finalize()
+
+      // Send data first
+      inputA.sendData(
+        new MultiSet<KeyValue<number, string>>([
+          [[1, 'apple'], 1],
+          [[2, 'banana'], 1],
+          [[3, 'cherry'], 1],
+        ]),
+      )
+
+      graph.run()
+
+      // No messages yet because no filter keys
+      expect(messages).toHaveLength(0)
+
+      // Now send filter keys
+      inputB.sendData(
+        new MultiSet<KeyValue<number, boolean>>([
+          [[2, true], 1],
+          [[3, false], 1],
+        ]),
+      )
+
+      graph.run()
+
+      // Now should get filtered results
+      expect(messages).toHaveLength(1)
+      const result = messages[0].getInner().sort((a, b) => a[0][0] - b[0][0])
+      expect(result).toEqual([
+        [[2, 'banana'], 1],
+        [[3, 'cherry'], 1],
+      ])
+    })
   })
-}
+})

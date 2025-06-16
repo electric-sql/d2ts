@@ -24,7 +24,7 @@ export function filterBy<
     )
     return stream.pipe(
       innerJoin(otherKeys),
-      map(([key, [_, value]]) => [key, value] as KeyValue<K, V1>),
+      map(([key, [value, _]]) => [key, value] as KeyValue<K, V1>),
       consolidate(),
     )
   }
