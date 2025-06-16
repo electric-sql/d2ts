@@ -104,31 +104,6 @@ describe('MultiSet', () => {
     ])
   })
 
-  it('should handle iteration', () => {
-    const e = new MultiSet([[1, 1]])
-
-    const addOne = (collection: MultiSet<number>) => {
-      return collection
-        .map((data) => data + 1)
-        .concat(collection)
-        .filter((data) => data <= 5)
-        .map((data) => [data, []])
-        .distinct()
-        .map((data) => data[0])
-        .consolidate()
-    }
-
-    // @ts-ignore
-    const result = e.iterate(addOne).map((data) => [data, data * data])
-    expect(result.getInner()).toEqual([
-      [[5, 25], 1],
-      [[4, 16], 1],
-      [[3, 9], 1],
-      [[2, 4], 1],
-      [[1, 1], 1],
-    ])
-  })
-
   it('should handle negative multiplicities correctly', () => {
     const a = new MultiSet([[1, 1]])
     const b = new MultiSet([[1, -1]])

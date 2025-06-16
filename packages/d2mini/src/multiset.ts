@@ -281,25 +281,6 @@ export class MultiSet<T> {
     })
   }
 
-  /**
-   * Repeatedly invoke a function f on a collection, and return the result
-   * of applying the function an infinite number of times (fixedpoint).
-   *
-   * Note that if the function does not converge to a fixedpoint this implementation
-   * will run forever.
-   */
-  iterate(f: (collection: MultiSet<T>) => MultiSet<T>): MultiSet<T> {
-    let curr = new MultiSet(this.#inner)
-    let result = f(curr)
-
-    while (JSON.stringify(result.#inner) !== JSON.stringify(curr.#inner)) {
-      curr = result
-      result = f(curr)
-    }
-
-    return curr
-  }
-
   extend(other: MultiSet<T> | MultiSetArray<T>): void {
     const otherArray = other instanceof MultiSet ? other.getInner() : other
     chunkedArrayPush(this.#inner, otherArray)
