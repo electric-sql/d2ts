@@ -1,8 +1,4 @@
-import {
-  IStreamBuilder,
-  KeyValue,
-  PipedOperator,
-} from '../types.js'
+import { IStreamBuilder, KeyValue, PipedOperator } from '../types.js'
 import {
   DifferenceStreamReader,
   DifferenceStreamWriter,
@@ -197,12 +193,8 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
 
       // Pre-compute valid previous and next indices for each position
       // This avoids repeated lookups during index generation
-      const validPrevIndices: (string | null)[] = new Array(
-        sortedValues.length,
-      )
-      const validNextIndices: (string | null)[] = new Array(
-        sortedValues.length,
-      )
+      const validPrevIndices: (string | null)[] = new Array(sortedValues.length)
+      const validNextIndices: (string | null)[] = new Array(sortedValues.length)
 
       // Initialize with null values
       validPrevIndices.fill(null)
@@ -267,10 +259,7 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
           newIndices.set(valueKey, newIndex)
 
           // Update validPrevIndices for subsequent elements
-          if (
-            i < sortedValues.length - 1 &&
-            validPrevIndices[i + 1] === null
-          ) {
+          if (i < sortedValues.length - 1 && validPrevIndices[i + 1] === null) {
             validPrevIndices[i + 1] = newIndex
           }
         }

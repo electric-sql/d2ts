@@ -144,9 +144,7 @@ export class StreamBuilder<T> implements IStreamBuilder<T> {
 }
 
 export class RootStreamBuilder<T> extends StreamBuilder<T> {
-  sendData(
-    collection: MultiSet<T> | MultiSetArray<T>,
-  ): void {
+  sendData(collection: MultiSet<T> | MultiSetArray<T>): void {
     this.writer.sendData(collection)
   }
 }

@@ -29,9 +29,7 @@ describe('Operators', () => {
 
       graph.run()
 
-      expect(messages).toEqual([
-        new MultiSet([[2, 1]]),
-      ])
+      expect(messages).toEqual([new MultiSet([[2, 1]])])
     })
 
     test('filter with complex predicate', () => {

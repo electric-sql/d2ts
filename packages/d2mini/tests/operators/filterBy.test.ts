@@ -35,9 +35,7 @@ describe('Operators', () => {
       )
 
       // Send filter keys to the filter stream
-      inputB.sendData(
-        new MultiSet<KeyValue<number, boolean>>([[[1, true], 1]]),
-      )
+      inputB.sendData(new MultiSet<KeyValue<number, boolean>>([[[1, true], 1]]))
 
       graph.run()
 

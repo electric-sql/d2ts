@@ -20,12 +20,8 @@ describe('keying operators', () => {
     const outputStream = keyed.pipe(unkey())
     outputStream.pipe(output((message) => messages.push(message)))
 
-    input.sendData(
-      new MultiSet([[{ id: 1, name: 'a', value: 10 }, 1]]),
-    )
-    input.sendData(
-      new MultiSet([[{ id: 2, name: 'b', value: 20 }, 1]]),
-    )
+    input.sendData(new MultiSet([[{ id: 1, name: 'a', value: 10 }, 1]]))
+    input.sendData(new MultiSet([[{ id: 2, name: 'b', value: 20 }, 1]]))
     d2.finalize()
     d2.run()
 
@@ -47,12 +43,8 @@ describe('keying operators', () => {
     const outputStream = rekeyed.pipe(unkey())
     outputStream.pipe(output((message) => messages.push(message)))
 
-    input.sendData(
-      new MultiSet([[{ id: 1, name: 'a', value: 10 }, 1]]),
-    )
-    input.sendData(
-      new MultiSet([[{ id: 2, name: 'b', value: 20 }, 1]]),
-    )
+    input.sendData(new MultiSet([[{ id: 1, name: 'a', value: 10 }, 1]]))
+    input.sendData(new MultiSet([[{ id: 2, name: 'b', value: 20 }, 1]]))
     d2.finalize()
     d2.run()
 
@@ -71,12 +63,8 @@ describe('keying operators', () => {
     const outputStream = keyed.pipe(unkey())
     outputStream.pipe(output((message) => messages.push(message)))
 
-    input.sendData(
-      new MultiSet([[{ id: 1, name: 'a', value: 10 }, 1]]),
-    )
-    input.sendData(
-      new MultiSet([[{ id: 1, name: 'a', value: 20 }, 1]]),
-    )
+    input.sendData(new MultiSet([[{ id: 1, name: 'a', value: 10 }, 1]]))
+    input.sendData(new MultiSet([[{ id: 1, name: 'a', value: 20 }, 1]]))
     d2.finalize()
     d2.run()
 

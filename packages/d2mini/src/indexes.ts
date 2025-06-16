@@ -66,10 +66,15 @@ export class Index<K, V> implements IndexType<K, V> {
     for (const [key, values] of other.entries()) {
       const thisValues = this.#inner.get(key)
       for (const [value, multiplicity] of values) {
-        const existingIndex = thisValues.findIndex(([v, _]) => hash(v) === hash(value))
+        const existingIndex = thisValues.findIndex(
+          ([v, _]) => hash(v) === hash(value),
+        )
         if (existingIndex >= 0) {
           const [_, existingMultiplicity] = thisValues[existingIndex]
-          thisValues[existingIndex] = [value, existingMultiplicity + multiplicity]
+          thisValues[existingIndex] = [
+            value,
+            existingMultiplicity + multiplicity,
+          ]
         } else {
           thisValues.push([value, multiplicity])
         }

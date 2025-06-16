@@ -28,9 +28,7 @@ export class DebugOperator<T> extends UnaryOperator<T> {
   run(): void {
     for (const message of this.inputMessages()) {
       // eslint-disable-next-line no-console
-      console.log(
-        `debug ${this.#name} data: ${message.toString(this.#indent)}`,
-      )
+      console.log(`debug ${this.#name} data: ${message.toString(this.#indent)}`)
       this.output.sendData(message)
     }
   }

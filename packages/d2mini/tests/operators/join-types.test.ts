@@ -945,7 +945,9 @@ function testJoin(joinType: JoinType) {
       ],
     }
 
-    expect(sortResults(results)).toEqual(sortResults(expectedResults2[joinType]))
+    expect(sortResults(results)).toEqual(
+      sortResults(expectedResults2[joinType]),
+    )
 
     results.length = 0
 

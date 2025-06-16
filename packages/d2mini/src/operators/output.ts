@@ -35,7 +35,9 @@ export class OutputOperator<T> extends UnaryOperator<T> {
  * Outputs the messages in the stream
  * @param fn - The function to call with each message
  */
-export function output<T>(fn: (data: MultiSet<T>) => void): PipedOperator<T, T> {
+export function output<T>(
+  fn: (data: MultiSet<T>) => void,
+): PipedOperator<T, T> {
   return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
     const output = new StreamBuilder<T>(
       stream.graph,

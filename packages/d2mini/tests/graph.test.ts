@@ -33,13 +33,13 @@ describe('DifferenceStreamReader and DifferenceStreamWriter', () => {
 
   test('multiple readers receive the same data', () => {
     const reader2 = writer.newReader()
-    
+
     writer.sendData(new MultiSet([[1, 1]]))
     writer.sendData(new MultiSet([[2, 1]]))
 
     const messages1 = reader.drain()
     const messages2 = reader2.drain()
-    
+
     expect(messages1).toHaveLength(2)
     expect(messages2).toHaveLength(2)
     expect(messages1[0].getInner()).toEqual([[1, 1]])
@@ -51,7 +51,7 @@ describe('DifferenceStreamReader and DifferenceStreamWriter', () => {
   test('drain empties the queue', () => {
     writer.sendData(new MultiSet([[1, 1]]))
     writer.sendData(new MultiSet([[2, 1]]))
-    
+
     expect(reader.isEmpty()).toBe(false)
     reader.drain()
     expect(reader.isEmpty()).toBe(true)

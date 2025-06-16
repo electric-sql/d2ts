@@ -1,8 +1,4 @@
-import {
-  IStreamBuilder,
-  PipedOperator,
-  KeyValue,
-} from '../types.js'
+import { IStreamBuilder, PipedOperator, KeyValue } from '../types.js'
 import {
   DifferenceStreamReader,
   DifferenceStreamWriter,

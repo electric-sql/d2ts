@@ -77,7 +77,9 @@ export abstract class Operator<T> implements IOperator<T> {
  * A convenience implementation of a dataflow operator that has a handle to one
  * incoming stream of data, and one handle to an outgoing stream of data.
  */
-export abstract class UnaryOperator<Tin, Tout = Tin> extends Operator<Tin | Tout> {
+export abstract class UnaryOperator<Tin, Tout = Tin> extends Operator<
+  Tin | Tout
+> {
   constructor(
     public id: number,
     inputA: DifferenceStreamReader<Tin>,

@@ -1,7 +1,4 @@
-import {
-  IStreamBuilder,
-  PipedOperator,
-} from '../types.js'
+import { IStreamBuilder, PipedOperator } from '../types.js'
 import { DifferenceStreamWriter, UnaryOperator } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { MultiSet } from '../multiset.js'
@@ -24,7 +21,7 @@ export class ConsolidateOperator<T> extends UnaryOperator<T> {
 
     // Consolidate the combined MultiSet
     const consolidated = combined.consolidate()
-    
+
     // Only send if there are results
     if (consolidated.getInner().length > 0) {
       this.output.sendData(consolidated)

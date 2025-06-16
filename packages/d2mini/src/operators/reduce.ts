@@ -22,7 +22,7 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1], [K, V2]> {
     id: number,
     inputA: DifferenceStreamReader<[K, V1]>,
     output: DifferenceStreamWriter<[K, V2]>,
-    f: (values: [V1, number][]) => [V2, number][]
+    f: (values: [V1, number][]) => [V2, number][],
   ) {
     super(id, inputA, output)
     this.#f = f
