@@ -2,6 +2,7 @@ import { IStreamBuilder, KeyValue } from '../types.js'
 import { DifferenceStreamReader, DifferenceStreamWriter } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { ReduceOperator } from './reduce.js'
+import { hash } from '../utils.js'
 
 /**
  * Operator that removes duplicates by key (version-free)
@@ -13,10 +14,10 @@ export class DistinctOperator<K, V> extends ReduceOperator<K, V, V> {
     output: DifferenceStreamWriter<[K, V]>,
   ) {
     const distinctInner = (vals: [V, number][]): [V, number][] => {
-      const consolidated = new Map<string, number>()
-      const values = new Map<string, V>()
+      const consolidated = new Map<string | number, number>()
+      const values = new Map<string | number, V>()
       for (const [val, diff] of vals) {
-        const key = JSON.stringify(val)
+        const key = hash(val)
         consolidated.set(key, (consolidated.get(key) || 0) + diff)
         values.set(key, val)
       }

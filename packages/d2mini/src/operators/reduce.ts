@@ -7,6 +7,7 @@ import {
 import { StreamBuilder } from '../d2.js'
 import { MultiSet } from '../multiset.js'
 import { Index } from '../indexes.js'
+import { hash } from '../utils.js'
 
 /**
  * Base operator for reduction operations (version-free)
@@ -45,15 +46,15 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1], [K, V2]> {
       const out = this.#f(curr)
 
       // Calculate delta between current and previous output
-      const delta = new Map<string, number>()
-      const values = new Map<string, V2>()
+      const delta = new Map<string | number, number>()
+      const values = new Map<string | number, V2>()
       for (const [value, multiplicity] of out) {
-        const valueKey = JSON.stringify(value)
+        const valueKey = hash(value)
         values.set(valueKey, value)
         delta.set(valueKey, (delta.get(valueKey) || 0) + multiplicity)
       }
       for (const [value, multiplicity] of currOut) {
-        const valueKey = JSON.stringify(value)
+        const valueKey = hash(value)
         values.set(valueKey, value)
         delta.set(valueKey, (delta.get(valueKey) || 0) - multiplicity)
       }

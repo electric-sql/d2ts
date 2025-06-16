@@ -12,6 +12,7 @@ import { StreamBuilder } from '../d2.js'
 import { MultiSet } from '../multiset.js'
 import { Index } from '../indexes.js'
 import { generateKeyBetween } from 'fractional-indexing'
+import { hash } from '../utils.js'
 
 interface TopKWithFractionalIndexOptions {
   limit?: number
@@ -71,12 +72,12 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
         .slice(this.#offset, this.#offset + this.#limit)
 
       // Create a map for quick value lookup with pre-stringified keys
-      const currValueMap = new Map<string, V1>()
-      const prevOutputMap = new Map<string, [V1, string]>()
+      const currValueMap = new Map<string | number, V1>()
+      const prevOutputMap = new Map<string | number, [V1, string]>()
 
       // Pre-stringify all values once
-      const valueKeys: string[] = []
-      const valueToKey = new Map<V1, string>()
+      const valueKeys: (string | number)[] = []
+      const valueToKey = new Map<V1, string | number>()
 
       // Process current values
       for (const [value, multiplicity] of sortedValues) {
@@ -84,7 +85,7 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
           // Only stringify each value once and store the result
           let valueKey = valueToKey.get(value as V1)
           if (!valueKey) {
-            valueKey = JSON.stringify(value)
+            valueKey = hash(value)
             valueToKey.set(value as V1, valueKey)
             valueKeys.push(valueKey)
           }
@@ -98,7 +99,7 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
           // Only stringify each value once and store the result
           let valueKey = valueToKey.get(value as V1)
           if (!valueKey) {
-            valueKey = JSON.stringify(value)
+            valueKey = hash(value)
             valueToKey.set(value as V1, valueKey)
           }
           prevOutputMap.set(valueKey, [value as V1, index as string])
