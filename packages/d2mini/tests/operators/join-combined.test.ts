@@ -1,16 +1,9 @@
-import { describe, test, expect, afterEach, beforeEach } from 'vitest'
+import { describe, test, expect } from 'vitest'
 import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
-import { MessageType } from '../../src/types.js'
-import {
-  join as inMemoryJoin,
-  output,
-  consolidate,
-  JoinType,
-} from '../../src/operators/index.js'
-import { join as sqliteJoin } from '../../src/sqlite/operators/join.js'
-import { BetterSQLite3Wrapper } from '../../src/sqlite/database.js'
-import Database from 'better-sqlite3'
+import { join, JoinType } from '../../src/operators/join.js'
+import { output } from '../../src/operators/output.js'
+import { consolidate } from '../../src/operators/consolidate.js'
 
 /**
  * Sort results by multiplicity and then key
@@ -27,47 +20,21 @@ function sortResults(results: any[]) {
     )
 }
 
-// const joinTypes = ['inner', 'left', 'right', 'full', 'anti'] as const
-const joinTypes = ['inner'] as const
+const joinTypes = ['inner', 'left', 'right', 'full', 'anti'] as const
 
 describe('Operators', () => {
   describe('Join operation', () => {
     joinTypes.forEach((joinType) => {
       describe(`${joinType} join`, () => {
-        testJoin(inMemoryJoin, joinType)
+        testJoin(joinType)
       })
     })
   })
 })
 
-// describe('SQLite Operators', () => {
-//   describe('Join operation', () => {
-//     let db: BetterSQLite3Wrapper
-
-//     beforeEach(() => {
-//       const sqlite = new Database(':memory:')
-//       db = new BetterSQLite3Wrapper(sqlite)
-//     })
-
-//     afterEach(() => {
-//       db.close()
-//     })
-
-//     const wrappedJoin = ((stream, joinType) => {
-//       return sqliteJoin(stream, db, joinType)
-//     }) as typeof inMemoryJoin
-
-//     joinTypes.forEach((joinType) => {
-//       describe(`${joinType} join`, () => {
-//         testJoin(wrappedJoin, joinType)
-//       })
-//     })
-//   })
-// })
-
-function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
+function testJoin(joinType: JoinType) {
   test('initial join with missing rows', () => {
-    const graph = new D2({ initialFrontier: 0 })
+    const graph = new D2()
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
     const results: any[] = []
@@ -76,30 +43,24 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
       join(inputB, joinType as any),
       consolidate(),
       output((message) => {
-        if (message.type === MessageType.DATA) {
-          results.push(...message.data.collection.getInner())
-        }
+        results.push(...message.getInner())
       }),
     )
 
     graph.finalize()
 
     inputA.sendData(
-      1,
       new MultiSet([
         [[1, 'A'], 1],
         [[2, 'B'], 1],
       ]),
     )
     inputB.sendData(
-      1,
       new MultiSet([
         [[2, 'X'], 1],
         [[3, 'Y'], 1],
       ]),
     )
-    inputA.sendFrontier(2)
-    inputB.sendFrontier(2)
     graph.run()
 
     const expectedResults = {
@@ -132,7 +93,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
   })
 
   test('insert left', () => {
-    const graph = new D2({ initialFrontier: 0 })
+    const graph = new D2()
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
     const results: any[] = []
@@ -141,25 +102,20 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
       join(inputB, joinType as any),
       consolidate(),
       output((message) => {
-        if (message.type === MessageType.DATA) {
-          results.push(...message.data.collection.getInner())
-        }
+        results.push(...message.getInner())
       }),
     )
 
     graph.finalize()
 
     // Initial data
-    inputA.sendData(1, new MultiSet([[[1, 'A'], 1]]))
+    inputA.sendData(new MultiSet([[[1, 'A'], 1]]))
     inputB.sendData(
-      1,
       new MultiSet([
         [[1, 'X'], 1],
         [[2, 'Y'], 1],
       ]),
     )
-    inputA.sendFrontier(2)
-    inputB.sendFrontier(2)
     graph.run()
 
     /*
@@ -207,9 +163,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
     results.length = 0
 
     // Insert on left side
-    inputA.sendData(3, new MultiSet([[[2, 'B'], 1]]))
-    inputA.sendFrontier(4)
-    inputB.sendFrontier(4)
+    inputA.sendData(new MultiSet([[[2, 'B'], 1]]))
     graph.run()
 
     /*
@@ -253,7 +207,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
   })
 
   test('insert right', () => {
-    const graph = new D2({ initialFrontier: 0 })
+    const graph = new D2()
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
     const results: any[] = []
@@ -262,9 +216,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
       join(inputB, joinType as any),
       consolidate(),
       output((message) => {
-        if (message.type === MessageType.DATA) {
-          results.push(...message.data.collection.getInner())
-        }
+        results.push(...message.getInner())
       }),
     )
 
@@ -272,15 +224,12 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
 
     // Initial data
     inputA.sendData(
-      1,
       new MultiSet([
         [[1, 'A'], 1],
         [[3, 'C'], 1],
       ]),
     )
-    inputB.sendData(1, new MultiSet([[[1, 'X'], 1]]))
-    inputA.sendFrontier(2)
-    inputB.sendFrontier(2)
+    inputB.sendData(new MultiSet([[[1, 'X'], 1]]))
     graph.run()
 
     /*
@@ -327,9 +276,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
     results.length = 0
 
     // Insert on right side
-    inputB.sendData(3, new MultiSet([[[3, 'Z'], 1]]))
-    inputA.sendFrontier(4)
-    inputB.sendFrontier(4)
+    inputB.sendData(new MultiSet([[[3, 'Z'], 1]]))
     graph.run()
 
     /*
@@ -372,7 +319,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
   })
 
   test('delete left', () => {
-    const graph = new D2({ initialFrontier: 0 })
+    const graph = new D2()
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
     const results: any[] = []
@@ -381,9 +328,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
       join(inputB, joinType as any),
       consolidate(),
       output((message) => {
-        if (message.type === MessageType.DATA) {
-          results.push(...message.data.collection.getInner())
-        }
+        results.push(...message.getInner())
       }),
     )
 
@@ -391,21 +336,17 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
 
     // Initial data
     inputA.sendData(
-      1,
       new MultiSet([
         [[1, 'A'], 1],
         [[2, 'B'], 1],
       ]),
     )
     inputB.sendData(
-      1,
       new MultiSet([
         [[1, 'X'], 1],
         [[2, 'Y'], 1],
       ]),
     )
-    inputA.sendFrontier(2)
-    inputB.sendFrontier(2)
     graph.run()
 
     /*
@@ -448,9 +389,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
     results.length = 0
 
     // Delete from left side
-    inputA.sendData(3, new MultiSet([[[1, 'A'], -1]]))
-    inputA.sendFrontier(4)
-    inputB.sendFrontier(4)
+    inputA.sendData(new MultiSet([[[1, 'A'], -1]]))
     graph.run()
 
     /*
@@ -491,7 +430,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
   })
 
   test('delete right', () => {
-    const graph = new D2({ initialFrontier: 0 })
+    const graph = new D2()
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
     const results: any[] = []
@@ -500,9 +439,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
       join(inputB, joinType as any),
       consolidate(),
       output((message) => {
-        if (message.type === MessageType.DATA) {
-          results.push(...message.data.collection.getInner())
-        }
+        results.push(...message.getInner())
       }),
     )
 
@@ -510,21 +447,17 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
 
     // Initial data
     inputA.sendData(
-      1,
       new MultiSet([
         [[1, 'A'], 1],
         [[2, 'B'], 1],
       ]),
     )
     inputB.sendData(
-      1,
       new MultiSet([
         [[1, 'X'], 1],
         [[2, 'Y'], 1],
       ]),
     )
-    inputA.sendFrontier(2)
-    inputB.sendFrontier(2)
     graph.run()
 
     /*
@@ -567,9 +500,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
     results.length = 0
 
     // Delete from right side
-    inputB.sendData(3, new MultiSet([[[2, 'Y'], -1]]))
-    inputA.sendFrontier(4)
-    inputB.sendFrontier(4)
+    inputB.sendData(new MultiSet([[[2, 'Y'], -1]]))
     graph.run()
 
     /*
@@ -611,7 +542,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
   })
 
   test('update left (delete + insert)', () => {
-    const graph = new D2({ initialFrontier: 0 })
+    const graph = new D2()
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
     const results: any[] = []
@@ -620,19 +551,15 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
       join(inputB, joinType as any),
       consolidate(),
       output((message) => {
-        if (message.type === MessageType.DATA) {
-          results.push(...message.data.collection.getInner())
-        }
+        results.push(...message.getInner())
       }),
     )
 
     graph.finalize()
 
     // Initial data
-    inputA.sendData(1, new MultiSet([[[1, 'A'], 1]]))
-    inputB.sendData(1, new MultiSet([[[1, 'X'], 1]]))
-    inputA.sendFrontier(2)
-    inputB.sendFrontier(2)
+    inputA.sendData(new MultiSet([[[1, 'A'], 1]]))
+    inputB.sendData(new MultiSet([[[1, 'X'], 1]]))
     graph.run()
 
     /*
@@ -662,14 +589,11 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
 
     // Update left (delete + insert)
     inputA.sendData(
-      3,
       new MultiSet([
         [[1, 'A'], -1],
         [[1, 'A-updated'], 1],
       ]),
     )
-    inputA.sendFrontier(4)
-    inputB.sendFrontier(4)
     graph.run()
 
     /*
@@ -711,7 +635,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
   })
 
   test('update right (delete + insert)', () => {
-    const graph = new D2({ initialFrontier: 0 })
+    const graph = new D2()
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
     const results: any[] = []
@@ -720,19 +644,15 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
       join(inputB, joinType as any),
       consolidate(),
       output((message) => {
-        if (message.type === MessageType.DATA) {
-          results.push(...message.data.collection.getInner())
-        }
+        results.push(...message.getInner())
       }),
     )
 
     graph.finalize()
 
     // Initial data
-    inputA.sendData(1, new MultiSet([[[1, 'A'], 1]]))
-    inputB.sendData(1, new MultiSet([[[1, 'X'], 1]]))
-    inputA.sendFrontier(2)
-    inputB.sendFrontier(2)
+    inputA.sendData(new MultiSet([[[1, 'A'], 1]]))
+    inputB.sendData(new MultiSet([[[1, 'X'], 1]]))
     graph.run()
 
     /*
@@ -762,14 +682,11 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
 
     // Update right (delete + insert)
     inputB.sendData(
-      3,
       new MultiSet([
         [[1, 'X'], -1],
         [[1, 'X-updated'], 1],
       ]),
     )
-    inputA.sendFrontier(4)
-    inputB.sendFrontier(4)
     graph.run()
 
     /*
@@ -811,7 +728,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
   })
 
   test('delete both', () => {
-    const graph = new D2({ initialFrontier: 0 })
+    const graph = new D2()
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
     const results: any[] = []
@@ -823,9 +740,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
       // update with the net change.
       consolidate(),
       output((message) => {
-        if (message.type === MessageType.DATA) {
-          results.push(...message.data.collection.getInner())
-        }
+        results.push(...message.getInner())
       }),
     )
 
@@ -833,21 +748,17 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
 
     // Initial data
     inputA.sendData(
-      1,
       new MultiSet([
         [[1, 'A'], 1],
         [[2, 'B'], 1],
       ]),
     )
     inputB.sendData(
-      1,
       new MultiSet([
         [[1, 'X'], 1],
         [[2, 'Y'], 1],
       ]),
     )
-    inputA.sendFrontier(2)
-    inputB.sendFrontier(2)
     graph.run()
 
     /*
@@ -890,10 +801,8 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
     results.length = 0
 
     // Delete from both sides
-    inputA.sendData(3, new MultiSet([[[1, 'A'], -1]]))
-    inputB.sendData(3, new MultiSet([[[1, 'X'], -1]]))
-    inputA.sendFrontier(4)
-    inputB.sendFrontier(4)
+    inputA.sendData(new MultiSet([[[1, 'A'], -1]]))
+    inputB.sendData(new MultiSet([[[1, 'X'], -1]]))
     graph.run()
 
     /*
@@ -920,7 +829,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
   })
 
   test('update one then delete both', () => {
-    const graph = new D2({ initialFrontier: 0 })
+    const graph = new D2()
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
     const results: any[] = []
@@ -932,9 +841,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
       // update with the net change.
       consolidate(),
       output((message) => {
-        if (message.type === MessageType.DATA) {
-          results.push(...message.data.collection.getInner())
-        }
+        results.push(...message.getInner())
       }),
     )
 
@@ -942,21 +849,17 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
 
     // Initial data
     inputA.sendData(
-      1,
       new MultiSet([
         [[1, 'A'], 1],
         [[2, 'B'], 1],
       ]),
     )
     inputB.sendData(
-      1,
       new MultiSet([
         [[1, 'X'], 1],
         [[2, 'Y'], 1],
       ]),
     )
-    inputA.sendFrontier(2)
-    inputB.sendFrontier(2)
     graph.run()
 
     /*
@@ -1000,14 +903,11 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
 
     // Update left (delete + insert)
     inputA.sendData(
-      3,
       new MultiSet([
         [[1, 'A'], -1],
         [[1, 'A-updated'], 1],
       ]),
     )
-    inputA.sendFrontier(4)
-    inputB.sendFrontier(4)
     graph.run()
 
     /*
@@ -1050,10 +950,8 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
     results.length = 0
 
     // Delete from both sides
-    inputA.sendData(5, new MultiSet([[[1, 'A-updated'], -1]]))
-    inputB.sendData(5, new MultiSet([[[1, 'X'], -1]]))
-    inputA.sendFrontier(6)
-    inputB.sendFrontier(6)
+    inputA.sendData(new MultiSet([[[1, 'A-updated'], -1]]))
+    inputB.sendData(new MultiSet([[[1, 'X'], -1]]))
     graph.run()
 
     /*
@@ -1080,7 +978,7 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
   })
 
   test('insert both', () => {
-    const graph = new D2({ initialFrontier: 0 })
+    const graph = new D2()
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
     const results: any[] = []
@@ -1089,19 +987,15 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
       join(inputB, joinType as any),
       consolidate(),
       output((message) => {
-        if (message.type === MessageType.DATA) {
-          results.push(...message.data.collection.getInner())
-        }
+        results.push(...message.getInner())
       }),
     )
 
     graph.finalize()
 
     // Initial data
-    inputA.sendData(1, new MultiSet([[[1, 'A'], 1]]))
-    inputB.sendData(1, new MultiSet([[[2, 'Y'], 1]]))
-    inputA.sendFrontier(2)
-    inputB.sendFrontier(2)
+    inputA.sendData(new MultiSet([[[1, 'A'], 1]]))
+    inputB.sendData(new MultiSet([[[2, 'Y'], 1]]))
     graph.run()
 
     /*
@@ -1144,10 +1038,8 @@ function testJoin(join: typeof inMemoryJoin, joinType: JoinType) {
     results.length = 0
 
     // Insert on both sides with matching key
-    inputA.sendData(3, new MultiSet([[[3, 'C'], 1]]))
-    inputB.sendData(3, new MultiSet([[[3, 'Z'], 1]]))
-    inputA.sendFrontier(4)
-    inputB.sendFrontier(4)
+    inputA.sendData(new MultiSet([[[3, 'C'], 1]]))
+    inputB.sendData(new MultiSet([[[3, 'Z'], 1]]))
     graph.run()
 
     /*

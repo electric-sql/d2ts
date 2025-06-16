@@ -1,56 +1,33 @@
 import {
   IStreamBuilder,
   PipedOperator,
-  DataMessage,
-  MessageType,
 } from '../types.js'
 import { DifferenceStreamWriter, UnaryOperator } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { MultiSet } from '../multiset.js'
-import { Antichain, Version } from '../order.js'
-import { DefaultMap } from '../utils.js'
 
 /**
- * Operator that consolidates collections at each version
+ * Operator that consolidates collections
  */
 export class ConsolidateOperator<T> extends UnaryOperator<T> {
-  #collections = new DefaultMap<Version, MultiSet<T>>(() => new MultiSet<T>())
-
   run(): void {
-    for (const message of this.inputMessages()) {
-      if (message.type === MessageType.DATA) {
-        const { version, collection } = message.data as DataMessage<T>
-        this.#collections.update(version, (existing) => {
-          existing.extend(collection)
-          return existing
-        })
-      } else if (message.type === MessageType.FRONTIER) {
-        const frontier = message.data as Antichain
-        if (!this.inputFrontier().lessEqual(frontier)) {
-          throw new Error('Invalid frontier update')
-        }
-        this.setInputFrontier(frontier)
-      }
+    const messages = this.inputMessages()
+    if (messages.length === 0) {
+      return
     }
 
-    // Find versions that are complete (not covered by input frontier)
-    const finishedVersions = Array.from(this.#collections.entries()).filter(
-      ([version]) => !this.inputFrontier().lessEqualVersion(version),
-    )
-
-    // Process and remove finished versions
-    for (const [version, collection] of finishedVersions) {
-      const consolidated = collection.consolidate()
-      this.#collections.delete(version)
-      this.output.sendData(version, consolidated)
+    // Combine all messages into a single MultiSet
+    const combined = new MultiSet<T>()
+    for (const message of messages) {
+      combined.extend(message)
     }
 
-    if (!this.outputFrontier.lessEqual(this.inputFrontier())) {
-      throw new Error('Invalid frontier state')
-    }
-    if (this.outputFrontier.lessThan(this.inputFrontier())) {
-      this.outputFrontier = this.inputFrontier()
-      this.output.sendFrontier(this.outputFrontier)
+    // Consolidate the combined MultiSet
+    const consolidated = combined.consolidate()
+    
+    // Only send if there are results
+    if (consolidated.getInner().length > 0) {
+      this.output.sendData(consolidated)
     }
   }
 }
@@ -68,7 +45,6 @@ export function consolidate<T>(): PipedOperator<T, T> {
       stream.graph.getNextOperatorId(),
       stream.connectReader(),
       output.writer,
-      stream.graph.frontier(),
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())
