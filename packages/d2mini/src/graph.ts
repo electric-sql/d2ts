@@ -77,17 +77,17 @@ export abstract class Operator<T> implements IOperator<T> {
  * A convenience implementation of a dataflow operator that has a handle to one
  * incoming stream of data, and one handle to an outgoing stream of data.
  */
-export abstract class UnaryOperator<T> extends Operator<T> {
+export abstract class UnaryOperator<Tin, Tout = Tin> extends Operator<Tin | Tout> {
   constructor(
     public id: number,
-    inputA: DifferenceStreamReader<T>,
-    output: DifferenceStreamWriter<T>,
+    inputA: DifferenceStreamReader<Tin>,
+    output: DifferenceStreamWriter<Tout>,
   ) {
     super(id, [inputA], output)
   }
 
-  inputMessages(): MultiSet<T>[] {
-    return this.inputs[0].drain()
+  inputMessages(): MultiSet<Tin>[] {
+    return this.inputs[0].drain() as MultiSet<Tin>[]
   }
 }
 
