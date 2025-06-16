@@ -1,7 +1,5 @@
 import { describe, expect, beforeEach, test } from 'vitest'
 import { DifferenceStreamReader, DifferenceStreamWriter } from '../src/graph.js'
-import { MessageType } from '../src/types.js'
-import { v, Antichain } from '../src/order.js'
 import { MultiSet } from '../src/multiset.js'
 
 describe('DifferenceStreamReader and DifferenceStreamWriter', () => {
@@ -18,34 +16,44 @@ describe('DifferenceStreamReader and DifferenceStreamWriter', () => {
   })
 
   test('isEmpty returns false when queue has messages', () => {
-    writer.sendData(v(1), new MultiSet())
+    writer.sendData(new MultiSet())
     expect(reader.isEmpty()).toBe(false)
   })
 
   test('drain returns all messages', () => {
-    writer.sendData(v(1), new MultiSet([[1, 1]]))
-    writer.sendData(v(2), new MultiSet([[2, 1]]))
+    writer.sendData(new MultiSet([[1, 1]]))
+    writer.sendData(new MultiSet([[2, 1]]))
 
     const messages = reader.drain()
     expect(messages).toHaveLength(2)
-    expect(messages[0].type).toBe(MessageType.DATA)
-    expect(messages[1].type).toBe(MessageType.DATA)
+    expect(messages[0]).toBeInstanceOf(MultiSet)
+    expect(messages[1]).toBeInstanceOf(MultiSet)
     expect(reader.isEmpty()).toBe(true)
   })
 
-  test('probeFrontierLessThan returns true when frontier is greater', () => {
-    const frontier1 = new Antichain([v(1)])
-    const frontier2 = new Antichain([v(2)])
+  test('multiple readers receive the same data', () => {
+    const reader2 = writer.newReader()
+    
+    writer.sendData(new MultiSet([[1, 1]]))
+    writer.sendData(new MultiSet([[2, 1]]))
 
-    writer.sendFrontier(frontier1)
-    expect(reader.probeFrontierLessThan(frontier2)).toBe(true)
+    const messages1 = reader.drain()
+    const messages2 = reader2.drain()
+    
+    expect(messages1).toHaveLength(2)
+    expect(messages2).toHaveLength(2)
+    expect(messages1[0].getInner()).toEqual([[1, 1]])
+    expect(messages2[0].getInner()).toEqual([[1, 1]])
+    expect(messages1[1].getInner()).toEqual([[2, 1]])
+    expect(messages2[1].getInner()).toEqual([[2, 1]])
   })
 
-  test('probeFrontierLessThan returns false when frontier is less or equal', () => {
-    const frontier1 = new Antichain([v(2)])
-    const frontier2 = new Antichain([v(1)])
-
-    writer.sendFrontier(frontier1)
-    expect(reader.probeFrontierLessThan(frontier2)).toBe(false)
+  test('drain empties the queue', () => {
+    writer.sendData(new MultiSet([[1, 1]]))
+    writer.sendData(new MultiSet([[2, 1]]))
+    
+    expect(reader.isEmpty()).toBe(false)
+    reader.drain()
+    expect(reader.isEmpty()).toBe(true)
   })
 })
