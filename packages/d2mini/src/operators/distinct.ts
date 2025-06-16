@@ -2,17 +2,15 @@ import { IStreamBuilder, KeyValue } from '../types.js'
 import { DifferenceStreamReader, DifferenceStreamWriter } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { ReduceOperator } from './reduce.js'
-import { Antichain } from '../order.js'
 
 /**
- * Operator that removes duplicates by key
+ * Operator that removes duplicates by key (version-free)
  */
 export class DistinctOperator<K, V> extends ReduceOperator<K, V, V> {
   constructor(
     id: number,
     inputA: DifferenceStreamReader<[K, V]>,
     output: DifferenceStreamWriter<[K, V]>,
-    initialFrontier: Antichain,
   ) {
     const distinctInner = (vals: [V, number][]): [V, number][] => {
       const consolidated = new Map<string, number>()
@@ -27,12 +25,12 @@ export class DistinctOperator<K, V> extends ReduceOperator<K, V, V> {
         .map(([key, _]) => [values.get(key) as V, 1])
     }
 
-    super(id, inputA, output, distinctInner, initialFrontier)
+    super(id, inputA, output, distinctInner)
   }
 }
 
 /**
- * Removes duplicates by key
+ * Removes duplicates by key (version-free)
  */
 export function distinct<
   K extends T extends KeyValue<infer K, infer _V> ? K : never,
@@ -48,7 +46,6 @@ export function distinct<
       stream.graph.getNextOperatorId(),
       stream.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
       output.writer,
-      stream.graph.frontier(),
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())

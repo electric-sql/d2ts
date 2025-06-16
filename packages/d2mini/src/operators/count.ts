@@ -2,17 +2,15 @@ import { IStreamBuilder, KeyValue } from '../types.js'
 import { DifferenceStreamReader, DifferenceStreamWriter } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { ReduceOperator } from './reduce.js'
-import { Antichain } from '../order.js'
 
 /**
- * Operator that counts elements by key
+ * Operator that counts elements by key (version-free)
  */
 export class CountOperator<K, V> extends ReduceOperator<K, V, number> {
   constructor(
     id: number,
     inputA: DifferenceStreamReader<[K, V]>,
     output: DifferenceStreamWriter<[K, number]>,
-    initialFrontier: Antichain,
   ) {
     const countInner = (vals: [V, number][]): [number, number][] => {
       let count = 0
@@ -22,12 +20,12 @@ export class CountOperator<K, V> extends ReduceOperator<K, V, number> {
       return [[count, 1]]
     }
 
-    super(id, inputA, output, countInner, initialFrontier)
+    super(id, inputA, output, countInner)
   }
 }
 
 /**
- * Counts the number of elements by key
+ * Counts the number of elements by key (version-free)
  */
 export function count<
   K extends T extends KeyValue<infer K, infer _V> ? K : never,
@@ -43,7 +41,6 @@ export function count<
       stream.graph.getNextOperatorId(),
       stream.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
       output.writer,
-      stream.graph.frontier(),
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())

@@ -1,9 +1,8 @@
 import { describe, test, expect } from 'vitest'
 import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
-import { Antichain, v } from '../../src/order.js'
-import { DataMessage, MessageType } from '../../src/types.js'
-import { distinct, output } from '../../src/operators/index.js'
+import { distinct } from '../../src/operators/distinct.js'
+import { output } from '../../src/operators/output.js'
 
 describe('Operators', () => {
   describe('Distinct operation', () => {
@@ -13,34 +12,29 @@ describe('Operators', () => {
 
 function testDistinct() {
   test('basic distinct operation', () => {
-    const graph = new D2({ initialFrontier: v([0, 0]) })
+    const graph = new D2()
     const input = graph.newInput<[number, string]>()
-    const messages: DataMessage<[number, string]>[] = []
+    const messages: MultiSet<[number, string]>[] = []
 
     input.pipe(
       distinct(),
       output((message) => {
-        if (message.type === MessageType.DATA) {
-          messages.push(message.data)
-        }
+        messages.push(message)
       }),
     )
 
     graph.finalize()
 
     input.sendData(
-      v([1, 0]),
       new MultiSet([
         [[1, 'a'], 2],
         [[2, 'b'], 1],
         [[2, 'c'], 2],
       ]),
     )
-    input.sendFrontier(new Antichain([v([1, 1])]))
-
     graph.run()
 
-    const data = messages.map((m) => m.collection.getInner())
+    const data = messages.map((m) => m.getInner())
 
     expect(data).toEqual([
       [
@@ -52,40 +46,36 @@ function testDistinct() {
   })
 
   test('distinct with updates', () => {
-    const graph = new D2({ initialFrontier: v([0, 0]) })
+    const graph = new D2()
     const input = graph.newInput<[number, string]>()
-    const messages: DataMessage<[number, string]>[] = []
+    const messages: MultiSet<[number, string]>[] = []
 
     input.pipe(
       distinct(),
       output((message) => {
-        if (message.type === MessageType.DATA) {
-          messages.push(message.data)
-        }
+        messages.push(message)
       }),
     )
 
     graph.finalize()
 
     input.sendData(
-      v([1, 0]),
       new MultiSet([
         [[1, 'a'], 1],
         [[1, 'b'], 1],
       ]),
     )
+    graph.run()
+
     input.sendData(
-      v([2, 0]),
       new MultiSet([
         [[1, 'b'], -1],
         [[1, 'c'], 1],
       ]),
     )
-    input.sendFrontier(new Antichain([v([3, 0])]))
-
     graph.run()
 
-    const data = messages.map((m) => m.collection.getInner())
+    const data = messages.map((m) => m.getInner())
 
     expect(data).toEqual([
       [
@@ -99,35 +89,30 @@ function testDistinct() {
     ])
   })
 
-  test('distinct with multiple versions of same key', () => {
-    const graph = new D2({ initialFrontier: v([0, 0]) })
+  test('distinct with multiple batches of same key', () => {
+    const graph = new D2()
     const input = graph.newInput<[string, number]>()
-    const messages: DataMessage<[string, number]>[] = []
+    const messages: MultiSet<[string, number]>[] = []
 
     input.pipe(
       distinct(),
       output((message) => {
-        if (message.type === MessageType.DATA) {
-          messages.push(message.data)
-        }
+        messages.push(message)
       }),
     )
 
     graph.finalize()
 
     input.sendData(
-      v([1, 0]),
       new MultiSet([
         [['key1', 1], 2],
         [['key1', 2], 3],
         [['key2', 1], 1],
       ]),
     )
-    input.sendFrontier(new Antichain([v([2, 0])]))
-
     graph.run()
 
-    const data = messages.map((m) => m.collection.getInner())
+    const data = messages.map((m) => m.getInner())
 
     expect(data).toEqual([
       [
