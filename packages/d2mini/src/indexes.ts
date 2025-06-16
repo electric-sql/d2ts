@@ -1,23 +1,13 @@
 import { MultiSet } from './multiset.js'
 import { DefaultMap, hash } from './utils.js'
 
-export interface IndexType<K, V> {
-  reconstruct(key: K): [V, number][]
-  addValue(key: K, value: [V, number]): void
-  append(other: IndexType<K, V>): void
-  join<V2>(other: IndexType<K, V2>): MultiSet<[K, [V, V2]]>
-  keys(): K[]
-  has(key: K): boolean
-}
-
 /**
  * A map from a difference collection trace's keys -> (value, multiplicities) that changed.
  * Used in operations like join and reduce where the operation needs to
  * exploit the key-value structure of the data to run efficiently.
  */
-export class Index<K, V> implements IndexType<K, V> {
+export class Index<K, V> {
   #inner: DefaultMap<K, [V, number][]>
-  #modifiedKeys: Set<K>
 
   constructor() {
     this.#inner = new DefaultMap<K, [V, number][]>(() => [])
@@ -25,7 +15,6 @@ export class Index<K, V> implements IndexType<K, V> {
     // {
     //   [key]: [[value, multiplicity], ...]
     // }
-    this.#modifiedKeys = new Set()
   }
 
   toString(indent = false): string {
@@ -45,8 +34,20 @@ export class Index<K, V> implements IndexType<K, V> {
     return this.#inner.get(key)
   }
 
-  entries(): [K, [V, number][]][] {
-    return this.keys().map((key) => [key, this.get(key)])
+  entries() {
+    return this.#inner.entries()
+  }
+
+  keys() {
+    return this.#inner.keys()
+  }
+
+  has(key: K): boolean {
+    return this.#inner.has(key)
+  }
+
+  get size(): number {
+    return this.#inner.size
   }
 
   addValue(key: K, value: [V, number]): void {
@@ -59,7 +60,6 @@ export class Index<K, V> implements IndexType<K, V> {
     } else {
       values.push([val, multiplicity])
     }
-    this.#modifiedKeys.add(key)
   }
 
   append(other: Index<K, V>): void {
@@ -79,23 +79,22 @@ export class Index<K, V> implements IndexType<K, V> {
           thisValues.push([value, multiplicity])
         }
       }
-      this.#modifiedKeys.add(key)
     }
   }
 
   join<V2>(other: Index<K, V2>): MultiSet<[K, [V, V2]]> {
-    const result: [K, [V, V2], number][] = []
+    const result: [[K, [V, V2]], number][] = []
 
     // We want to iterate over the smaller of the two indexes to reduce the
     // number of operations we need to do.
-    if (this.#inner.size <= other.#inner.size) {
-      for (const [key, values] of this.#inner) {
+    if (this.size <= other.size) {
+      for (const [key, values] of this.entries()) {
         if (!other.has(key)) continue
         const otherValues = other.get(key)
         for (const [val1, mul1] of values) {
           for (const [val2, mul2] of otherValues) {
             if (mul1 !== 0 && mul2 !== 0) {
-              result.push([key, [val1, val2], mul1 * mul2])
+              result.push([[key, [val1, val2]], mul1 * mul2])
             }
           }
         }
@@ -107,21 +106,13 @@ export class Index<K, V> implements IndexType<K, V> {
         for (const [val2, mul2] of otherValues) {
           for (const [val1, mul1] of values) {
             if (mul1 !== 0 && mul2 !== 0) {
-              result.push([key, [val1, val2], mul1 * mul2])
+              result.push([[key, [val1, val2]], mul1 * mul2])
             }
           }
         }
       }
     }
 
-    return new MultiSet(result.map(([k, v, m]) => [[k, v], m]))
-  }
-
-  keys(): K[] {
-    return Array.from(this.#inner.keys())
-  }
-
-  has(key: K): boolean {
-    return this.#inner.has(key)
+    return new MultiSet(result)
   }
 }
