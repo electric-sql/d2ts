@@ -1,51 +1,20 @@
-import type { Version, Antichain } from './order.js'
 import type { MultiSet, MultiSetArray } from './multiset.js'
 import type { DifferenceStreamWriter, DifferenceStreamReader } from './graph.js'
 
 export type KeyValue<K, V> = [K, V]
 
-export const MessageType = {
-  DATA: 1,
-  FRONTIER: 2,
-} as const
-
-export type MessageType = (typeof MessageType)[keyof typeof MessageType]
-
-export type Message<T> =
-  | {
-      type: typeof MessageType.DATA
-      data: DataMessage<T>
-    }
-  | {
-      type: typeof MessageType.FRONTIER
-      data: FrontierMessage
-    }
-
-export type DataMessage<T> = {
-  version: Version
-  collection: MultiSet<T>
-}
-
-export type FrontierMessage = Version | Antichain
-
 export interface IOperator<_T> {
   run(): void
   hasPendingWork(): boolean
-  frontiers(): [Antichain[], Antichain]
 }
 
 export interface IDifferenceStreamReader<T> {
-  drain(): Message<T>[]
+  drain(): MultiSet<T>[]
   isEmpty(): boolean
-  probeFrontierLessThan(frontier: Antichain): boolean
 }
 
 export interface IDifferenceStreamWriter<T> {
-  sendData(
-    version: Version | number | number[],
-    collection: MultiSet<T> | MultiSetArray<T>,
-  ): void
-  sendFrontier(frontier: Antichain | Version | number | number[]): void
+  sendData(collection: MultiSet<T> | MultiSetArray<T>): void
   newReader(): IDifferenceStreamReader<T>
 }
 
@@ -54,9 +23,6 @@ export interface ID2 {
   newInput<T>(): IStreamBuilder<T>
   addOperator(operator: IOperator<any>): void
   addStream(stream: DifferenceStreamReader<any>): void
-  frontier(): Antichain
-  pushFrontier(newFrontier: Antichain): void
-  popFrontier(): void
   finalize(): void
   step(): void
 }

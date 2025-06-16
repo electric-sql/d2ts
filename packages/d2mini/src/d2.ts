@@ -5,23 +5,15 @@ import {
 } from './graph.js'
 import { DifferenceStreamReader } from './graph.js'
 import { MultiSetArray, MultiSet } from './multiset.js'
-import { Antichain, Version } from './order.js'
 import { PipedOperator, IStreamBuilder, ID2 } from './types.js'
-
-export type D2Options = {
-  initialFrontier: Antichain | Version | number | number[]
-}
 
 export class D2 implements ID2 {
   #streams: DifferenceStreamReader<any>[] = []
   #operators: (UnaryOperator<any> | BinaryOperator<any>)[] = []
-  #frontierStack: Antichain[] = []
   #nextOperatorId = 0
   #finalized = false
 
-  constructor({ initialFrontier }: D2Options) {
-    this.#frontierStack = [Antichain.create(initialFrontier)]
-  }
+  constructor() {}
 
   #checkNotFinalized(): void {
     if (this.#finalized) {
@@ -51,18 +43,6 @@ export class D2 implements ID2 {
   addStream(stream: DifferenceStreamReader<any>): void {
     this.#checkNotFinalized()
     this.#streams.push(stream)
-  }
-
-  frontier(): Antichain {
-    return this.#frontierStack[this.#frontierStack.length - 1]
-  }
-
-  pushFrontier(newFrontier: Antichain): void {
-    this.#frontierStack.push(newFrontier)
-  }
-
-  popFrontier(): void {
-    this.#frontierStack.pop()
   }
 
   finalize() {
@@ -165,13 +145,8 @@ export class StreamBuilder<T> implements IStreamBuilder<T> {
 
 export class RootStreamBuilder<T> extends StreamBuilder<T> {
   sendData(
-    version: Version | number | number[],
     collection: MultiSet<T> | MultiSetArray<T>,
   ): void {
-    this.writer.sendData(version, collection)
-  }
-
-  sendFrontier(frontier: Antichain | Version | number | number[]): void {
-    this.writer.sendFrontier(frontier)
+    this.writer.sendData(collection)
   }
 }

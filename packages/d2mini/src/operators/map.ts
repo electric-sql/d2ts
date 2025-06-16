@@ -3,7 +3,6 @@ import { DifferenceStreamReader, DifferenceStreamWriter } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { LinearUnaryOperator } from './base.js'
 import { MultiSet } from '../multiset.js'
-import { Antichain } from '../order.js'
 
 /**
  * Operator that applies a function to each element in the input stream
@@ -16,9 +15,8 @@ export class MapOperator<T, U> extends LinearUnaryOperator<T, U> {
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<U>,
     f: (data: T) => U,
-    initialFrontier: Antichain,
   ) {
-    super(id, inputA, output, initialFrontier)
+    super(id, inputA, output)
     this.#f = f
   }
 
@@ -42,7 +40,6 @@ export function map<T, O>(f: (data: T) => O): PipedOperator<T, O> {
       stream.connectReader(),
       output.writer,
       f,
-      stream.graph.frontier(),
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())

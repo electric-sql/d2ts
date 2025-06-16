@@ -26,7 +26,6 @@ export function negate<T>(): PipedOperator<T, T> {
       stream.graph.getNextOperatorId(),
       stream.connectReader(),
       output.writer,
-      stream.graph.frontier(),
     )
     stream.graph.addOperator(operator)
     stream.graph.addStream(output.connectReader())

@@ -11,7 +11,7 @@ interface TestItem {
 
 describe('keying operator types', () => {
   it('should correctly type keyBy', () => {
-    const d2 = new D2({ initialFrontier: 0 })
+    const d2 = new D2()
     const input = d2.newInput<TestItem>()
 
     const keyed = input.pipe(keyBy((item) => item.id))
@@ -19,7 +19,7 @@ describe('keying operator types', () => {
   })
 
   it('should correctly type unkey', () => {
-    const d2 = new D2({ initialFrontier: 0 })
+    const d2 = new D2()
     const input = d2.newInput<Keyed<number, TestItem>>()
 
     const unkeyed = input.pipe(unkey())
@@ -27,7 +27,7 @@ describe('keying operator types', () => {
   })
 
   it('should correctly type rekey', () => {
-    const d2 = new D2({ initialFrontier: 0 })
+    const d2 = new D2()
     const input = d2.newInput<Keyed<number, TestItem>>()
 
     const rekeyed = input.pipe(rekey((item) => item.name))
@@ -37,7 +37,7 @@ describe('keying operator types', () => {
   })
 
   it('should maintain type safety through chaining', () => {
-    const d2 = new D2({ initialFrontier: 0 })
+    const d2 = new D2()
     const input = d2.newInput<TestItem>()
 
     const result = input
