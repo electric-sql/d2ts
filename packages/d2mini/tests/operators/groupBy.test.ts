@@ -1,8 +1,6 @@
 import { describe, test, expect } from 'vitest'
 import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
-import { Antichain, v } from '../../src/order.js'
-import { DataMessage, MessageType } from '../../src/types.js'
 import {
   groupBy,
   sum,
@@ -18,7 +16,7 @@ import { output } from '../../src/operators/index.js'
 describe('Operators', () => {
   describe('GroupBy operation', () => {
     test('with single sum aggregate', () => {
-      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const graph = new D2()
       const input = graph.newInput<{
         category: string
         amount: number
@@ -30,9 +28,7 @@ describe('Operators', () => {
           total: sum((data) => data.amount),
         }),
         output((message) => {
-          if (message.type === MessageType.DATA) {
-            latestMessage = message.data
-          }
+          latestMessage = message
         }),
       )
 
@@ -40,22 +36,18 @@ describe('Operators', () => {
 
       // Initial data
       input.sendData(
-        v([1, 0]),
         new MultiSet([
           [{ category: 'A', amount: 10 }, 1],
           [{ category: 'A', amount: 20 }, 1],
           [{ category: 'B', amount: 30 }, 1],
         ]),
       )
-      // Send a frontier update that is greater than the data version
-      // This is crucial to trigger the processing of the data
-      input.sendFrontier(new Antichain([v([2, 0])]))
       graph.run()
 
       // Verify we have the latest message
       expect(latestMessage).not.toBeNull()
 
-      const result = latestMessage.collection.getInner()
+      const result = latestMessage.getInner()
 
       const expectedResult = [
         [
@@ -84,14 +76,14 @@ describe('Operators', () => {
     })
 
     test('with sum and count aggregates', async () => {
-      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const graph = new D2()
       const input = graph.newInput<{
         category: string
         region: string
         amount: number
       }>()
       let latestMessage: any = null
-      const messages: DataMessage<any>[] = []
+      const messages: MultiSet<any>[] = []
 
       input.pipe(
         groupBy(
@@ -105,10 +97,8 @@ describe('Operators', () => {
           },
         ),
         output((message) => {
-          if (message.type === MessageType.DATA) {
-            latestMessage = message.data
-            messages.push(message.data)
-          }
+          latestMessage = message
+          messages.push(message)
         }),
       )
 
@@ -116,7 +106,6 @@ describe('Operators', () => {
 
       // Initial data
       input.sendData(
-        v([1, 0]),
         new MultiSet([
           [{ category: 'A', region: 'East', amount: 10 }, 1],
           [{ category: 'A', region: 'East', amount: 20 }, 1],
@@ -124,8 +113,6 @@ describe('Operators', () => {
           [{ category: 'B', region: 'East', amount: 40 }, 1],
         ]),
       )
-      // Send a frontier update that is greater than the data version
-      input.sendFrontier(new Antichain([v([2, 0])]))
       graph.run()
 
       // Verify we have the latest message
@@ -170,17 +157,15 @@ describe('Operators', () => {
         ],
       ]
 
-      expect(latestMessage.collection.getInner()).toEqual(expectedResult)
+      expect(latestMessage.getInner()).toEqual(expectedResult)
 
       // --- Add a new record ---
       input.sendData(
-        v([3, 0]),
         new MultiSet([
           [{ category: 'A', region: 'East', amount: 15 }, 1],
           [{ category: 'B', region: 'West', amount: 25 }, 1],
         ]),
       )
-      input.sendFrontier(new Antichain([v([4, 0])]))
 
       graph.run()
 
@@ -223,16 +208,14 @@ describe('Operators', () => {
         ],
       ]
 
-      expect(latestMessage.collection.getInner()).toEqual(expectedAddResult)
+      expect(latestMessage.getInner()).toEqual(expectedAddResult)
 
       // --- Delete a record ---
       input.sendData(
-        v([5, 0]),
         new MultiSet([
           [{ category: 'A', region: 'East', amount: 20 }, -1], // Remove one of the A/East records
         ]),
       )
-      input.sendFrontier(new Antichain([v([6, 0])]))
       graph.run()
 
       const expectedDeleteResult = [
@@ -262,17 +245,17 @@ describe('Operators', () => {
         ],
       ]
 
-      expect(latestMessage.collection.getInner()).toEqual(expectedDeleteResult)
+      expect(latestMessage.getInner()).toEqual(expectedDeleteResult)
     })
 
     test('with avg and count aggregates', () => {
-      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const graph = new D2()
       const input = graph.newInput<{
         category: string
         amount: number
       }>()
       let latestMessage: any = null
-      const messages: DataMessage<any>[] = []
+      const messages: MultiSet<any>[] = []
 
       input.pipe(
         groupBy((data) => ({ category: data.category }), {
@@ -280,10 +263,8 @@ describe('Operators', () => {
           count: count(),
         }),
         output((message) => {
-          if (message.type === MessageType.DATA) {
-            latestMessage = message.data
-            messages.push(message.data)
-          }
+          latestMessage = message
+          messages.push(message)
         }),
       )
 
@@ -291,15 +272,12 @@ describe('Operators', () => {
 
       // Initial data
       input.sendData(
-        v([1, 0]),
         new MultiSet([
           [{ category: 'A', amount: 10 }, 1],
           [{ category: 'A', amount: 20 }, 1],
           [{ category: 'B', amount: 30 }, 1],
         ]),
       )
-      // Send a frontier update that is greater than the data version
-      input.sendFrontier(new Antichain([v([2, 0])]))
       graph.run()
 
       // Verify we have the latest message
@@ -330,17 +308,15 @@ describe('Operators', () => {
         ],
       ]
 
-      expect(latestMessage.collection.getInner()).toEqual(expectedResult)
+      expect(latestMessage.getInner()).toEqual(expectedResult)
 
       // --- Add a new record ---
       input.sendData(
-        v([3, 0]),
         new MultiSet([
           [{ category: 'A', amount: 30 }, 1],
           [{ category: 'C', amount: 50 }, 1],
         ]),
       )
-      input.sendFrontier(new Antichain([v([4, 0])]))
       graph.run()
 
       const expectedAddResult = [
@@ -379,16 +355,14 @@ describe('Operators', () => {
         ],
       ]
 
-      expect(latestMessage.collection.getInner()).toEqual(expectedAddResult)
+      expect(latestMessage.getInner()).toEqual(expectedAddResult)
 
       // --- Delete a record ---
       input.sendData(
-        v([5, 0]),
         new MultiSet([
           [{ category: 'A', amount: 10 }, -1], // Remove the first A record
         ]),
       )
-      input.sendFrontier(new Antichain([v([6, 0])]))
       graph.run()
 
       const expectedDeleteResult = [
@@ -416,11 +390,11 @@ describe('Operators', () => {
         ],
       ]
 
-      expect(latestMessage.collection.getInner()).toEqual(expectedDeleteResult)
+      expect(latestMessage.getInner()).toEqual(expectedDeleteResult)
     })
 
     test('with min and max aggregates', () => {
-      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const graph = new D2()
       const input = graph.newInput<{
         category: string
         amount: number
@@ -433,9 +407,7 @@ describe('Operators', () => {
           maximum: max((data) => data.amount),
         }),
         output((message) => {
-          if (message.type === MessageType.DATA) {
-            latestMessage = message.data
-          }
+          latestMessage = message
         }),
       )
 
@@ -443,7 +415,6 @@ describe('Operators', () => {
 
       // Initial data
       input.sendData(
-        v([1, 0]),
         new MultiSet([
           [{ category: 'A', amount: 10 }, 1],
           [{ category: 'A', amount: 20 }, 1],
@@ -452,8 +423,6 @@ describe('Operators', () => {
           [{ category: 'B', amount: 15 }, 1],
         ]),
       )
-      // Send a frontier update that is greater than the data version
-      input.sendFrontier(new Antichain([v([2, 0])]))
 
       // Run the graph to process all messages
       graph.run()
@@ -485,11 +454,11 @@ describe('Operators', () => {
         ],
       ]
 
-      expect(latestMessage.collection.getInner()).toEqual(expectedResult)
+      expect(latestMessage.getInner()).toEqual(expectedResult)
     })
 
     test('with median and mode aggregates', () => {
-      const graph = new D2({ initialFrontier: v([0, 0]) })
+      const graph = new D2()
       const input = graph.newInput<{
         category: string
         amount: number
@@ -502,9 +471,7 @@ describe('Operators', () => {
           mostFrequent: mode((data) => data.amount),
         }),
         output((message) => {
-          if (message.type === MessageType.DATA) {
-            latestMessage = message.data
-          }
+          latestMessage = message
         }),
       )
 
@@ -512,7 +479,6 @@ describe('Operators', () => {
 
       // Initial data with pattern designed to test median and mode
       input.sendData(
-        v([1, 0]),
         new MultiSet([
           // Category A: [10, 20, 20, 30, 50]
           // Median: 20, Mode: 20
@@ -529,9 +495,6 @@ describe('Operators', () => {
           [{ category: 'B', amount: 20 }, 1],
         ]),
       )
-
-      // Send a frontier update that is greater than the data version
-      input.sendFrontier(new Antichain([v([2, 0])]))
 
       // Run the graph to process all messages
       graph.run()
@@ -563,7 +526,7 @@ describe('Operators', () => {
         ],
       ]
 
-      expect(latestMessage.collection.getInner()).toEqual(expectedResult)
+      expect(latestMessage.getInner()).toEqual(expectedResult)
     })
   })
 })
