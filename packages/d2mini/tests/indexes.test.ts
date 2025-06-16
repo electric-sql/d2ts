@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from 'vitest'
-import { Index } from '../src/version-index.js'
+import { Index } from '../src/indexes.js'
 
 describe('Index', () => {
   let index: Index<string, number>
@@ -15,7 +15,7 @@ describe('Index', () => {
       index.addValue('key1', [10, 1])
       index.addValue('key1', [20, 2])
 
-      const result = index.reconstructAt('key1')
+      const result = index.reconstruct('key1')
       expect(result).toEqual([
         [10, 1],
         [20, 2],
@@ -23,7 +23,7 @@ describe('Index', () => {
     })
 
     test('should return empty array for non-existent key', () => {
-      const result = index.reconstructAt('nonexistent')
+      const result = index.reconstruct('nonexistent')
       expect(result).toEqual([])
     })
 
@@ -31,7 +31,7 @@ describe('Index', () => {
       index.addValue('key1', [10, 1])
       index.addValue('key1', [10, -1])
 
-      const result = index.reconstructAt('key1')
+      const result = index.reconstruct('key1')
       expect(result).toEqual([])
     })
   })
@@ -46,11 +46,11 @@ describe('Index', () => {
 
       index.append(other)
 
-      expect(index.reconstructAt('key1')).toEqual([
+      expect(index.reconstruct('key1')).toEqual([
         [10, 1],
         [20, 1],
       ])
-      expect(index.reconstructAt('key2')).toEqual([[30, 1]])
+      expect(index.reconstruct('key2')).toEqual([[30, 1]])
     })
 
     test('should combine multiplicities for same values', () => {
@@ -61,7 +61,7 @@ describe('Index', () => {
 
       index.append(other)
 
-      expect(index.reconstructAt('key1')).toEqual([[10, 5]])
+      expect(index.reconstruct('key1')).toEqual([[10, 5]])
     })
   })
 

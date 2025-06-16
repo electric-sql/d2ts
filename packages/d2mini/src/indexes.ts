@@ -2,7 +2,7 @@ import { MultiSet } from './multiset.js'
 import { DefaultMap, hash } from './utils.js'
 
 export interface IndexType<K, V> {
-  reconstructAt(key: K): [V, number][]
+  reconstruct(key: K): [V, number][]
   addValue(key: K, value: [V, number]): void
   append(other: IndexType<K, V>): void
   join<V2>(other: IndexType<K, V2>): MultiSet<[K, [V, V2]]>
@@ -36,7 +36,7 @@ export class Index<K, V> implements IndexType<K, V> {
     )})`
   }
 
-  reconstructAt(key: K): [V, number][] {
+  reconstruct(key: K): [V, number][] {
     const values = this.#inner.get(key)
     return values.filter(([_, multiplicity]) => multiplicity !== 0)
   }

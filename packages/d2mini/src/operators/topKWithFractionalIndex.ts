@@ -10,7 +10,7 @@ import {
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { MultiSet } from '../multiset.js'
-import { Index } from '../version-index.js'
+import { Index } from '../indexes.js'
 import { generateKeyBetween } from 'fractional-indexing'
 
 interface TopKWithFractionalIndexOptions {
@@ -60,8 +60,8 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
     const result: [[K, [V1, string]], number][] = []
 
     for (const key of keysTodo) {
-      const curr = this.#index.reconstructAt(key)
-      const currOut = this.#indexOut.reconstructAt(key)
+      const curr = this.#index.reconstruct(key)
+      const currOut = this.#indexOut.reconstruct(key)
 
       // Sort the current values
       const consolidated = new MultiSet(curr).consolidate()

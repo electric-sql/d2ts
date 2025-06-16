@@ -6,7 +6,7 @@ import {
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { MultiSet } from '../multiset.js'
-import { Index } from '../version-index.js'
+import { Index } from '../indexes.js'
 
 /**
  * Base operator for reduction operations (version-free)
@@ -40,8 +40,8 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1], [K, V2]> {
     // For each key, compute the reduction and delta
     const result: [[K, V2], number][] = []
     for (const key of this.#keysTodo) {
-      const curr = this.#index.reconstructAt(key)
-      const currOut = this.#indexOut.reconstructAt(key)
+      const curr = this.#index.reconstruct(key)
+      const currOut = this.#indexOut.reconstruct(key)
       const out = this.#f(curr)
 
       // Calculate delta between current and previous output

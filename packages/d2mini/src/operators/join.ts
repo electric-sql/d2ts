@@ -10,7 +10,7 @@ import {
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { MultiSet } from '../multiset.js'
-import { Index } from '../version-index.js'
+import { Index } from '../indexes.js'
 import { negate } from './negate.js'
 import { map } from './map.js'
 import { concat } from './concat.js'
