@@ -46,8 +46,8 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1], [K, V2]> {
       const out = this.#f(curr)
 
       // Calculate delta between current and previous output
-      const delta = new Map<string | number, number>()
-      const values = new Map<string | number, V2>()
+      const delta = new Map<string, number>()
+      const values = new Map<string, V2>()
       for (const [value, multiplicity] of out) {
         const valueKey = hash(value)
         values.set(valueKey, value)

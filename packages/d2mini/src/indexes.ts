@@ -54,7 +54,7 @@ export class Index<K, V> {
   addValue(key: K, value: [V, number]): void {
     const [val, multiplicity] = value
     const valueMap = this.#inner.get(key)
-    const valueHash = String(hash(val))
+    const valueHash = hash(val)
     const [, existingMultiplicity] = valueMap.get(valueHash)
     if (existingMultiplicity !== 0) {
       const newMultiplicity = existingMultiplicity + multiplicity

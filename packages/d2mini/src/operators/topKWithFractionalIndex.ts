@@ -68,12 +68,12 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
         .slice(this.#offset, this.#offset + this.#limit)
 
       // Create a map for quick value lookup with pre-stringified keys
-      const currValueMap = new Map<string | number, V1>()
-      const prevOutputMap = new Map<string | number, [V1, string]>()
+      const currValueMap = new Map<string, V1>()
+      const prevOutputMap = new Map<string, [V1, string]>()
 
       // Pre-stringify all values once
-      const valueKeys: (string | number)[] = []
-      const valueToKey = new Map<V1, string | number>()
+      const valueKeys: string[] = []
+      const valueToKey = new Map<V1, string>()
 
       // Process current values
       for (const [value, multiplicity] of sortedValues) {

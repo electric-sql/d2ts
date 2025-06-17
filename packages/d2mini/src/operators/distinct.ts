@@ -14,8 +14,8 @@ export class DistinctOperator<K, V> extends ReduceOperator<K, V, V> {
     output: DifferenceStreamWriter<[K, V]>,
   ) {
     const distinctInner = (vals: [V, number][]): [V, number][] => {
-      const consolidated = new Map<string | number, number>()
-      const values = new Map<string | number, V>()
+      const consolidated = new Map<string, number>()
+      const values = new Map<string, V>()
       for (const [val, diff] of vals) {
         const key = hash(val)
         consolidated.set(key, (consolidated.get(key) || 0) + diff)

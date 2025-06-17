@@ -70,7 +70,7 @@ function hashReplacer(_key: string, value: any): any {
 /**
  * A hash method that caches the hash of a value in a week map
  */
-export function hash(data: any): string | number {
+export function hash(data: any): string {
   if (
     data === null ||
     data === undefined ||
@@ -78,7 +78,7 @@ export function hash(data: any): string | number {
   ) {
     // Can't be cached in the weak map because it's not an object
     const serialized = JSON.stringify(data, hashReplacer)
-    return murmurhash.murmur3(serialized)
+    return murmurhash.murmur3(serialized).toString(16)
   }
 
   if (hashCache.has(data)) {
@@ -86,7 +86,7 @@ export function hash(data: any): string | number {
   }
 
   const serialized = JSON.stringify(data, hashReplacer)
-  const hashValue = murmurhash.murmur3(JSON.stringify(serialized))
+  const hashValue = murmurhash.murmur3(JSON.stringify(serialized)).toString(16)
   hashCache.set(data, hashValue)
   return hashValue
 }
