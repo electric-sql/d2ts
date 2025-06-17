@@ -1,5 +1,11 @@
 # @electric-sql/d2mini
 
+## 0.1.2
+
+### Patch Changes
+
+- 32d3a0f: make aggregates explicitly optional on a groupBy
+
 ## 0.1.1
 
 ### Patch Changes
