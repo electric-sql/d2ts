@@ -1,0 +1,55 @@
+{
+  "name": "@electric-sql/d2mini",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "description": "D2Mini is a minimal implementation of Differential Dataflow for performing in-memory incremental view maintenance.",
+  "author": "Electric DB Limited",
+  "homepage": "https://github.com/electric-sql/d2ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/electric-sql/d2ts.git",
+    "directory": "packages/d2mini"
+  },
+  "keywords": [
+    "differential dataflow",
+    "differential",
+    "dataflow",
+    "stream processing",
+    "sync"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "eslint './src/**/*.ts' './tests/**/*.ts' --config eslint.config.mjs",
+    "lint:fix": "eslint src/**/*.ts tests/**/*.ts --fix",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json}\" \"tests/**/*.{ts,tsx,js,jsx,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json}\" \"tests/**/*.{ts,tsx,js,jsx,json}\""
+  },
+  "devDependencies": {
+    "@types/murmurhash-js": "^1.0.6",
+    "@types/node": "^22.15.3",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "eslint": "^9.25.1",
+    "eslint-config-prettier": "^10.1.2",
+    "eslint-plugin-prettier": "^5.2.6",
+    "prettier": "^3.5.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.2"
+  },
+  "dependencies": {
+    "fractional-indexing": "^3.2.0",
+    "murmurhash-js": "^1.0.0"
+  }
+}

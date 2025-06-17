@@ -79,6 +79,49 @@ importers:
         specifier: ^9.0.1
         version: 9.0.1
 
+  packages/d2mini:
+    dependencies:
+      fractional-indexing:
+        specifier: ^3.2.0
+        version: 3.2.0
+      murmurhash-js:
+        specifier: ^1.0.0
+        version: 1.0.0
+    devDependencies:
+      '@types/murmurhash-js':
+        specifier: ^1.0.6
+        version: 1.0.6
+      '@types/node':
+        specifier: ^22.15.3
+        version: 22.15.3
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^8.31.1
+        version: 8.31.1(@typescript-eslint/parser@8.31.1(eslint@9.25.1)(typescript@5.8.3))(eslint@9.25.1)(typescript@5.8.3)
+      '@typescript-eslint/parser':
+        specifier: ^8.31.1
+        version: 8.31.1(eslint@9.25.1)(typescript@5.8.3)
+      eslint:
+        specifier: ^9.25.1
+        version: 9.25.1
+      eslint-config-prettier:
+        specifier: ^10.1.2
+        version: 10.1.2(eslint@9.25.1)
+      eslint-plugin-prettier:
+        specifier: ^5.2.6
+        version: 5.2.6(eslint-config-prettier@10.1.2(eslint@9.25.1))(eslint@9.25.1)(prettier@3.5.3)
+      prettier:
+        specifier: ^3.5.3
+        version: 3.5.3
+      tsx:
+        specifier: ^4.19.4
+        version: 4.19.4
+      typescript:
+        specifier: ^5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^3.1.2
+        version: 3.1.2(@types/node@22.15.3)
+
   packages/d2ql:
     dependencies:
       better-sqlite3:
