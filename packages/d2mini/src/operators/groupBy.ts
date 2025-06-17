@@ -40,7 +40,7 @@ export function groupBy<
   T,
   K extends GroupKey,
   A extends Record<string, AggregateFunction<T, any, any>>,
->(keyExtractor: (data: T) => K, aggregates: A) {
+>(keyExtractor: (data: T) => K, aggregates: A = {} as A) {
   type ResultType = K & AggregatesReturnType<T, A>
 
   const basicAggregates = Object.fromEntries(
