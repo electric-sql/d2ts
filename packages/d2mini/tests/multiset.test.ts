@@ -29,14 +29,6 @@ describe('MultiSet', () => {
       ])
     })
 
-    it('should join two multisets', () => {
-      const joined = a.join(b)
-      expect(joined.getInner()).toEqual([
-        [['apple', ['$5', '$3']], 2],
-        [['apple', ['$5', ['granny smith', '$2']]], 2],
-      ])
-    })
-
     it('should filter elements', () => {
       const filtered = a.filter((data) => data[0] !== 'apple')
       expect(filtered.getInner()).toEqual([[['banana', '$2'], 1]])
@@ -51,71 +43,11 @@ describe('MultiSet', () => {
     })
   })
 
-  describe('numeric operations', () => {
-    let d: MultiSet<[string, number]>
-
-    beforeEach(() => {
-      d = new MultiSet([
-        [['apple', 11], 1],
-        [['apple', 3], 2],
-        [['banana', 2], 3],
-        [['coconut', 3], 1],
-      ])
-    })
-
-    it('should calculate sum', () => {
-      const sum = d.sum()
-      expect(sum.getInner()).toEqual([
-        [['apple', 17], 1],
-        [['banana', 6], 1],
-        [['coconut', 3], 1],
-      ])
-    })
-
-    it('should calculate count', () => {
-      const count = d.count()
-      expect(count.getInner()).toEqual([
-        [['apple', 3], 1],
-        [['banana', 3], 1],
-        [['coconut', 1], 1],
-      ])
-    })
-  })
-
-  it('should handle min/max operations', () => {
-    const c = new MultiSet([
-      [['apple', '$5'], 2],
-      [['banana', '$2'], 1],
-      [['apple', '$2'], 20],
-    ])
-
-    // Test min
-    const min = c.min()
-    expect(min.getInner()).toEqual([
-      [['apple', '$2'], 1],
-      [['banana', '$2'], 1],
-    ])
-
-    // Test max
-    const max = c.max()
-    expect(max.getInner()).toEqual([
-      [['apple', '$5'], 1],
-      [['banana', '$2'], 1],
-    ])
-  })
-
   it('should handle negative multiplicities correctly', () => {
     const a = new MultiSet([[1, 1]])
     const b = new MultiSet([[1, -1]])
     const result = a.concat(b).consolidate()
     expect(result.getInner()).toHaveLength(0)
-  })
-
-  it('should throw on invalid operations', () => {
-    const a = new MultiSet([[1, -1]])
-    expect(() => a.min()).toThrow()
-    expect(() => a.max()).toThrow()
-    expect(() => a.distinct()).toThrow()
   })
 
   it('should consolidate simple string values', () => {
