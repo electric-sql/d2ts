@@ -57,8 +57,8 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
     const result: [[K, [V1, string]], number][] = []
 
     for (const key of keysTodo) {
-      const curr = this.#index.reconstruct(key)
-      const currOut = this.#indexOut.reconstruct(key)
+      const curr = this.#index.get(key)
+      const currOut = this.#indexOut.get(key)
 
       // Sort the current values
       const consolidated = new MultiSet(curr).consolidate()

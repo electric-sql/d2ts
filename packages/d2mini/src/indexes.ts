@@ -7,31 +7,32 @@ import { DefaultMap, hash } from './utils.js'
  * exploit the key-value structure of the data to run efficiently.
  */
 export class Index<K, V> {
-  #inner: DefaultMap<K, [V, number][]>
+  #inner: DefaultMap<K, DefaultMap<string, [V, number]>>
 
   constructor() {
-    this.#inner = new DefaultMap<K, [V, number][]>(() => [])
+    this.#inner = new DefaultMap<K, DefaultMap<string, [V, number]>>(
+      () =>
+        new DefaultMap<string, [V, number]>(() => [undefined as any as V, 0]),
+    )
     // #inner is as map of:
     // {
-    //   [key]: [[value, multiplicity], ...]
+    //   [key]: {
+    //     [hash(value)]: [value, multiplicity]
+    //   }
     // }
   }
 
   toString(indent = false): string {
     return `Index(${JSON.stringify(
-      [...this.#inner].map(([k, v]) => [k, v]),
+      [...this.#inner].map(([k, valueMap]) => [k, [...valueMap]]),
       undefined,
       indent ? '  ' : undefined,
     )})`
   }
 
-  reconstruct(key: K): [V, number][] {
-    const values = this.#inner.get(key)
-    return values.filter(([_, multiplicity]) => multiplicity !== 0)
-  }
-
   get(key: K): [V, number][] {
-    return this.#inner.get(key)
+    const valueMap = this.#inner.get(key)
+    return [...valueMap.values()]
   }
 
   entries() {
@@ -52,31 +53,42 @@ export class Index<K, V> {
 
   addValue(key: K, value: [V, number]): void {
     const [val, multiplicity] = value
-    const values = this.#inner.get(key)
-    const existingIndex = values.findIndex(([v, _]) => hash(v) === hash(val))
-    if (existingIndex >= 0) {
-      const [_, existingMultiplicity] = values[existingIndex]
-      values[existingIndex] = [val, existingMultiplicity + multiplicity]
+    const valueMap = this.#inner.get(key)
+    const valueHash = String(hash(val))
+    const [, existingMultiplicity] = valueMap.get(valueHash)
+    if (existingMultiplicity !== 0) {
+      const newMultiplicity = existingMultiplicity + multiplicity
+      if (newMultiplicity === 0) {
+        valueMap.delete(valueHash)
+      } else {
+        valueMap.set(valueHash, [val, newMultiplicity])
+      }
     } else {
-      values.push([val, multiplicity])
+      if (multiplicity !== 0) {
+        valueMap.set(valueHash, [val, multiplicity])
+      }
     }
   }
 
   append(other: Index<K, V>): void {
-    for (const [key, values] of other.entries()) {
-      const thisValues = this.#inner.get(key)
-      for (const [value, multiplicity] of values) {
-        const existingIndex = thisValues.findIndex(
-          ([v, _]) => hash(v) === hash(value),
-        )
-        if (existingIndex >= 0) {
-          const [_, existingMultiplicity] = thisValues[existingIndex]
-          thisValues[existingIndex] = [
-            value,
-            existingMultiplicity + multiplicity,
-          ]
+    for (const [key, otherValueMap] of other.entries()) {
+      const thisValueMap = this.#inner.get(key)
+      for (const [
+        valueHash,
+        [value, multiplicity],
+      ] of otherValueMap.entries()) {
+        const [, existingMultiplicity] = thisValueMap.get(valueHash)
+        if (existingMultiplicity !== 0) {
+          const newMultiplicity = existingMultiplicity + multiplicity
+          if (newMultiplicity === 0) {
+            thisValueMap.delete(valueHash)
+          } else {
+            thisValueMap.set(valueHash, [value, newMultiplicity])
+          }
         } else {
-          thisValues.push([value, multiplicity])
+          if (multiplicity !== 0) {
+            thisValueMap.set(valueHash, [value, multiplicity])
+          }
         }
       }
     }
@@ -88,10 +100,10 @@ export class Index<K, V> {
     // We want to iterate over the smaller of the two indexes to reduce the
     // number of operations we need to do.
     if (this.size <= other.size) {
-      for (const [key, values] of this.entries()) {
+      for (const [key, valueMap] of this.entries()) {
         if (!other.has(key)) continue
         const otherValues = other.get(key)
-        for (const [val1, mul1] of values) {
+        for (const [val1, mul1] of valueMap.values()) {
           for (const [val2, mul2] of otherValues) {
             if (mul1 !== 0 && mul2 !== 0) {
               result.push([[key, [val1, val2]], mul1 * mul2])
@@ -100,10 +112,10 @@ export class Index<K, V> {
         }
       }
     } else {
-      for (const [key, otherValues] of other.entries()) {
+      for (const [key, otherValueMap] of other.entries()) {
         if (!this.has(key)) continue
         const values = this.get(key)
-        for (const [val2, mul2] of otherValues) {
+        for (const [val2, mul2] of otherValueMap.values()) {
           for (const [val1, mul1] of values) {
             if (mul1 !== 0 && mul2 !== 0) {
               result.push([[key, [val1, val2]], mul1 * mul2])
