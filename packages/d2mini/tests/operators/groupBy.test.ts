@@ -15,6 +15,62 @@ import { output } from '../../src/operators/index.js'
 
 describe('Operators', () => {
   describe('GroupBy operation', () => {
+    test('with no aggregate', () => {
+      const graph = new D2()
+      const input = graph.newInput<{
+        category: string
+        amount: number
+      }>()
+      let latestMessage: any = null
+
+      input.pipe(
+        groupBy((data) => ({ category: data.category })),
+        output((message) => {
+          latestMessage = message
+        }),
+      )
+
+      graph.finalize()
+
+      // Initial data
+      input.sendData(
+        new MultiSet([
+          [{ category: 'A', amount: 10 }, 1],
+          [{ category: 'A', amount: 20 }, 1],
+          [{ category: 'B', amount: 30 }, 1],
+        ]),
+      )
+      graph.run()
+
+      // Verify we have the latest message
+      expect(latestMessage).not.toBeNull()
+
+      const result = latestMessage.getInner()
+
+      const expectedResult = [
+        [
+          [
+            `{"category":"A"}`,
+            {
+              category: 'A',
+            },
+          ],
+          1,
+        ],
+        [
+          [
+            `{"category":"B"}`,
+            {
+              category: 'B',
+            },
+          ],
+          1,
+        ],
+      ]
+
+      expect(result).toEqual(expectedResult)
+    })
+
     test('with single sum aggregate', () => {
       const graph = new D2()
       const input = graph.newInput<{
