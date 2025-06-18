@@ -35,6 +35,13 @@ export class Index<K, V> {
     return [...valueMap.values()]
   }
 
+  getMultiplicity(key: K, value: V): number {
+    const valueMap = this.#inner.get(key)
+    const valueHash = hash(value)
+    const [, multiplicity] = valueMap.get(valueHash)
+    return multiplicity
+  }
+
   entries() {
     return this.#inner.entries()
   }
