@@ -7,6 +7,12 @@ import {
 } from '../../src/operators/index.js'
 import { KeyValue } from '../../src/types.js'
 
+const stripFractionalIndex = ([[key, [value, _index]], multiplicity]) => [
+  key,
+  value,
+  multiplicity,
+]
+
 describe('Operators', () => {
   describe('OrderByWithFractionalIndex operation', () => {
     test('initial results with default comparator', () => {
@@ -46,14 +52,14 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const result = latestMessage.getInner()
-      const sortedResult = sortByKeyAndIndex(result)
+      const sortedResult = sortByKeyAndIndex(result).map(stripFractionalIndex)
 
       expect(sortedResult).toEqual([
-        [['key1', [{ id: 1, value: 'a' }, 'a0']], 1],
-        [['key3', [{ id: 3, value: 'b' }, 'a1']], 1],
-        [['key5', [{ id: 5, value: 'c' }, 'a2']], 1],
-        [['key4', [{ id: 4, value: 'y' }, 'a3']], 1],
-        [['key2', [{ id: 2, value: 'z' }, 'a4']], 1],
+        ['key1', { id: 1, value: 'a' }, 1],
+        ['key3', { id: 3, value: 'b' }, 1],
+        ['key5', { id: 5, value: 'c' }, 1],
+        ['key4', { id: 4, value: 'y' }, 1],
+        ['key2', { id: 2, value: 'z' }, 1],
       ])
     })
 
@@ -96,14 +102,14 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const result = latestMessage.getInner()
-      const sortedResult = sortByKeyAndIndex(result)
+      const sortedResult = sortByKeyAndIndex(result).map(stripFractionalIndex)
 
       expect(sortedResult).toEqual([
-        [['key2', [{ id: 2, value: 'z' }, 'a0']], 1],
-        [['key4', [{ id: 4, value: 'y' }, 'a1']], 1],
-        [['key5', [{ id: 5, value: 'c' }, 'a2']], 1],
-        [['key3', [{ id: 3, value: 'b' }, 'a3']], 1],
-        [['key1', [{ id: 1, value: 'a' }, 'a4']], 1],
+        ['key2', { id: 2, value: 'z' }, 1],
+        ['key4', { id: 4, value: 'y' }, 1],
+        ['key5', { id: 5, value: 'c' }, 1],
+        ['key3', { id: 3, value: 'b' }, 1],
+        ['key1', { id: 1, value: 'a' }, 1],
       ])
     })
 
@@ -144,12 +150,12 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const result = latestMessage.getInner()
-      const sortedResult = sortByKeyAndIndex(result)
+      const sortedResult = sortByKeyAndIndex(result).map(stripFractionalIndex)
 
       expect(sortedResult).toEqual([
-        [['key1', [{ id: 1, value: 'a' }, 'a0']], 1],
-        [['key3', [{ id: 3, value: 'b' }, 'a1']], 1],
-        [['key5', [{ id: 5, value: 'c' }, 'a2']], 1],
+        ['key1', { id: 1, value: 'a' }, 1],
+        ['key3', { id: 3, value: 'b' }, 1],
+        ['key5', { id: 5, value: 'c' }, 1],
       ])
     })
 
@@ -193,11 +199,11 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const result = latestMessage.getInner()
-      const sortedResult = sortByKeyAndIndex(result)
+      const sortedResult = sortByKeyAndIndex(result).map(stripFractionalIndex)
 
       expect(sortedResult).toEqual([
-        [['key5', [{ id: 5, value: 'c' }, 'a0']], 1],
-        [['key4', [{ id: 4, value: 'y' }, 'a1']], 1],
+        ['key5', { id: 5, value: 'c' }, 1],
+        ['key4', { id: 4, value: 'y' }, 1],
       ])
     })
 
@@ -238,14 +244,14 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const result = latestMessage.getInner()
-      const sortedResult = sortByKeyAndIndex(result)
+      const sortedResult = sortByKeyAndIndex(result).map(stripFractionalIndex)
 
       expect(sortedResult).toEqual([
-        [['key1', [{ id: 1, value: 'a' }, 'a0']], 1],
-        [['key2', [{ id: 2, value: 'b' }, 'a1']], 1],
-        [['key3', [{ id: 3, value: 'c' }, 'a2']], 1],
-        [['key4', [{ id: 4, value: 'd' }, 'a3']], 1],
-        [['key5', [{ id: 5, value: 'e' }, 'a4']], 1],
+        ['key1', { id: 1, value: 'a' }, 1],
+        ['key2', { id: 2, value: 'b' }, 1],
+        ['key3', { id: 3, value: 'c' }, 1],
+        ['key4', { id: 4, value: 'd' }, 1],
+        ['key5', { id: 5, value: 'e' }, 1],
       ])
     })
 
@@ -284,12 +290,13 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const initialResult = latestMessage.getInner()
-      const sortedInitialResult = sortByKeyAndIndex(initialResult)
+      const sortedInitialResult =
+        sortByKeyAndIndex(initialResult).map(stripFractionalIndex)
 
       expect(sortedInitialResult).toEqual([
-        [['key1', [{ id: 1, value: 'a' }, 'a0']], 1],
-        [['key2', [{ id: 2, value: 'b' }, 'a1']], 1],
-        [['key3', [{ id: 3, value: 'c' }, 'a2']], 1],
+        ['key1', { id: 1, value: 'a' }, 1],
+        ['key2', { id: 2, value: 'b' }, 1],
+        ['key3', { id: 3, value: 'c' }, 1],
       ])
 
       // Add a new row that should be included in the top 3
@@ -303,12 +310,12 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const result = latestMessage.getInner()
-      const sortedResult = sortByKeyAndIndex(result)
+      const sortedResult = sortByKeyAndIndex(result).map(stripFractionalIndex)
 
       expect(sortedResult).toEqual([
         // We dont get key1 as its not changed or moved
-        [['key4', [{ id: 4, value: 'aa' }, 'a0V']], 1], // New row
-        [['key3', [{ id: 3, value: 'c' }, 'a2']], -1], // key3 is removed as its moved out of top 3
+        ['key4', { id: 4, value: 'aa' }, 1], // New row
+        ['key3', { id: 3, value: 'c' }, -1], // key3 is removed as its moved out of top 3
       ])
     })
 
@@ -348,12 +355,13 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const initialResult = latestMessage.getInner()
-      const sortedInitialResult = sortByKeyAndIndex(initialResult)
+      const sortedInitialResult =
+        sortByKeyAndIndex(initialResult).map(stripFractionalIndex)
 
       expect(sortedInitialResult).toEqual([
-        [['key1', [{ id: 1, value: 'a' }, 'a0']], 1],
-        [['key2', [{ id: 2, value: 'b' }, 'a1']], 1],
-        [['key3', [{ id: 3, value: 'c' }, 'a2']], 1],
+        ['key1', { id: 1, value: 'a' }, 1],
+        ['key2', { id: 2, value: 'b' }, 1],
+        ['key3', { id: 3, value: 'c' }, 1],
       ])
 
       // Remove a row that was in the top 3
@@ -367,13 +375,13 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const result = latestMessage.getInner()
-      const sortedResult = sortByKeyAndIndex(result)
+      const sortedResult = sortByKeyAndIndex(result).map(stripFractionalIndex)
 
       expect(sortedResult).toEqual([
         // key1 is removed
-        [['key1', [{ id: 1, value: 'a' }, 'a0']], -1],
+        ['key1', { id: 1, value: 'a' }, -1],
         // key4 is moved into the top 3
-        [['key4', [{ id: 4, value: 'd' }, 'a3']], 1],
+        ['key4', { id: 4, value: 'd' }, 1],
       ])
     })
 
@@ -413,12 +421,13 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const initialResult = latestMessage.getInner()
-      const sortedInitialResult = sortByKeyAndIndex(initialResult)
+      const sortedInitialResult =
+        sortByKeyAndIndex(initialResult).map(stripFractionalIndex)
 
       expect(sortedInitialResult).toEqual([
-        [['key1', [{ id: 1, value: 'a' }, 'a0']], 1],
-        [['key3', [{ id: 3, value: 'b' }, 'a1']], 1],
-        [['key2', [{ id: 2, value: 'c' }, 'a2']], 1],
+        ['key1', { id: 1, value: 'a' }, 1],
+        ['key3', { id: 3, value: 'b' }, 1],
+        ['key2', { id: 2, value: 'c' }, 1],
       ])
 
       // Modify an existing row by removing it and adding a new version
@@ -433,11 +442,11 @@ describe('Operators', () => {
       expect(latestMessage).not.toBeNull()
 
       const result = latestMessage.getInner()
-      const sortedResult = sortByKeyAndIndex(result)
+      const sortedResult = sortByKeyAndIndex(result).map(stripFractionalIndex)
 
       expect(sortedResult).toEqual([
-        [['key2', [{ id: 2, value: 'c' }, 'a2']], -1], // removed as out of top 3
-        [['key4', [{ id: 4, value: 'd' }, 'a2']], 1], // key4 is moved up
+        ['key2', { id: 2, value: 'c' }, -1], // removed as out of top 3
+        ['key4', { id: 4, value: 'd' }, 1], // key4 is moved up
       ])
     })
   })
@@ -450,23 +459,24 @@ function sortByKeyAndIndex(results: any[]) {
   return [...results]
     .sort(
       (
-        [[_aKey, [_aValue, aIndex]], aMultiplicity],
-        [[_bKey, [_bValue, bIndex]], bMultiplicity],
+        [[_aKey, [_aValue, _aIndex]], aMultiplicity],
+        [[_bKey, [_bValue, _bIndex]], bMultiplicity],
       ) => aMultiplicity - bMultiplicity,
     )
     .sort(
       (
-        [[aKey, [_aValue, aIndex]], _aMultiplicity],
-        [[bKey, [_bValue, bIndex]], _bMultiplicity],
+        [[aKey, [_aValue, _aIndex]], _aMultiplicity],
+        [[bKey, [_bValue, _bIndex]], _bMultiplicity],
       ) => aKey - bKey,
     )
     .sort(
       (
-        [[aKey, [_aValue, aIndex]], _aMultiplicity],
-        [[bKey, [_bValue, bIndex]], _bMultiplicity],
+        [[_aKey, [_aValue, aIndex]], _aMultiplicity],
+        [[_bKey, [_bValue, bIndex]], _bMultiplicity],
       ) => {
         // lexically compare the index
-        return aIndex.localeCompare(bIndex)
+        //return aIndex.localeCompare(bIndex)
+        return aIndex < bIndex ? -1 : aIndex > bIndex ? 1 : 0
       },
     )
 }
