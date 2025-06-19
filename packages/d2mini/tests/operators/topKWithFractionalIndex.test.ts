@@ -23,7 +23,9 @@ function checkLexicographicOrder(results: any[]) {
     const nextIndex = sortedByValue[i + 1].index
 
     // Indices should be in lexicographic order
-    expect(currentIndex < nextIndex).toBe(true)
+    if (!(currentIndex < nextIndex)) {
+      return false
+    }
   }
 
   return true
@@ -56,15 +58,24 @@ function verifyOrder(results: any[], expectedOrder: string[]) {
   expect(sortedByIndex).toEqual(expectedOrder)
 }
 
+// Tests:
+//  - insert into array when there is not topK
+//  - insert into array when there is no topK and the element becomes the first element of the topK
+//  - insert into array when there is no topK and the element pushes the last element of the array into the topK
+//  - topK with limit 1 such that the first is also the last element
+
 describe('Operators', () => {
-  describe('TopKWithFractionalIndex operation', () => {
+  describe.each([
+    ['with array', { useTree: false }],
+    ['with B+ tree', { useTree: true }],
+  ])('TopKWithFractionalIndex operation %s', (_, options) => {
     it('should assign fractional indices to sorted elements', () => {
       const graph = new D2()
       const input = graph.newInput<[null, { id: number; value: string }]>()
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value)),
+        topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value), options),
         output((message) => {
           allMessages.push(message)
         }),
@@ -160,6 +171,93 @@ describe('Operators', () => {
       expect(checkLexicographicOrder(currentStateArray)).toBe(true)
     })
 
+    it('should support duplicate ordering keys', () => {
+      const graph = new D2()
+      const input = graph.newInput<[null, { id: number; value: string }]>()
+      const allMessages: any[] = []
+
+      input.pipe(
+        topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value), options),
+        output((message) => {
+          allMessages.push(message)
+        }),
+      )
+
+      graph.finalize()
+
+      // Initial data - a, b, c, d, e
+      input.sendData(
+        new MultiSet([
+          [[null, { id: 1, value: 'a' }], 1],
+          [[null, { id: 2, value: 'b' }], 1],
+          [[null, { id: 3, value: 'c' }], 1],
+          [[null, { id: 4, value: 'd' }], 1],
+          [[null, { id: 5, value: 'e' }], 1],
+        ]),
+      )
+      graph.run()
+
+      // Initial result should have all elements with fractional indices
+      const initialResult = allMessages[0].getInner()
+      expect(initialResult.length).toBe(5)
+
+      // Check that indices are in lexicographic order
+      expect(checkLexicographicOrder(initialResult)).toBe(true)
+
+      // Store the initial indices for later comparison
+      const initialIndices = new Map()
+      for (const [[_, [value, index]]] of initialResult) {
+        initialIndices.set(value.id, index)
+      }
+
+      // Now let's add a new element with a value that is already in there
+      input.sendData(new MultiSet([[[null, { id: 6, value: 'c' }], 1]]))
+      graph.run()
+
+      // TODO: when using the tree variant we are not actually inserting it
+      //       because they key already exists, so we ignore it
+      //       and thus there is no message being emitted here
+      //       --> FIX it by wrapping the value with its hash and comparing on the value first and then on the hash
+
+      // Check the changes
+      const changes = allMessages[1].getInner()
+
+      // We should only emit as many changes as we received
+      expect(changes.length).toBe(1) // 1 addition
+
+      // Find the addition
+      const [addition] = changes
+
+      // Check that we added { id: 6, value: 'c' }
+      expect(addition?.[0][1][0]).toEqual({ id: 6, value: 'c' })
+
+      // Reconstruct the current state by applying the changes
+      const currentState = new Map()
+      for (const [[_, [value, index]]] of initialResult) {
+        currentState.set(JSON.stringify(value), [value, index])
+      }
+
+      // Apply the changes
+      for (const [[_, [value, index]], multiplicity] of changes) {
+        if (multiplicity < 0) {
+          // Remove
+          currentState.delete(JSON.stringify(value))
+        } else {
+          // Add
+          currentState.set(JSON.stringify(value), [value, index])
+        }
+      }
+
+      // Convert to array for lexicographic order check
+      const currentStateArray = Array.from(currentState.values()).map(
+        ([value, index]) => [[null, [value, index]], 1],
+      )
+
+      // Check that indices are still in lexicographic order after the changes
+      expect(checkLexicographicOrder(currentStateArray)).toBe(true)
+      expect(currentStateArray.length).toBe(6)
+    })
+
     it('should handle limit and offset correctly', () => {
       const graph = new D2()
       const input = graph.newInput<[null, { id: number; value: string }]>()
@@ -169,6 +267,7 @@ describe('Operators', () => {
         topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value), {
           limit: 3,
           offset: 1,
+          ...options,
         }),
         output((message) => {
           allMessages.push(message)
@@ -284,7 +383,10 @@ describe('Operators', () => {
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value)),
+        topKWithFractionalIndex(
+          (a, b) => a.value.localeCompare(b.value),
+          options,
+        ),
         output((message) => {
           allMessages.push(message)
         }),
@@ -430,7 +532,10 @@ describe('Operators', () => {
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value)),
+        topKWithFractionalIndex(
+          (a, b) => a.value.localeCompare(b.value),
+          options,
+        ),
         output((message) => {
           allMessages.push(message)
         }),
@@ -587,7 +692,10 @@ describe('Operators', () => {
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value)),
+        topKWithFractionalIndex(
+          (a, b) => a.value.localeCompare(b.value),
+          options,
+        ),
         output((message) => {
           allMessages.push(message)
         }),
@@ -716,7 +824,10 @@ describe('Operators', () => {
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value)),
+        topKWithFractionalIndex(
+          (a, b) => a.value.localeCompare(b.value),
+          options,
+        ),
         output((message) => {
           allMessages.push(message)
         }),
@@ -800,7 +911,10 @@ describe('Operators', () => {
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value)),
+        topKWithFractionalIndex(
+          (a, b) => a.value.localeCompare(b.value),
+          options,
+        ),
         output((message) => {
           allMessages.push(message)
         }),
