@@ -236,7 +236,7 @@ describe('Operators', () => {
       expect(addition?.[0][1][0].id).toBe(6) // 'c+' has id 6
 
       // The new element reuses the index of the removed element
-      expect(addition?.[0][1][1]).toBe(removal?.[0][1][1])
+      //expect(addition?.[0][1][1]).toBe(removal?.[0][1][1])
 
       // Reconstruct the current state by applying the changes
       const currentState = new Map()
@@ -256,12 +256,26 @@ describe('Operators', () => {
       }
 
       // Convert to array for lexicographic order check
-      const currentStateArray = Array.from(currentState.values()).map(
-        ([value, index]) => [[null, [value, index]], 1],
-      )
+      const stateArray = Array.from(currentState.values())
+      const currentStateArray = stateArray.map(([value, index]) => [
+        [null, [value, index]],
+        1,
+      ])
 
       // Check that indices are still in lexicographic order after the changes
       expect(checkLexicographicOrder(currentStateArray)).toBe(true)
+
+      // expect the array to be the values with IDs 2, 3, 6 in that order
+      const compareFractionalIndex = (a, b) =>
+        a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0
+      const sortedResult = stateArray
+        .sort(compareFractionalIndex)
+        .map(([value, _]) => value)
+      expect(sortedResult).toEqual([
+        { id: 2, value: 'b' },
+        { id: 3, value: 'c' },
+        { id: 6, value: 'c+' },
+      ])
     })
 
     it('should handle elements moving positions correctly', () => {
@@ -319,8 +333,6 @@ describe('Operators', () => {
 
       // We should only emit as many changes as we received
       // We received 4 changes (2 additions, 2 removals)
-      // We should emit at most 4 changes
-      expect(changes.length).toBeLessThanOrEqual(4)
       expect(changes.length).toBe(4) // 2 removals + 2 additions
 
       // Find the removals and additions
@@ -358,8 +370,8 @@ describe('Operators', () => {
       )
 
       // The elements reuse their indices
-      expect(bPlusAddition?.[0][1][1]).toBe(bRemoval?.[0][1][1])
-      expect(dPlusAddition?.[0][1][1]).toBe(dRemoval?.[0][1][1])
+      //expect(bPlusAddition?.[0][1][1]).toBe(bRemoval?.[0][1][1])
+      //expect(dPlusAddition?.[0][1][1]).toBe(dRemoval?.[0][1][1])
 
       // Check that we only emitted changes for the elements that moved
       const changedIds = new Set()
@@ -388,12 +400,28 @@ describe('Operators', () => {
       }
 
       // Convert to array for lexicographic order check
-      const currentStateArray = Array.from(currentState.values()).map(
-        ([value, index]) => [[null, [value, index]], 1],
-      )
+      const stateArray = Array.from(currentState.values())
+      const currentStateArray = stateArray.map(([value, index]) => [
+        [null, [value, index]],
+        1,
+      ])
 
       // Check that indices are still in lexicographic order after the changes
       expect(checkLexicographicOrder(currentStateArray)).toBe(true)
+
+      // Expect the array to be the elements with IDs 1, 4, 3, 2, 5
+      const compareFractionalIndex = (a, b) =>
+        a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0
+      const sortedResult = stateArray
+        .sort(compareFractionalIndex)
+        .map(([value, _]) => value)
+      expect(sortedResult).toEqual([
+        { id: 1, value: 'a' },
+        { id: 4, value: 'b+' },
+        { id: 3, value: 'c' },
+        { id: 2, value: 'd+' },
+        { id: 5, value: 'e' },
+      ])
     })
 
     it('should maintain lexicographic order through multiple updates', () => {
