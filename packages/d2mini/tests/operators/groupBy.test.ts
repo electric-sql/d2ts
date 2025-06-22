@@ -761,5 +761,300 @@ describe('Operators', () => {
       )
       expect(positiveCategoryAEastEntries).toHaveLength(0)
     })
+
+    test('group removal and re-addition with sum aggregate', () => {
+      const graph = new D2()
+      const input = graph.newInput<{
+        category: string
+        amount: number
+      }>()
+      let latestMessage: any = null
+
+      input.pipe(
+        groupBy((data) => ({ category: data.category }), {
+          total: sum((data) => data.amount),
+        }),
+        output((message) => {
+          latestMessage = message
+        }),
+      )
+
+      graph.finalize()
+
+      // Step 1: Initial data
+      input.sendData(
+        new MultiSet([
+          [{ category: 'A', amount: 10 }, 1],
+          [{ category: 'A', amount: 20 }, 1],
+          [{ category: 'B', amount: 30 }, 1],
+        ]),
+      )
+      graph.run()
+
+      // Verify initial state
+      expect(latestMessage).not.toBeNull()
+      let result = latestMessage.getInner()
+      expect(result).toHaveLength(2) // Should have 2 groups
+
+      // Find the group for category A
+      let categoryAGroup = result.find(
+        ([key]) => key[0] === '{"category":"A"}',
+      )
+      expect(categoryAGroup).toBeDefined()
+      expect(categoryAGroup[0][1].total).toBe(30) // Sum of 10 + 20
+
+      // Step 2: Remove ALL records from category A
+      input.sendData(
+        new MultiSet([
+          [{ category: 'A', amount: 10 }, -1],
+          [{ category: 'A', amount: 20 }, -1],
+        ]),
+      )
+      graph.run()
+
+      // Verify group A is completely removed
+      result = latestMessage.getInner()
+      const expectedRemovalResult = [
+        [
+          [
+            '{"category":"A"}',
+            {
+              category: 'A',
+              total: 30,
+            },
+          ],
+          -1, // Group should be removed
+        ],
+      ]
+      expect(result).toEqual(expectedRemovalResult)
+
+      // Step 3: Re-add records to category A with different values
+      input.sendData(
+        new MultiSet([
+          [{ category: 'A', amount: 50 }, 1],
+          [{ category: 'A', amount: 25 }, 1],
+        ]),
+      )
+      graph.run()
+
+      // Verify group A is recreated with correct new aggregate values
+      result = latestMessage.getInner()
+      const expectedReAdditionResult = [
+        [
+          [
+            '{"category":"A"}',
+            {
+              category: 'A',
+              total: 75, // 50 + 25 (new values, not the old 30)
+            },
+          ],
+          1, // New group should be added
+        ],
+      ]
+      expect(result).toEqual(expectedReAdditionResult)
+
+      // Step 4: Verify no lingering effects by adding more data
+      input.sendData(
+        new MultiSet([
+          [{ category: 'A', amount: 15 }, 1],
+        ]),
+      )
+      graph.run()
+
+      // Verify aggregate is updated correctly from the new baseline
+      result = latestMessage.getInner()
+      const expectedUpdateResult = [
+        [
+          [
+            '{"category":"A"}',
+            {
+              category: 'A',
+              total: 75, // Previous total
+            },
+          ],
+          -1, // Remove old state
+        ],
+        [
+          [
+            '{"category":"A"}',
+            {
+              category: 'A',
+              total: 90, // 75 + 15
+            },
+          ],
+          1, // Add new state
+        ],
+      ]
+      expect(result).toEqual(expectedUpdateResult)
+    })
+
+    test('group removal and re-addition with multiple aggregates', () => {
+      const graph = new D2()
+      const input = graph.newInput<{
+        category: string
+        region: string
+        amount: number
+      }>()
+      let latestMessage: any = null
+
+      input.pipe(
+        groupBy(
+          (data) => ({
+            category: data.category,
+            region: data.region,
+          }),
+          {
+            total: sum((data) => data.amount),
+            count: count(),
+            average: avg((data) => data.amount),
+            minimum: min((data) => data.amount),
+            maximum: max((data) => data.amount),
+          },
+        ),
+        output((message) => {
+          latestMessage = message
+        }),
+      )
+
+      graph.finalize()
+
+      // Step 1: Initial data
+      input.sendData(
+        new MultiSet([
+          [{ category: 'A', region: 'East', amount: 10 }, 1],
+          [{ category: 'A', region: 'East', amount: 20 }, 1],
+          [{ category: 'A', region: 'East', amount: 30 }, 1],
+          [{ category: 'B', region: 'West', amount: 100 }, 1],
+        ]),
+      )
+      graph.run()
+
+      // Verify initial state
+      expect(latestMessage).not.toBeNull()
+      let result = latestMessage.getInner()
+      expect(result).toHaveLength(2) // Should have 2 groups
+
+      // Find the group for category A, region East
+      let categoryAEastGroup = result.find(
+        ([key]) => key[0] === '{"category":"A","region":"East"}',
+      )
+      expect(categoryAEastGroup).toBeDefined()
+      expect(categoryAEastGroup[0][1]).toEqual({
+        category: 'A',
+        region: 'East',
+        total: 60, // 10 + 20 + 30
+        count: 3,
+        average: 20, // 60 / 3
+        minimum: 10,
+        maximum: 30,
+      })
+
+      // Step 2: Remove ALL records from category A, region East
+      input.sendData(
+        new MultiSet([
+          [{ category: 'A', region: 'East', amount: 10 }, -1],
+          [{ category: 'A', region: 'East', amount: 20 }, -1],
+          [{ category: 'A', region: 'East', amount: 30 }, -1],
+        ]),
+      )
+      graph.run()
+
+      // Verify group is completely removed
+      result = latestMessage.getInner()
+      const expectedRemovalResult = [
+        [
+          [
+            '{"category":"A","region":"East"}',
+            {
+              category: 'A',
+              region: 'East',
+              total: 60,
+              count: 3,
+              average: 20,
+              minimum: 10,
+              maximum: 30,
+            },
+          ],
+          -1, // Group should be removed
+        ],
+      ]
+      expect(result).toEqual(expectedRemovalResult)
+
+      // Step 3: Re-add records to category A, region East with completely different values
+      input.sendData(
+        new MultiSet([
+          [{ category: 'A', region: 'East', amount: 5 }, 1],
+          [{ category: 'A', region: 'East', amount: 15 }, 1],
+          [{ category: 'A', region: 'East', amount: 40 }, 1],
+          [{ category: 'A', region: 'East', amount: 40 }, 1], // Duplicate to test aggregates properly
+        ]),
+      )
+      graph.run()
+
+      // Verify group is recreated with correct new aggregate values
+      result = latestMessage.getInner()
+      const expectedReAdditionResult = [
+        [
+          [
+            '{"category":"A","region":"East"}',
+            {
+              category: 'A',
+              region: 'East',
+              total: 100, // 5 + 15 + 40 + 40 (completely new calculation)
+              count: 4,
+              average: 25, // 100 / 4
+              minimum: 5, // New minimum
+              maximum: 40, // New maximum
+            },
+          ],
+          1, // New group should be added
+        ],
+      ]
+      expect(result).toEqual(expectedReAdditionResult)
+
+      // Step 4: Remove some records and verify aggregates update correctly
+      input.sendData(
+        new MultiSet([
+          [{ category: 'A', region: 'East', amount: 40 }, -1], // Remove one of the 40s
+        ]),
+      )
+      graph.run()
+
+      // Verify aggregates are updated correctly from the new baseline
+      result = latestMessage.getInner()
+      const expectedPartialRemovalResult = [
+        [
+          [
+            '{"category":"A","region":"East"}',
+            {
+              category: 'A',
+              region: 'East',
+              total: 100,
+              count: 4,
+              average: 25,
+              minimum: 5,
+              maximum: 40,
+            },
+          ],
+          -1, // Remove old state
+        ],
+        [
+          [
+            '{"category":"A","region":"East"}',
+            {
+              category: 'A',
+              region: 'East',
+              total: 60, // 5 + 15 + 40 (one 40 removed)
+              count: 3,
+              average: 20, // 60 / 3
+              minimum: 5, // Still 5
+              maximum: 40, // Still 40 (one remains)
+            },
+          ],
+          1, // Add new state
+        ],
+      ]
+      expect(result).toEqual(expectedPartialRemovalResult)
+    })
   })
 })

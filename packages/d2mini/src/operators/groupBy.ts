@@ -87,6 +87,17 @@ export function groupBy<
     // Then reduce to compute aggregates
     const reduced = withKeysAndValues.pipe(
       reduce((values) => {
+        // Calculate total multiplicity to check if the group should exist
+        let totalMultiplicity = 0
+        for (const [_, multiplicity] of values) {
+          totalMultiplicity += multiplicity
+        }
+
+        // If total multiplicity is 0 or negative, the group should be removed completely
+        if (totalMultiplicity <= 0) {
+          return []
+        }
+
         const result: Record<string, unknown> = {}
 
         // Get the original key from first value in group
