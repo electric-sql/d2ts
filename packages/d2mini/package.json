@@ -1,6 +1,6 @@
 {
   "name": "@electric-sql/d2mini",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "Apache-2.0",
   "description": "D2Mini is a minimal implementation of Differential Dataflow for performing in-memory incremental view maintenance.",
   "author": "Electric DB Limited",
