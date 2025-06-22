@@ -584,5 +584,182 @@ describe('Operators', () => {
 
       expect(latestMessage.getInner()).toEqual(expectedResult)
     })
+
+    test('complete group removal with sum aggregate', () => {
+      const graph = new D2()
+      const input = graph.newInput<{
+        category: string
+        amount: number
+      }>()
+      let latestMessage: any = null
+
+      input.pipe(
+        groupBy((data) => ({ category: data.category }), {
+          total: sum((data) => data.amount),
+        }),
+        output((message) => {
+          latestMessage = message
+        }),
+      )
+
+      graph.finalize()
+
+      // Initial data
+      input.sendData(
+        new MultiSet([
+          [{ category: 'A', amount: 10 }, 1],
+          [{ category: 'A', amount: 20 }, 1],
+          [{ category: 'B', amount: 30 }, 1],
+          [{ category: 'C', amount: 40 }, 1],
+        ]),
+      )
+      graph.run()
+
+      // Verify initial state
+      expect(latestMessage).not.toBeNull()
+      let result = latestMessage.getInner()
+      expect(result).toHaveLength(3) // Should have 3 groups
+
+      // Find the group for category A
+      const categoryAGroup = result.find(
+        ([key]) => key[0] === '{"category":"A"}',
+      )
+      expect(categoryAGroup).toBeDefined()
+      expect(categoryAGroup[0][1].total).toBe(30) // Sum of 10 + 20
+
+      // Now remove ALL records from category A
+      input.sendData(
+        new MultiSet([
+          [{ category: 'A', amount: 10 }, -1],
+          [{ category: 'A', amount: 20 }, -1],
+        ]),
+      )
+      graph.run()
+
+      // After removing all A records, the group should be completely removed
+      // NOT return a group with total: 0
+      result = latestMessage.getInner()
+
+      // The result should contain the removal of the old group
+      // but NOT the creation of a new group with total: 0
+      const expectedResult = [
+        [
+          [
+            '{"category":"A"}',
+            {
+              category: 'A',
+              total: 30,
+            },
+          ],
+          -1, // This should be removed
+        ],
+      ]
+
+      expect(result).toEqual(expectedResult)
+
+      // Verify no new group with total: 0 was created by checking that
+      // we don't have any positive weight entries for category A
+      const positiveCategoryAEntries = result.filter(
+        ([key, , weight]) => key[0] === '{"category":"A"}' && weight > 0,
+      )
+      expect(positiveCategoryAEntries).toHaveLength(0)
+    })
+
+    test('complete group removal with multiple aggregates', () => {
+      const graph = new D2()
+      const input = graph.newInput<{
+        category: string
+        region: string
+        amount: number
+      }>()
+      let latestMessage: any = null
+
+      input.pipe(
+        groupBy(
+          (data) => ({
+            category: data.category,
+            region: data.region,
+          }),
+          {
+            total: sum((data) => data.amount),
+            count: count(),
+            average: avg((data) => data.amount),
+          },
+        ),
+        output((message) => {
+          latestMessage = message
+        }),
+      )
+
+      graph.finalize()
+
+      // Initial data
+      input.sendData(
+        new MultiSet([
+          [{ category: 'A', region: 'East', amount: 10 }, 1],
+          [{ category: 'A', region: 'East', amount: 20 }, 1],
+          [{ category: 'A', region: 'West', amount: 30 }, 1],
+          [{ category: 'B', region: 'East', amount: 40 }, 1],
+        ]),
+      )
+      graph.run()
+
+      // Verify initial state
+      expect(latestMessage).not.toBeNull()
+      let result = latestMessage.getInner()
+      expect(result).toHaveLength(3) // Should have 3 groups
+
+      // Find the group for category A, region East
+      const categoryAEastGroup = result.find(
+        ([key]) => key[0] === '{"category":"A","region":"East"}',
+      )
+      expect(categoryAEastGroup).toBeDefined()
+      expect(categoryAEastGroup[0][1]).toEqual({
+        category: 'A',
+        region: 'East',
+        total: 30, // 10 + 20
+        count: 2,
+        average: 15, // 30 / 2
+      })
+
+      // Now remove ALL records from category A, region East
+      input.sendData(
+        new MultiSet([
+          [{ category: 'A', region: 'East', amount: 10 }, -1],
+          [{ category: 'A', region: 'East', amount: 20 }, -1],
+        ]),
+      )
+      graph.run()
+
+      // After removing all A/East records, that group should be completely removed
+      // NOT return a group with total: 0, count: 0, average: 0 (or NaN)
+      result = latestMessage.getInner()
+
+      // The result should contain the removal of the old group
+      const expectedResult = [
+        [
+          [
+            '{"category":"A","region":"East"}',
+            {
+              category: 'A',
+              region: 'East',
+              total: 30,
+              count: 2,
+              average: 15,
+            },
+          ],
+          -1, // This should be removed
+        ],
+      ]
+
+      expect(result).toEqual(expectedResult)
+
+      // Verify no new group with zero/empty values was created
+      const positiveCategoryAEastEntries = result.filter(
+        ([key, , weight]) =>
+          key[0] === '{"category":"A","region":"East"}' && weight > 0,
+      )
+      expect(positiveCategoryAEastEntries).toHaveLength(0)
+    })
   })
 })
