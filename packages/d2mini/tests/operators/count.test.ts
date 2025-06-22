@@ -111,8 +111,8 @@ function testCount() {
     expect(data).toEqual([
       [[['one', 2], 1]],
       [
-        [['one', 3], 1],
         [['one', 2], -1], // <-- old count of 'one' removed
+        [['one', 3], 1],
         [['two', 1], 1],
       ],
     ])

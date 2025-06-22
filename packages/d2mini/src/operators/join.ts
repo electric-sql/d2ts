@@ -77,6 +77,13 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
 
     // Append deltaB to indexB
     this.#indexB.append(deltaB)
+
+    // Compact both indexes to consolidate values and remove zero-multiplicity entries
+    // Only compact changed keys for efficiency
+    deltaA.compact()
+    deltaB.compact()
+    this.#indexA.compact()
+    this.#indexB.compact()
   }
 }
 
