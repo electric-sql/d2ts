@@ -232,11 +232,11 @@ describe('Operators', () => {
             {
               category: 'A',
               region: 'East',
-              total: 45,
-              count: 3,
+              total: 30,
+              count: 2,
             },
           ],
-          1,
+          -1,
         ],
         [
           [
@@ -244,11 +244,11 @@ describe('Operators', () => {
             {
               category: 'A',
               region: 'East',
-              total: 30,
-              count: 2,
+              total: 45,
+              count: 3,
             },
           ],
-          -1,
+          1,
         ],
         [
           [
@@ -281,11 +281,11 @@ describe('Operators', () => {
             {
               category: 'A',
               region: 'East',
-              total: 25,
-              count: 2,
+              total: 45,
+              count: 3,
             },
           ],
-          1,
+          -1,
         ],
         [
           [
@@ -293,11 +293,11 @@ describe('Operators', () => {
             {
               category: 'A',
               region: 'East',
-              total: 45,
-              count: 3,
+              total: 25,
+              count: 2,
             },
           ],
-          -1,
+          1,
         ],
       ]
 
@@ -381,22 +381,22 @@ describe('Operators', () => {
             '{"category":"A"}',
             {
               category: 'A',
-              average: 20,
-              count: 3,
+              average: 15,
+              count: 2,
             },
           ],
-          1,
+          -1,
         ],
         [
           [
             '{"category":"A"}',
             {
               category: 'A',
-              average: 15,
-              count: 2,
+              average: 20,
+              count: 3,
             },
           ],
-          -1,
+          1,
         ],
         [
           [
@@ -427,22 +427,22 @@ describe('Operators', () => {
             '{"category":"A"}',
             {
               category: 'A',
-              average: 25,
-              count: 2,
+              average: 20,
+              count: 3,
             },
           ],
-          1,
+          -1,
         ],
         [
           [
             '{"category":"A"}',
             {
               category: 'A',
-              average: 20,
-              count: 3,
+              average: 25,
+              count: 2,
             },
           ],
-          -1,
+          1,
         ],
       ]
 
