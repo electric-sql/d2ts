@@ -69,7 +69,10 @@ describe('Operators', () => {
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value), options),
+        topKWithFractionalIndex(
+          (a, b) => a.value.localeCompare(b.value),
+          options,
+        ),
         output((message) => {
           allMessages.push(message)
         }),
@@ -171,7 +174,10 @@ describe('Operators', () => {
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value), options),
+        topKWithFractionalIndex(
+          (a, b) => a.value.localeCompare(b.value),
+          options,
+        ),
         output((message) => {
           allMessages.push(message)
         }),
