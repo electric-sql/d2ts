@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import { topKWithFractionalIndex } from '../../src/operators/topKWithFractionalIndex.js'
@@ -57,12 +57,6 @@ function verifyOrder(results: any[], expectedOrder: string[]) {
   // The order should match the expected order
   expect(sortedByIndex).toEqual(expectedOrder)
 }
-
-// Tests:
-//  - insert into array when there is not topK
-//  - insert into array when there is no topK and the element becomes the first element of the topK
-//  - insert into array when there is no topK and the element pushes the last element of the array into the topK
-//  - topK with limit 1 such that the first is also the last element
 
 describe('Operators', () => {
   describe.each([
@@ -334,9 +328,6 @@ describe('Operators', () => {
       expect(removal?.[0][1][0].id).toBe(4) // 'd' has id 4
       expect(addition?.[0][1][0].id).toBe(6) // 'c+' has id 6
 
-      // The new element reuses the index of the removed element
-      //expect(addition?.[0][1][1]).toBe(removal?.[0][1][1])
-
       // Reconstruct the current state by applying the changes
       const currentState = new Map()
       for (const [[_, [value, index]]] of initialResult) {
@@ -344,37 +335,171 @@ describe('Operators', () => {
       }
 
       // Apply the changes
-      for (const [[_, [value, index]], multiplicity] of changes) {
-        if (multiplicity < 0) {
-          // Remove
-          currentState.delete(JSON.stringify(value))
-        } else {
-          // Add
-          currentState.set(JSON.stringify(value), [value, index])
+      const applyChanges = (changes: any[]) => {
+        for (const [[_, [value, index]], multiplicity] of changes) {
+          if (multiplicity < 0) {
+            // Remove
+            currentState.delete(JSON.stringify(value))
+          } else {
+            // Add
+            currentState.set(JSON.stringify(value), [value, index])
+          }
         }
       }
 
+      applyChanges(changes)
+
       // Convert to array for lexicographic order check
-      const stateArray = Array.from(currentState.values())
-      const currentStateArray = stateArray.map(([value, index]) => [
-        [null, [value, index]],
-        1,
-      ])
+      const checkCurrentState = (expectedResult) => {
+        const stateArray = Array.from(currentState.values())
+        const currentStateArray = stateArray.map(([value, index]) => [
+          [null, [value, index]],
+          1,
+        ])
 
-      // Check that indices are still in lexicographic order after the changes
-      expect(checkLexicographicOrder(currentStateArray)).toBe(true)
+        // Check that indices are still in lexicographic order after the changes
+        expect(checkLexicographicOrder(currentStateArray)).toBe(true)
 
-      // expect the array to be the values with IDs 2, 3, 6 in that order
-      const compareFractionalIndex = (a, b) =>
-        a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0
-      const sortedResult = stateArray
-        .sort(compareFractionalIndex)
-        .map(([value, _]) => value)
-      expect(sortedResult).toEqual([
+        // expect the array to be the values with IDs 2, 3, 6 in that order
+        const compareFractionalIndex = (a, b) =>
+          a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0
+        const sortedResult = stateArray
+          .sort(compareFractionalIndex)
+          .map(([value, _]) => value)
+        expect(sortedResult).toEqual(expectedResult)
+      }
+
+      checkCurrentState([
         { id: 2, value: 'b' },
         { id: 3, value: 'c' },
         { id: 6, value: 'c+' },
       ])
+
+      // Now add an element that should be before the topK
+      input.sendData(
+        new MultiSet([
+          [[null, { id: 7, value: '0' }], 1], // This should be before 'a'
+        ]),
+      )
+      graph.run()
+
+      // Check the changes
+      const changes2 = allMessages[2].getInner()
+
+      // We received 1 change (1 addition)
+      // Since we have a limit, this will push out 1 element, so we'll emit 2 changes
+      // This is still optimal as we're only emitting the minimum necessary changes
+      expect(changes2.length).toBe(2) // 1 removal + 1 addition
+
+      // Find the removal and addition
+      const removal2 = changes2.find(([_, multiplicity]) => multiplicity < 0)
+      const addition2 = changes2.find(([_, multiplicity]) => multiplicity > 0)
+
+      // Check that we removed 'c+' and added 'a'
+      expect(removal2?.[0][1][0].value).toBe('c+')
+      expect(addition2?.[0][1][0].value).toBe('a')
+
+      // Check that the ids are correct
+      expect(removal2?.[0][1][0].id).toBe(6) // 'c+' has id 6
+      expect(addition2?.[0][1][0].id).toBe(1) // 'a' has id 1
+
+      // Apply the changes
+      applyChanges(changes2)
+
+      checkCurrentState([
+        { id: 1, value: 'a' },
+        { id: 2, value: 'b' },
+        { id: 3, value: 'c' },
+      ])
+
+      // Now add an element after the topK
+      input.sendData(
+        new MultiSet([
+          [[null, { id: 8, value: 'h' }], 1], // This should be after 'e'
+        ]),
+      )
+      graph.run()
+
+      // Should not have emitted any changes
+      // since the element was added after the topK
+      // so it does not affect the topK
+      expect(allMessages.length).toBe(3)
+
+      // Now remove an element before the topK
+      // This will cause the first element of the topK to move out of the topK
+      // and the element after the last element of the topK to move into the topK
+      input.sendData(
+        new MultiSet([
+          [[null, { id: 7, value: '0' }], -1], // Remove '0'
+        ]),
+      )
+      graph.run()
+
+      const changes3 = allMessages[3].getInner()
+
+      // Find the removal and addition
+      const removal3 = changes3.find(([_, multiplicity]) => multiplicity < 0)
+      const addition3 = changes3.find(([_, multiplicity]) => multiplicity > 0)
+
+      // Check that we removed 'a' and added 'c+'
+      expect(removal3?.[0][1][0].value).toBe('a')
+      expect(addition3?.[0][1][0].value).toBe('c+')
+
+      // Check that the ids are correct
+      expect(removal3?.[0][1][0].id).toBe(1) // 'a' has id 1
+      expect(addition3?.[0][1][0].id).toBe(6) // 'c+' has id 6
+
+      // Apply the changes
+      applyChanges(changes3)
+
+      checkCurrentState([
+        { id: 2, value: 'b' },
+        { id: 3, value: 'c' },
+        { id: 6, value: 'c+' },
+      ])
+
+      // Now remove an element in the topK
+      // This causes the element after the last element of the topK to move into the topK
+      input.sendData(
+        new MultiSet([
+          [[null, { id: 6, value: 'c+' }], -1], // Remove 'c+'
+        ]),
+      )
+      graph.run()
+
+      const changes4 = allMessages[4].getInner()
+
+      // Find the removal and addition
+      const removal4 = changes4.find(([_, multiplicity]) => multiplicity < 0)
+      const addition4 = changes4.find(([_, multiplicity]) => multiplicity > 0)
+
+      // Check that we removed 'c+' and added 'c'
+      expect(removal4?.[0][1][0].value).toBe('c+')
+      expect(addition4?.[0][1][0].value).toBe('d')
+
+      // Check that the ids are correct
+      expect(removal4?.[0][1][0].id).toBe(6) // 'c+' has id 6
+      expect(addition4?.[0][1][0].id).toBe(4) // 'd' has id 4
+
+      // Apply the changes
+      applyChanges(changes4)
+
+      checkCurrentState([
+        { id: 2, value: 'b' },
+        { id: 3, value: 'c' },
+        { id: 4, value: 'd' },
+      ])
+
+      // Now remove an element after the topK
+      input.sendData(
+        new MultiSet([
+          [[null, { id: 8, value: 'h' }], -1], // Remove 'h'
+        ]),
+      )
+      graph.run()
+
+      // There should be no changes
+      expect(allMessages.length).toBe(5)
     })
 
     it('should handle elements moving positions correctly', () => {
