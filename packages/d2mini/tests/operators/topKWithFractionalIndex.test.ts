@@ -214,11 +214,6 @@ describe('Operators', () => {
       input.sendData(new MultiSet([[[null, { id: 6, value: 'c' }], 1]]))
       graph.run()
 
-      // TODO: when using the tree variant we are not actually inserting it
-      //       because they key already exists, so we ignore it
-      //       and thus there is no message being emitted here
-      //       --> FIX it by wrapping the value with its hash and comparing on the value first and then on the hash
-
       // Check the changes
       const changes = allMessages[1].getInner()
 
@@ -256,6 +251,52 @@ describe('Operators', () => {
       // Check that indices are still in lexicographic order after the changes
       expect(checkLexicographicOrder(currentStateArray)).toBe(true)
       expect(currentStateArray.length).toBe(6)
+    })
+
+    it('should ignore duplicate values', () => {
+      const graph = new D2()
+      const input = graph.newInput<[null, { id: number; value: string }]>()
+      const allMessages: any[] = []
+
+      input.pipe(
+        topKWithFractionalIndex(
+          (a, b) => a.value.localeCompare(b.value),
+          options,
+        ),
+        output((message) => {
+          allMessages.push(message)
+        }),
+      )
+
+      graph.finalize()
+
+      // Initial data - a, b, c, d, e
+      const entryForC = [[null, { id: 3, value: 'c' }], 1] as [
+        [null, { id: number; value: string }],
+        number,
+      ]
+      input.sendData(
+        new MultiSet([
+          [[null, { id: 1, value: 'a' }], 1],
+          [[null, { id: 2, value: 'b' }], 1],
+          entryForC,
+          [[null, { id: 4, value: 'd' }], 1],
+          [[null, { id: 5, value: 'e' }], 1],
+        ]),
+      )
+      graph.run()
+
+      // Initial result should have all elements with fractional indices
+      const initialResult = allMessages[0].getInner()
+      expect(initialResult.length).toBe(5)
+
+      // Now add entryForC again
+      input.sendData(new MultiSet([entryForC]))
+      graph.run()
+
+      // Check that no message was emitted
+      // since there were no changes to the topK
+      expect(allMessages.length).toBe(1)
     })
 
     it('should handle limit and offset correctly', () => {
