@@ -2,6 +2,7 @@ import { IStreamBuilder } from '../types'
 import { KeyValue } from '../types.js'
 import { topK, topKWithIndex } from './topK.js'
 import { topKWithFractionalIndex } from './topKWithFractionalIndex.js'
+import { topKWithFractionalIndexBTree } from './topKWithFractionalIndexBTree.js'
 import { map } from './map.js'
 import { innerJoin } from './join.js'
 import { consolidate } from './consolidate.js'
@@ -132,19 +133,11 @@ export function orderByWithIndex<
   }
 }
 
-/**
- * Orders the elements and limits the number of results, with optional offset and
- * annotates the value with a fractional index.
- * This requires a keyed stream, and uses the `topKWithFractionalIndex` operator to order all the elements.
- *
- * @param valueExtractor - A function that extracts the value to order by from the element
- * @param options - An optional object containing comparator, limit and offset properties
- * @returns A piped operator that orders the elements and limits the number of results
- */
-export function orderByWithFractionalIndex<
+function orderByWithFractionalIndexBase<
   T extends KeyValue<unknown, unknown>,
   Ve = unknown,
->(
+  >(
+  topK: typeof topKWithFractionalIndex,
   valueExtractor: (
     value: T extends KeyValue<unknown, infer V> ? V : never,
   ) => Ve,
@@ -152,7 +145,6 @@ export function orderByWithFractionalIndex<
 ) {
   const limit = options?.limit ?? Infinity
   const offset = options?.offset ?? 0
-  const useTree = options?.useTree ?? false
   const comparator =
     options?.comparator ??
     ((a, b) => {
@@ -186,10 +178,9 @@ export function orderByWithFractionalIndex<
             ],
           ] as KeyValue<null, [K, Ve]>,
       ),
-      topKWithFractionalIndex((a, b) => comparator(a[1], b[1]), {
+      topK((a, b) => comparator(a[1], b[1]), {
         limit,
         offset,
-        useTree,
       }),
       map(([_, [[key], index]]) => [key, index] as KeyValue<K, string>),
       innerJoin(stream),
@@ -199,4 +190,41 @@ export function orderByWithFractionalIndex<
       consolidate(),
     )
   }
+}
+
+/**
+ * Orders the elements and limits the number of results, with optional offset and
+ * annotates the value with a fractional index.
+ * This requires a keyed stream, and uses the `topKWithFractionalIndex` operator to order all the elements.
+ *
+ * @param valueExtractor - A function that extracts the value to order by from the element
+ * @param options - An optional object containing comparator, limit and offset properties
+ * @returns A piped operator that orders the elements and limits the number of results
+ */
+export function orderByWithFractionalIndex<
+  T extends KeyValue<unknown, unknown>,
+  Ve = unknown,
+>(
+  valueExtractor: (
+    value: T extends KeyValue<unknown, infer V> ? V : never,
+  ) => Ve,
+  options?: OrderByOptions<Ve> & OrderByWithFractionalIndexOptions,
+) {
+  return orderByWithFractionalIndexBase(topKWithFractionalIndex, valueExtractor, options)
+}
+
+export function orderByWithFractionalIndexBTree<
+  T extends KeyValue<unknown, unknown>,
+  Ve = unknown,
+>(
+  valueExtractor: (
+    value: T extends KeyValue<unknown, infer V> ? V : never,
+  ) => Ve,
+  options?: OrderByOptions<Ve> & OrderByWithFractionalIndexOptions,
+) {
+  return orderByWithFractionalIndexBase(
+    topKWithFractionalIndexBTree,
+    valueExtractor,
+    options,
+  )
 }
