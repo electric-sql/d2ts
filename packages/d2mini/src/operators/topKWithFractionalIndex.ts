@@ -309,18 +309,18 @@ export function topKWithFractionalIndex<
 }
 
 // Abstraction for fractionally indexed values
-type FractionalIndex = string
-type IndexedValue<V> = [V, FractionalIndex]
+export type FractionalIndex = string
+export type IndexedValue<V> = [V, FractionalIndex]
 
-function indexedValue<V>(value: V, index: FractionalIndex): IndexedValue<V> {
+export function indexedValue<V>(value: V, index: FractionalIndex): IndexedValue<V> {
   return [value, index]
 }
 
-function getValue<V>(indexedValue: IndexedValue<V>): V {
+export function getValue<V>(indexedValue: IndexedValue<V>): V {
   return indexedValue[0]
 }
 
-function getIndex<V>(indexedValue: IndexedValue<V>): FractionalIndex {
+export function getIndex<V>(indexedValue: IndexedValue<V>): FractionalIndex {
   return indexedValue[1]
 }
 
@@ -332,7 +332,7 @@ function mapValue<V, W>(
 }
 
 // Abstraction for values tagged with a hash
-type Hash = string
+export type Hash = string
 export type HashTaggedValue<V> = [V, Hash]
 
 function tagValue<V>(value: V): HashTaggedValue<V> {

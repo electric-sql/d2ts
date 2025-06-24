@@ -4,7 +4,11 @@ import { StreamBuilder } from '../d2.js'
 import { generateKeyBetween } from 'fractional-indexing'
 import BTree from 'sorted-btree'
 import {
+  getIndex,
+  getValue,
   HashTaggedValue,
+  indexedValue,
+  IndexedValue,
   TopK,
   TopKChanges,
   TopKWithFractionalIndexOperator,
