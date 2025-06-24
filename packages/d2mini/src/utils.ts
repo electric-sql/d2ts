@@ -90,3 +90,24 @@ export function hash(data: any): string {
   hashCache.set(data, hashValue)
   return hashValue
 }
+
+export function binarySearch<T>(
+  array: T[],
+  value: T,
+  comparator: (a: T, b: T) => number,
+): number {
+  let low = 0
+  let high = array.length
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2)
+    const comparison = comparator(array[mid], value)
+    if (comparison < 0) {
+      low = mid + 1
+    } else if (comparison > 0) {
+      high = mid
+    } else {
+      return mid
+    }
+  }
+  return low
+}
