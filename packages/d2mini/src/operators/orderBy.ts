@@ -136,7 +136,7 @@ export function orderByWithIndex<
 function orderByWithFractionalIndexBase<
   T extends KeyValue<unknown, unknown>,
   Ve = unknown,
-  >(
+>(
   topK: typeof topKWithFractionalIndex,
   valueExtractor: (
     value: T extends KeyValue<unknown, infer V> ? V : never,
@@ -210,7 +210,11 @@ export function orderByWithFractionalIndex<
   ) => Ve,
   options?: OrderByOptions<Ve> & OrderByWithFractionalIndexOptions,
 ) {
-  return orderByWithFractionalIndexBase(topKWithFractionalIndex, valueExtractor, options)
+  return orderByWithFractionalIndexBase(
+    topKWithFractionalIndex,
+    valueExtractor,
+    options,
+  )
 }
 
 export function orderByWithFractionalIndexBTree<
