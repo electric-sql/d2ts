@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import { topKWithFractionalIndex } from '../../src/operators/topKWithFractionalIndex.js'
+import { topKWithFractionalIndexBTree } from '../../src/operators/topKWithFractionalIndexBTree.js'
 import { output } from '../../src/operators/index.js'
 
 // Helper function to check if indices are in lexicographic order
@@ -60,19 +61,16 @@ function verifyOrder(results: any[], expectedOrder: string[]) {
 
 describe('Operators', () => {
   describe.each([
-    ['with array', { useTree: false }],
-    ['with B+ tree', { useTree: true }],
-  ])('TopKWithFractionalIndex operation %s', (_, options) => {
+    ['with array', { topK: topKWithFractionalIndex }],
+    ['with B+ tree', { topK: topKWithFractionalIndexBTree }],
+  ])('TopKWithFractionalIndex operation %s', (_, { topK }) => {
     it('should assign fractional indices to sorted elements', () => {
       const graph = new D2()
       const input = graph.newInput<[null, { id: number; value: string }]>()
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex(
-          (a, b) => a.value.localeCompare(b.value),
-          options,
-        ),
+        topK((a, b) => a.value.localeCompare(b.value)),
         output((message) => {
           allMessages.push(message)
         }),
@@ -174,10 +172,7 @@ describe('Operators', () => {
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex(
-          (a, b) => a.value.localeCompare(b.value),
-          options,
-        ),
+        topK((a, b) => a.value.localeCompare(b.value)),
         output((message) => {
           allMessages.push(message)
         }),
@@ -259,10 +254,7 @@ describe('Operators', () => {
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex(
-          (a, b) => a.value.localeCompare(b.value),
-          options,
-        ),
+        topK((a, b) => a.value.localeCompare(b.value)),
         output((message) => {
           allMessages.push(message)
         }),
@@ -305,10 +297,9 @@ describe('Operators', () => {
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex((a, b) => a.value.localeCompare(b.value), {
+        topK((a, b) => a.value.localeCompare(b.value), {
           limit: 3,
           offset: 1,
-          ...options,
         }),
         output((message) => {
           allMessages.push(message)
@@ -555,10 +546,7 @@ describe('Operators', () => {
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex(
-          (a, b) => a.value.localeCompare(b.value),
-          options,
-        ),
+        topK((a, b) => a.value.localeCompare(b.value)),
         output((message) => {
           allMessages.push(message)
         }),
@@ -704,10 +692,7 @@ describe('Operators', () => {
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex(
-          (a, b) => a.value.localeCompare(b.value),
-          options,
-        ),
+        topK((a, b) => a.value.localeCompare(b.value)),
         output((message) => {
           allMessages.push(message)
         }),
@@ -864,10 +849,7 @@ describe('Operators', () => {
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex(
-          (a, b) => a.value.localeCompare(b.value),
-          options,
-        ),
+        topK((a, b) => a.value.localeCompare(b.value)),
         output((message) => {
           allMessages.push(message)
         }),
@@ -996,10 +978,7 @@ describe('Operators', () => {
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex(
-          (a, b) => a.value.localeCompare(b.value),
-          options,
-        ),
+        topK((a, b) => a.value.localeCompare(b.value)),
         output((message) => {
           allMessages.push(message)
         }),
@@ -1083,10 +1062,7 @@ describe('Operators', () => {
       const allMessages: any[] = []
 
       input.pipe(
-        topKWithFractionalIndex(
-          (a, b) => a.value.localeCompare(b.value),
-          options,
-        ),
+        topK((a, b) => a.value.localeCompare(b.value)),
         output((message) => {
           allMessages.push(message)
         }),
