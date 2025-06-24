@@ -9,15 +9,13 @@ import { MultiSet } from '../multiset.js'
 import { Index } from '../indexes.js'
 import { generateKeyBetween } from 'fractional-indexing'
 import { binarySearch, hash } from '../utils.js'
-import BTree from 'sorted-btree'
 
-interface TopKWithFractionalIndexOptions {
+export interface TopKWithFractionalIndexOptions {
   limit?: number
   offset?: number
-  useTree?: boolean
 }
 
-type TopKChanges<V> = {
+export type TopKChanges<V> = {
   /** Indicates which element moves into the topK (if any) */
   moveIn: IndexedValue<V> | null
   /** Indicates which element moves out of the topK (if any) */
@@ -28,7 +26,7 @@ type TopKChanges<V> = {
  * A topK data structure that supports insertions and deletions
  * and returns changes to the topK.
  */
-interface TopK<V> {
+export interface TopK<V> {
   insert(value: V): TopKChanges<V>
   delete(value: V): TopKChanges<V>
 }
@@ -159,187 +157,6 @@ class TopKArray<V> implements TopK<V> {
 }
 
 /**
- * Implementation of a topK data structure that uses a B+ tree.
- * The tree allows for logarithmic time insertions and deletions.
- */
-class TopKTree<V> implements TopK<V> {
-  #comparator: (a: V, b: V) => number
-  // topK is a window at position [topKStart, topKEnd[
-  // i.e. `topKStart` is inclusive and `topKEnd` is exclusive
-  #topKStart: number
-  #topKEnd: number
-
-  #tree: BTree<V, IndexedValue<V>>
-  #topKFirstElem: IndexedValue<V> | null = null // inclusive
-  #topKLastElem: IndexedValue<V> | null = null // inclusive
-
-  constructor(
-    offset: number,
-    limit: number,
-    comparator: (a: V, b: V) => number,
-  ) {
-    this.#topKStart = offset
-    this.#topKEnd = offset + limit
-    this.#comparator = comparator
-    this.#tree = new BTree(undefined, comparator)
-  }
-
-  /**
-   * Insert a *new* value.
-   * Ignores the value if it is already present.
-   */
-  insert(value: V): TopKChanges<V> {
-    let result: TopKChanges<V> = { moveIn: null, moveOut: null }
-
-    // Get the elements before and after the value
-    const [, indexedValueBefore] = this.#tree.nextLowerPair(value) ?? [
-      null,
-      null,
-    ]
-    const [, indexedValueAfter] = this.#tree.nextHigherPair(value) ?? [
-      null,
-      null,
-    ]
-
-    const indexBefore = indexedValueBefore ? getIndex(indexedValueBefore) : null
-    const indexAfter = indexedValueAfter ? getIndex(indexedValueAfter) : null
-
-    // Generate a fractional index for the value
-    // based on the fractional indices of the elements before and after it
-    const fractionalIndex = generateKeyBetween(indexBefore, indexAfter)
-    const insertedElem = indexedValue(value, fractionalIndex)
-
-    // Insert the value into the tree
-    const inserted = this.#tree.set(value, insertedElem, false)
-    if (!inserted) {
-      // The value was already present in the tree
-      // ignore this insertions since we don't support overwrites!
-      return result
-    }
-
-    if (this.#tree.size - 1 < this.#topKStart) {
-      // We don't have a topK yet
-      // so we don't need to do anything
-      return result
-    }
-
-    if (this.#topKFirstElem) {
-      // We have a topK containing at least 1 element
-      if (this.#comparator(value, getValue(this.#topKFirstElem)) < 0) {
-        // The element was inserted before the topK
-        // so it moves the element that is right before the topK into the topK
-        const firstElem = getValue(this.#topKFirstElem)
-        const [, newFirstElem] = this.#tree.nextLowerPair(firstElem)!
-        this.#topKFirstElem = newFirstElem
-        result.moveIn = this.#topKFirstElem
-      } else if (
-        !this.#topKLastElem ||
-        this.#comparator(value, getValue(this.#topKLastElem)) < 0
-      ) {
-        // The element was inserted within the topK
-        result.moveIn = insertedElem
-      }
-
-      if (
-        this.#topKLastElem &&
-        this.#comparator(value, getValue(this.#topKLastElem)) < 0
-      ) {
-        // The element was inserted before or within the topK
-        // the newly inserted element pushes the last element of the topK out of the topK
-        // so the one before that becomes the new last element of the topK
-        const lastElem = this.#topKLastElem
-        const lastValue = getValue(lastElem)
-        const [, newLastElem] = this.#tree.nextLowerPair(lastValue)!
-        this.#topKLastElem = newLastElem
-        result.moveOut = lastElem
-      }
-    }
-
-    // If the tree has as many elements as the offset (i.e. #topKStart)
-    // then the insertion shifted the elements 1 position to the right
-    // and the last element in the tree is now the first element of the topK
-    if (this.#tree.size - 1 === this.#topKStart) {
-      const topKFirstKey = this.#tree.maxKey()!
-      this.#topKFirstElem = this.#tree.get(topKFirstKey)!
-      result.moveIn = this.#topKFirstElem
-    }
-
-    // By inserting this new element we now have a complete topK
-    // store the last element of the topK
-    if (this.#tree.size === this.#topKEnd) {
-      const topKLastKey = this.#tree.maxKey()!
-      this.#topKLastElem = this.#tree.get(topKLastKey)!
-    }
-
-    return result
-  }
-
-  delete(value: V): TopKChanges<V> {
-    let result: TopKChanges<V> = { moveIn: null, moveOut: null }
-
-    const deletedElem = this.#tree.get(value)
-    const deleted = this.#tree.delete(value)
-    if (!deleted) {
-      return result
-    }
-
-    if (!this.#topKFirstElem) {
-      // We didn't have a topK before the delete
-      // so we still can't have a topK after the delete
-      return result
-    }
-
-    if (this.#comparator(value, getValue(this.#topKFirstElem)) < 0) {
-      // We deleted an element that was before the topK
-      // so the topK has shifted one position to the left
-
-      // the old first element moves out of the topK
-      result.moveOut = this.#topKFirstElem
-      // the element that was right after the first element of the topK
-      // is now the new first element of the topK
-      const firstElem = getValue(this.#topKFirstElem)
-      const [, newFirstElem] = this.#tree.nextHigherPair(firstElem) ?? [
-        null,
-        null,
-      ]
-      this.#topKFirstElem = newFirstElem
-    } else if (
-      !this.#topKLastElem ||
-      // TODO: if on equal order the element is inserted *after* the already existing one
-      //       then this check should become < 0
-      this.#comparator(value, getValue(this.#topKLastElem)) <= 0
-    ) {
-      // The element we deleted was within the topK
-      // so we need to signal that that element is no longer in the topK
-      result.moveOut = deletedElem!
-    }
-
-    if (
-      this.#topKLastElem &&
-      // TODO: if on equal order the element is inserted *after* the already existing one
-      //       then this check should become < 0
-      this.#comparator(value, getValue(this.#topKLastElem)) <= 0
-    ) {
-      // The element we deleted was before or within the topK
-      // So the first element after the topK moved one position to the left
-      // and thus falls into the topK now
-      const lastElem = this.#topKLastElem
-      const lastValue = getValue(lastElem)
-      const [, newLastElem] = this.#tree.nextHigherPair(lastValue) ?? [
-        null,
-        null,
-      ]
-      this.#topKLastElem = newLastElem
-      if (newLastElem) {
-        result.moveIn = newLastElem
-      }
-    }
-
-    return result
-  }
-}
-
-/**
  * Operator for fractional indexed topK operations
  * This operator maintains fractional indices for sorted elements
  * and only updates indices when elements move position
@@ -380,9 +197,15 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
       const hashB = getHash(b)
       return hashA < hashB ? -1 : hashA > hashB ? 1 : 0
     }
-    this.#topK = options.useTree
-      ? new TopKTree(offset, limit, compareTaggedValues)
-      : new TopKArray(offset, limit, compareTaggedValues)
+    this.#topK = this.createTopK(offset, limit, compareTaggedValues)
+  }
+
+  protected createTopK(
+    offset: number,
+    limit: number,
+    comparator: (a: HashTaggedValue<V1>, b: HashTaggedValue<V1>) => number,
+  ): TopK<HashTaggedValue<V1>> {
+    return new TopKArray(offset, limit, comparator)
   }
 
   run(): void {
@@ -510,7 +333,7 @@ function mapValue<V, W>(
 
 // Abstraction for values tagged with a hash
 type Hash = string
-type HashTaggedValue<V> = [V, Hash]
+export type HashTaggedValue<V> = [V, Hash]
 
 function tagValue<V>(value: V): HashTaggedValue<V> {
   return [value, hash(value)]
