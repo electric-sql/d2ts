@@ -312,7 +312,10 @@ export function topKWithFractionalIndex<
 export type FractionalIndex = string
 export type IndexedValue<V> = [V, FractionalIndex]
 
-export function indexedValue<V>(value: V, index: FractionalIndex): IndexedValue<V> {
+export function indexedValue<V>(
+  value: V,
+  index: FractionalIndex,
+): IndexedValue<V> {
   return [value, index]
 }
 
