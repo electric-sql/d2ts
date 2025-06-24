@@ -12,6 +12,10 @@ interface OrderByOptions<Ve> {
   offset?: number
 }
 
+interface OrderByWithFractionalIndexOptions {
+  useTree?: boolean
+}
+
 /**
  * Orders the elements and limits the number of results, with optional offset
  * This requires a keyed stream, and uses the `topK` operator to order all the elements.
@@ -144,10 +148,11 @@ export function orderByWithFractionalIndex<
   valueExtractor: (
     value: T extends KeyValue<unknown, infer V> ? V : never,
   ) => Ve,
-  options?: OrderByOptions<Ve>,
+  options?: OrderByOptions<Ve> & OrderByWithFractionalIndexOptions,
 ) {
   const limit = options?.limit ?? Infinity
   const offset = options?.offset ?? 0
+  const useTree = options?.useTree ?? false
   const comparator =
     options?.comparator ??
     ((a, b) => {
@@ -184,6 +189,7 @@ export function orderByWithFractionalIndex<
       topKWithFractionalIndex((a, b) => comparator(a[1], b[1]), {
         limit,
         offset,
+        useTree,
       }),
       map(([_, [[key], index]]) => [key, index] as KeyValue<K, string>),
       innerJoin(stream),
