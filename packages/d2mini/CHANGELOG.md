@@ -1,5 +1,11 @@
 # @electric-sql/d2mini
 
+## 0.1.4
+
+### Patch Changes
+
+- 159d963: fix an issue where messages could be lost if you sent multiple batches to a graph with a join operator before calling run
+
 ## 0.1.3
 
 ### Patch Changes
