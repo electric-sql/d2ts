@@ -38,21 +38,21 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
     const deltaA = new Index<K, V1>()
     const deltaB = new Index<K, V2>()
 
-    // Process input A
+    // Process input A - process ALL messages, not just the first one
     const messagesA = this.inputAMessages()
-    if (messagesA.length > 0) {
-      const message = messagesA[0] as unknown as MultiSet<[K, V1]>
-      for (const [item, multiplicity] of message.getInner()) {
+    for (const message of messagesA) {
+      const multiSetMessage = message as unknown as MultiSet<[K, V1]>
+      for (const [item, multiplicity] of multiSetMessage.getInner()) {
         const [key, value] = item
         deltaA.addValue(key, [value, multiplicity])
       }
     }
 
-    // Process input B
+    // Process input B - process ALL messages, not just the first one
     const messagesB = this.inputBMessages()
-    if (messagesB.length > 0) {
-      const message = messagesB[0] as unknown as MultiSet<[K, V2]>
-      for (const [item, multiplicity] of message.getInner()) {
+    for (const message of messagesB) {
+      const multiSetMessage = message as unknown as MultiSet<[K, V2]>
+      for (const [item, multiplicity] of multiSetMessage.getInner()) {
         const [key, value] = item
         deltaB.addValue(key, [value, multiplicity])
       }

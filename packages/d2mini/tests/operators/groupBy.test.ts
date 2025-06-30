@@ -797,9 +797,7 @@ describe('Operators', () => {
       expect(result).toHaveLength(2) // Should have 2 groups
 
       // Find the group for category A
-      let categoryAGroup = result.find(
-        ([key]) => key[0] === '{"category":"A"}',
-      )
+      let categoryAGroup = result.find(([key]) => key[0] === '{"category":"A"}')
       expect(categoryAGroup).toBeDefined()
       expect(categoryAGroup[0][1].total).toBe(30) // Sum of 10 + 20
 
@@ -854,11 +852,7 @@ describe('Operators', () => {
       expect(result).toEqual(expectedReAdditionResult)
 
       // Step 4: Verify no lingering effects by adding more data
-      input.sendData(
-        new MultiSet([
-          [{ category: 'A', amount: 15 }, 1],
-        ]),
-      )
+      input.sendData(new MultiSet([[{ category: 'A', amount: 15 }, 1]]))
       graph.run()
 
       // Verify aggregate is updated correctly from the new baseline
