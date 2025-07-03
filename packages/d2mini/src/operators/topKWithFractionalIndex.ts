@@ -9,6 +9,7 @@ import { MultiSet } from '../multiset.js'
 import { Index } from '../indexes.js'
 import { generateKeyBetween } from 'fractional-indexing'
 import { binarySearch, hash } from '../utils.js'
+//import { binarySearch } from '../utils.js'
 
 export interface TopKWithFractionalIndexOptions {
   limit?: number
@@ -37,7 +38,7 @@ export interface TopK<V> {
  * Inserts and deletes are O(n) operations because worst case an element is inserted/deleted
  * at the start of the array which causes all the elements to shift to the right/left.
  */
-class TopKArray<V> implements TopK<V> {
+export class TopKArray<V> implements TopK<V> {
   #sortedValues: Array<IndexedValue<V>> = []
   #comparator: (a: V, b: V) => number
   #topKStart: number
@@ -338,8 +339,23 @@ function mapValue<V, W>(
 export type Hash = string
 export type HashTaggedValue<V> = [V, Hash]
 
+//// TODO: i removed the hashing to see if that was shadowing the performance changes
+/*
+const idMap = new WeakMap()
+let currentId = 0
+
+const getObjectId = (obj: any): string => {
+  if (!idMap.has(obj)) {
+    idMap.set(obj, `${currentId++}`)
+  }
+  return idMap.get(obj) as string
+}
+*/
+/////
+
 function tagValue<V>(value: V): HashTaggedValue<V> {
   return [value, hash(value)]
+  //return [value, getObjectId(value)]
 }
 
 function untagValue<V>(hashTaggedValue: HashTaggedValue<V>): V {

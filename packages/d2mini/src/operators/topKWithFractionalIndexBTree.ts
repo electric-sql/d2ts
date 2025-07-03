@@ -19,7 +19,7 @@ import {
  * Implementation of a topK data structure that uses a B+ tree.
  * The tree allows for logarithmic time insertions and deletions.
  */
-class TopKTree<V> implements TopK<V> {
+export class TopKTree<V> implements TopK<V> {
   #comparator: (a: V, b: V) => number
   // topK is a window at position [topKStart, topKEnd[
   // i.e. `topKStart` is inclusive and `topKEnd` is exclusive

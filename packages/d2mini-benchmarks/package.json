@@ -1,0 +1,18 @@
+{
+  "name": "@electric-sql/d2mini-benchmarks",
+  "private": true,
+  "version": "0.0.4",
+  "license": "Apache-2.0",
+  "scripts": {
+    "bench": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@electric-sql/d2mini": "workspace:*",
+    "mitata": "^1.0.34"
+  }
+}
