@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "fractional-indexing": "^3.2.0",
-    "murmurhash-js": "^1.0.0"
+    "murmurhash-js": "^1.0.0",
+    "sorted-btree": "^1.8.1"
   }
 }
