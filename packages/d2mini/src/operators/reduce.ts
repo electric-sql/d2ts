@@ -75,25 +75,43 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1], [K, V2]> {
         }
       }
 
-      // First, emit removals for old values that are no longer present or have changed
+      const commonKeys = new Set<string>()
+
+      // First, emit removals for old values that are no longer present
       for (const [valueKey, { value, multiplicity }] of oldOutputMap) {
         const newEntry = newOutputMap.get(valueKey)
-        if (!newEntry || newEntry.multiplicity !== multiplicity) {
+        if (!newEntry) {
           // Remove the old value entirely
           result.push([[key, value], -multiplicity])
           this.#indexOut.addValue(key, [value, -multiplicity])
+        } else {
+          commonKeys.add(valueKey)
         }
       }
 
-      // Then, emit additions for new values that are not present in old or have changed
+      // Then, emit additions for new values that are not present in old
       for (const [valueKey, { value, multiplicity }] of newOutputMap) {
         const oldEntry = oldOutputMap.get(valueKey)
-        if (!oldEntry || oldEntry.multiplicity !== multiplicity) {
+        if (!oldEntry) {
           // Add the new value only if it has non-zero multiplicity
           if (multiplicity !== 0) {
             result.push([[key, value], multiplicity])
             this.#indexOut.addValue(key, [value, multiplicity])
           }
+        } else {
+          commonKeys.add(valueKey)
+        }
+      }
+
+      // Then, emit multiplicity changes for values that were present and are still present
+      for (const valueKey of commonKeys) {
+        const newEntry = newOutputMap.get(valueKey)
+        const oldEntry = oldOutputMap.get(valueKey)
+        const delta = newEntry!.multiplicity - oldEntry!.multiplicity
+        // Only emit actual changes, i.e. non-zero deltas
+        if (delta !== 0) {
+          result.push([[key, newEntry!.value], delta])
+          this.#indexOut.addValue(key, [newEntry!.value, delta])
         }
       }
     }
