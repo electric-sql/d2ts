@@ -28,8 +28,9 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1], [K, V2]> {
   }
 
   run(): void {
-    // Collect all input messages and update the index
     const keysTodo = new Set<K>()
+
+    // Collect all input messages and update the index
     for (const message of this.inputMessages()) {
       for (const [item, multiplicity] of message.getInner()) {
         const [key, value] = item
@@ -45,55 +46,26 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1], [K, V2]> {
       const currOut = this.#indexOut.get(key)
       const out = this.#f(curr)
 
-      // Create maps for current and previous outputs
-      const newOutputMap = new Map<
-        string,
-        { value: V2; multiplicity: number }
-      >()
-      const oldOutputMap = new Map<
-        string,
-        { value: V2; multiplicity: number }
-      >()
-
-      // Process new output
+      // Calculate delta between current and previous output
+      const delta = new Map<string, number>()
+      const values = new Map<string, V2>()
       for (const [value, multiplicity] of out) {
         const valueKey = hash(value)
-        if (newOutputMap.has(valueKey)) {
-          newOutputMap.get(valueKey)!.multiplicity += multiplicity
-        } else {
-          newOutputMap.set(valueKey, { value, multiplicity })
-        }
+        values.set(valueKey, value)
+        delta.set(valueKey, (delta.get(valueKey) || 0) + multiplicity)
       }
-
-      // Process previous output
       for (const [value, multiplicity] of currOut) {
         const valueKey = hash(value)
-        if (oldOutputMap.has(valueKey)) {
-          oldOutputMap.get(valueKey)!.multiplicity += multiplicity
-        } else {
-          oldOutputMap.set(valueKey, { value, multiplicity })
-        }
+        values.set(valueKey, value)
+        delta.set(valueKey, (delta.get(valueKey) || 0) - multiplicity)
       }
 
-      // First, emit removals for old values that are no longer present or have changed
-      for (const [valueKey, { value, multiplicity }] of oldOutputMap) {
-        const newEntry = newOutputMap.get(valueKey)
-        if (!newEntry || newEntry.multiplicity !== multiplicity) {
-          // Remove the old value entirely
-          result.push([[key, value], -multiplicity])
-          this.#indexOut.addValue(key, [value, -multiplicity])
-        }
-      }
-
-      // Then, emit additions for new values that are not present in old or have changed
-      for (const [valueKey, { value, multiplicity }] of newOutputMap) {
-        const oldEntry = oldOutputMap.get(valueKey)
-        if (!oldEntry || oldEntry.multiplicity !== multiplicity) {
-          // Add the new value only if it has non-zero multiplicity
-          if (multiplicity !== 0) {
-            result.push([[key, value], multiplicity])
-            this.#indexOut.addValue(key, [value, multiplicity])
-          }
+      // Add non-zero deltas to result
+      for (const [valueKey, multiplicity] of delta) {
+        const value = values.get(valueKey)!
+        if (multiplicity !== 0) {
+          result.push([[key, value], multiplicity])
+          this.#indexOut.addValue(key, [value, multiplicity])
         }
       }
     }
