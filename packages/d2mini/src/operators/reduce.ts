@@ -75,6 +75,15 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1], [K, V2]> {
         }
       }
 
+      // NOTE: in the below logic if an element is still present
+      //       but its multiplicity changed then we are going
+      //       to emit 2 diffs: a -oldMultiplicity and a +newMultiplicity
+      //       Why not detect this case and emit a single diff newMultiplicity - oldMultiplicity ?
+      //
+      //       We could when we map of both maps we could detect that it is in both (i.e. add an else branch)
+      //       and keep track of a set of keys that are in both
+      //       then a third for loop that loops over those common keys and emits the diff in multiplicity
+
       // First, emit removals for old values that are no longer present or have changed
       for (const [valueKey, { value, multiplicity }] of oldOutputMap) {
         const newEntry = newOutputMap.get(valueKey)
@@ -101,11 +110,6 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1], [K, V2]> {
     if (result.length > 0) {
       this.output.sendData(new MultiSet(result))
     }
-
-    // Compact both indexes to consolidate values and remove zero-multiplicity entries
-    // Only compact changed keys for efficiency
-    this.#index.compact()
-    this.#indexOut.compact()
   }
 }
 
