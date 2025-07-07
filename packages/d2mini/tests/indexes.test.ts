@@ -31,17 +31,9 @@ describe('Index', () => {
       index.addValue('key1', [10, 1])
       index.addValue('key1', [10, -1])
 
-      // Before compaction, values are stored as-is
+      // Value is compacted on the fly
       const result = index.get('key1')
-      expect(result).toEqual([
-        [10, 1],
-        [10, -1],
-      ])
-
-      // After compaction, zero-multiplicity values are removed
-      index.compact(['key1'])
-      const compactedResult = index.get('key1')
-      expect(compactedResult).toEqual([])
+      expect(result).toEqual([])
     })
   })
 
@@ -70,14 +62,6 @@ describe('Index', () => {
 
       index.append(other)
 
-      // Before compaction, values are stored separately
-      expect(index.get('key1')).toEqual([
-        [10, 2],
-        [10, 3],
-      ])
-
-      // After compaction, multiplicities are combined
-      index.compact(['key1'])
       expect(index.get('key1')).toEqual([[10, 5]])
     })
   })
@@ -164,42 +148,16 @@ describe('Index', () => {
     // Append should also track changed keys
     index.append(other)
 
-    // Before compaction, all values should be stored as-is
-    expect(index.get('key1')).toEqual([
-      [10, 1],
-      [10, -1],
-    ])
-    expect(index.get('key2')).toEqual([[20, 1]])
-    expect(index.get('key3')).toEqual([[30, 1]])
-    expect(index.get('key4')).toEqual([
-      [40, 1],
-      [40, -1],
-    ])
-    expect(index.get('key5')).toEqual([[50, 1]])
-
-    // Compact without arguments should only compact changed keys
-    index.compact()
-
-    // After compaction, values should be consolidated and zero-multiplicity entries removed
+    // Values should be consolidated and zero-multiplicity entries removed
     expect(index.get('key1')).toEqual([]) // Cancelled out
     expect(index.get('key2')).toEqual([[20, 1]])
     expect(index.get('key3')).toEqual([[30, 1]])
     expect(index.get('key4')).toEqual([]) // Cancelled out
     expect(index.get('key5')).toEqual([[50, 1]])
 
-    // Add more values after compaction
+    // Add more values
     index.addValue('key2', [25, 1])
     index.addValue('key6', [60, 1])
-
-    // Only key2 and key6 should have new uncompacted values
-    expect(index.get('key2')).toEqual([
-      [20, 1],
-      [25, 1],
-    ])
-    expect(index.get('key6')).toEqual([[60, 1]])
-
-    // Compact again - should only affect key2 and key6
-    index.compact()
 
     expect(index.get('key2')).toEqual([
       [20, 1],

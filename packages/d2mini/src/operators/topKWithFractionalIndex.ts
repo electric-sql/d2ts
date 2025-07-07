@@ -293,11 +293,6 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
     if (result.length > 0) {
       this.output.sendData(new MultiSet(result))
     }
-
-    // Compact both indexes to consolidate values and remove zero-multiplicity entries
-    // Only compact changed keys for efficiency
-    this.#index.compact()
-    this.#indexOut.compact()
   }
 }
 
