@@ -1,5 +1,11 @@
 # @electric-sql/d2mini
 
+## 0.1.6
+
+### Patch Changes
+
+- a9f40ad: Remove file that was pushed accidentally.
+
 ## 0.1.5
 
 ### Patch Changes
