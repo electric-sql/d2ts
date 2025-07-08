@@ -2,7 +2,6 @@ import { IStreamBuilder, KeyValue, PipedOperator } from '../types.js'
 import { DifferenceStreamReader, DifferenceStreamWriter } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { generateKeyBetween } from 'fractional-indexing'
-import BTree from 'sorted-btree'
 import {
   getIndex,
   getValue,
@@ -14,6 +13,33 @@ import {
   TopKWithFractionalIndexOperator,
   TopKWithFractionalIndexOptions,
 } from './topKWithFractionalIndex.js'
+
+interface BTree<Key, Value> {
+  nextLowerPair(key: Key): [Key, Value] | undefined
+  nextHigherPair(key: Key): [Key, Value] | undefined
+  set(key: Key, value: Value, overwrite?: boolean): boolean
+  maxKey(): Key | undefined
+  get(key: Key, defaultValue?: Value): Value | undefined
+  delete(key: Key): boolean
+  size: number
+}
+
+interface BTreeClass {
+  new <Key, Value>(
+    entries?: [Key, Value][],
+    compare?: (a: Key, b: Key) => number,
+    maxNodeSize?: number,
+  ): BTree<Key, Value>
+}
+
+let BTree: BTreeClass
+
+export async function loadBTree() {
+  if (!BTree) {
+    const { default: BTreeClass } = await import('sorted-btree')
+    BTree = BTreeClass
+  }
+}
 
 /**
  * Implementation of a topK data structure that uses a B+ tree.
@@ -35,6 +61,12 @@ class TopKTree<V> implements TopK<V> {
     limit: number,
     comparator: (a: V, b: V) => number,
   ) {
+    if (!BTree) {
+      throw new Error(
+        'B+ tree not loaded. You need to call loadBTree() before using TopKTree.',
+      )
+    }
+
     this.#topKStart = offset
     this.#topKEnd = offset + limit
     this.#comparator = comparator
@@ -210,6 +242,11 @@ export class TopKWithFractionalIndexBTreeOperator<
     limit: number,
     comparator: (a: HashTaggedValue<V1>, b: HashTaggedValue<V1>) => number,
   ): TopK<HashTaggedValue<V1>> {
+    if (!BTree) {
+      throw new Error(
+        'B+ tree not loaded. You need to call loadBTree() before using TopKWithFractionalIndexBTreeOperator.',
+      )
+    }
     return new TopKTree(offset, limit, comparator)
   }
 }
@@ -238,6 +275,12 @@ export function topKWithFractionalIndexBTree<
   options?: TopKWithFractionalIndexOptions,
 ): PipedOperator<T, KeyValue<K, [V1, string]>> {
   const opts = options || {}
+
+  if (!BTree) {
+    throw new Error(
+      'B+ tree not loaded. You need to call loadBTree() before using topKWithFractionalIndexBTree.',
+    )
+  }
 
   return (
     stream: IStreamBuilder<T>,
