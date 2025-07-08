@@ -1,51 +1,90 @@
-import { IStreamBuilder, KeyValue } from '../types.js'
-import { DifferenceStreamReader, DifferenceStreamWriter } from '../graph.js'
+import { IStreamBuilder } from '../types.js'
+import {
+  DifferenceStreamReader,
+  DifferenceStreamWriter,
+  UnaryOperator,
+} from '../graph.js'
 import { StreamBuilder } from '../d2.js'
-import { ReduceOperator } from './reduce.js'
 import { hash } from '../utils.js'
+import { MultiSet } from '../multiset.js'
+
+type HashedValue = string
+type Multiplicity = number
 
 /**
- * Operator that removes duplicates by key (version-free)
+ * Operator that removes duplicates
  */
-export class DistinctOperator<K, V> extends ReduceOperator<K, V, V> {
+export class DistinctOperator<T> extends UnaryOperator<T> {
+  #values: Map<HashedValue, Multiplicity> // keeps track of the number of times each value has been seen
+
   constructor(
     id: number,
-    inputA: DifferenceStreamReader<[K, V]>,
-    output: DifferenceStreamWriter<[K, V]>,
+    input: DifferenceStreamReader<T>,
+    output: DifferenceStreamWriter<T>,
   ) {
-    const distinctInner = (vals: [V, number][]): [V, number][] => {
-      const consolidated = new Map<string, number>()
-      const values = new Map<string, V>()
-      for (const [val, diff] of vals) {
-        const key = hash(val)
-        consolidated.set(key, (consolidated.get(key) || 0) + diff)
-        values.set(key, val)
+    super(id, input, output)
+    this.#values = new Map()
+  }
+
+  run(): void {
+    const updatedValues = new Map<HashedValue, [Multiplicity, T]>()
+
+    // Compute the new multiplicity for each value
+    for (const message of this.inputMessages()) {
+      for (const [value, diff] of message.getInner()) {
+        const hashedValue = hash(value)
+
+        const oldMultiplicity = this.#values.get(hashedValue) ?? 0
+        const newMultiplicity = oldMultiplicity + diff
+
+        updatedValues.set(hashedValue, [newMultiplicity, value])
       }
-      return Array.from(consolidated.entries())
-        .filter(([_, count]) => count > 0)
-        .map(([key, _]) => [values.get(key) as V, 1])
     }
 
-    super(id, inputA, output, distinctInner)
+    const result: Array<[T, number]> = []
+
+    // Check which values became visible or disappeared
+    for (const [
+      hashedValue,
+      [newMultiplicity, value],
+    ] of updatedValues.entries()) {
+      const oldMultiplicity = this.#values.get(hashedValue) ?? 0
+
+      if (newMultiplicity === 0) {
+        this.#values.delete(hashedValue)
+      } else {
+        this.#values.set(hashedValue, newMultiplicity)
+      }
+
+      if (oldMultiplicity <= 0 && newMultiplicity > 0) {
+        // The value wasn't present in the stream
+        // but with this change it is now present in the stream
+        result.push([value, 1])
+      } else if (oldMultiplicity > 0 && newMultiplicity <= 0) {
+        // The value was present in the stream
+        // but with this change it is no longer present in the stream
+        result.push([value, -1])
+      }
+    }
+
+    if (result.length > 0) {
+      this.output.sendData(new MultiSet(result))
+    }
   }
 }
 
 /**
- * Removes duplicates by key (version-free)
+ * Removes duplicate values
  */
-export function distinct<
-  K extends T extends KeyValue<infer K, infer _V> ? K : never,
-  V extends T extends KeyValue<K, infer V> ? V : never,
-  T,
->() {
-  return (stream: IStreamBuilder<T>): IStreamBuilder<KeyValue<K, V>> => {
-    const output = new StreamBuilder<KeyValue<K, V>>(
+export function distinct<T>() {
+  return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
+    const output = new StreamBuilder<T>(
       stream.graph,
-      new DifferenceStreamWriter<KeyValue<K, V>>(),
+      new DifferenceStreamWriter<T>(),
     )
-    const operator = new DistinctOperator<K, V>(
+    const operator = new DistinctOperator<T>(
       stream.graph.getNextOperatorId(),
-      stream.connectReader() as DifferenceStreamReader<KeyValue<K, V>>,
+      stream.connectReader() as DifferenceStreamReader<T>,
       output.writer,
     )
     stream.graph.addOperator(operator)
