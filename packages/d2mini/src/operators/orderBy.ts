@@ -6,7 +6,7 @@ import { map } from './map.js'
 import { innerJoin } from './join.js'
 import { consolidate } from './consolidate.js'
 
-interface OrderByOptions<Ve> {
+export interface OrderByOptions<Ve> {
   comparator?: (a: Ve, b: Ve) => number
   limit?: number
   offset?: number
@@ -128,19 +128,11 @@ export function orderByWithIndex<
   }
 }
 
-/**
- * Orders the elements and limits the number of results, with optional offset and
- * annotates the value with a fractional index.
- * This requires a keyed stream, and uses the `topKWithFractionalIndex` operator to order all the elements.
- *
- * @param valueExtractor - A function that extracts the value to order by from the element
- * @param options - An optional object containing comparator, limit and offset properties
- * @returns A piped operator that orders the elements and limits the number of results
- */
-export function orderByWithFractionalIndex<
+export function orderByWithFractionalIndexBase<
   T extends KeyValue<unknown, unknown>,
   Ve = unknown,
 >(
+  topK: typeof topKWithFractionalIndex,
   valueExtractor: (
     value: T extends KeyValue<unknown, infer V> ? V : never,
   ) => Ve,
@@ -181,7 +173,7 @@ export function orderByWithFractionalIndex<
             ],
           ] as KeyValue<null, [K, Ve]>,
       ),
-      topKWithFractionalIndex((a, b) => comparator(a[1], b[1]), {
+      topK((a, b) => comparator(a[1], b[1]), {
         limit,
         offset,
       }),
@@ -193,4 +185,29 @@ export function orderByWithFractionalIndex<
       consolidate(),
     )
   }
+}
+
+/**
+ * Orders the elements and limits the number of results, with optional offset and
+ * annotates the value with a fractional index.
+ * This requires a keyed stream, and uses the `topKWithFractionalIndex` operator to order all the elements.
+ *
+ * @param valueExtractor - A function that extracts the value to order by from the element
+ * @param options - An optional object containing comparator, limit and offset properties
+ * @returns A piped operator that orders the elements and limits the number of results
+ */
+export function orderByWithFractionalIndex<
+  T extends KeyValue<unknown, unknown>,
+  Ve = unknown,
+>(
+  valueExtractor: (
+    value: T extends KeyValue<unknown, infer V> ? V : never,
+  ) => Ve,
+  options?: OrderByOptions<Ve>,
+) {
+  return orderByWithFractionalIndexBase(
+    topKWithFractionalIndex,
+    valueExtractor,
+    options,
+  )
 }

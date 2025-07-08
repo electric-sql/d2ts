@@ -8,11 +8,152 @@ import { StreamBuilder } from '../d2.js'
 import { MultiSet } from '../multiset.js'
 import { Index } from '../indexes.js'
 import { generateKeyBetween } from 'fractional-indexing'
-import { hash } from '../utils.js'
+import { binarySearch, hash } from '../utils.js'
 
-interface TopKWithFractionalIndexOptions {
+export interface TopKWithFractionalIndexOptions {
   limit?: number
   offset?: number
+}
+
+export type TopKChanges<V> = {
+  /** Indicates which element moves into the topK (if any) */
+  moveIn: IndexedValue<V> | null
+  /** Indicates which element moves out of the topK (if any) */
+  moveOut: IndexedValue<V> | null
+}
+
+/**
+ * A topK data structure that supports insertions and deletions
+ * and returns changes to the topK.
+ */
+export interface TopK<V> {
+  insert(value: V): TopKChanges<V>
+  delete(value: V): TopKChanges<V>
+}
+
+/**
+ * Implementation of a topK data structure.
+ * Uses a sorted array internally to store the values and keeps a topK window over that array.
+ * Inserts and deletes are O(n) operations because worst case an element is inserted/deleted
+ * at the start of the array which causes all the elements to shift to the right/left.
+ */
+class TopKArray<V> implements TopK<V> {
+  #sortedValues: Array<IndexedValue<V>> = []
+  #comparator: (a: V, b: V) => number
+  #topKStart: number
+  #topKEnd: number
+
+  constructor(
+    offset: number,
+    limit: number,
+    comparator: (a: V, b: V) => number,
+  ) {
+    this.#topKStart = offset
+    this.#topKEnd = offset + limit
+    this.#comparator = comparator
+  }
+
+  insert(value: V): TopKChanges<V> {
+    let result: TopKChanges<V> = { moveIn: null, moveOut: null }
+
+    // Lookup insert position
+    const index = this.#findIndex(value)
+    // Generate fractional index based on the fractional indices of the elements before and after it
+    const indexBefore =
+      index === 0 ? null : getIndex(this.#sortedValues[index - 1])
+    const indexAfter =
+      index === this.#sortedValues.length
+        ? null
+        : getIndex(this.#sortedValues[index])
+    const fractionalIndex = generateKeyBetween(indexBefore, indexAfter)
+
+    // Insert the value at the correct position
+    const val = indexedValue(value, fractionalIndex)
+    // Splice is O(n) where n = all elements in the collection (i.e. n >= k) !
+    this.#sortedValues.splice(index, 0, val)
+
+    // Check if the topK changed
+    if (index < this.#topKEnd) {
+      // The inserted element is either before the top K or within the top K
+      // If it is before the top K then it moves the element that was right before the topK into the topK
+      // If it is within the top K then the inserted element moves into the top K
+      // In both cases the last element of the old top K now moves out of the top K
+      const moveInIndex = Math.max(index, this.#topKStart)
+      if (moveInIndex < this.#sortedValues.length) {
+        // We actually have a topK
+        // because in some cases there may not be enough elements in the array to reach the start of the topK
+        // e.g. [1, 2, 3] with K = 2 and offset = 3 does not have a topK
+        result.moveIn = this.#sortedValues[moveInIndex]
+
+        // We need to remove the element that falls out of the top K
+        // The element that falls out of the top K has shifted one to the right
+        // because of the element we inserted, so we find it at index topKEnd
+        if (this.#topKEnd < this.#sortedValues.length) {
+          result.moveOut = this.#sortedValues[this.#topKEnd]
+        }
+      }
+    }
+
+    return result
+  }
+
+  /**
+   * Deletes a value that may or may not be in the topK.
+   * IMPORTANT: this assumes that the value is present in the collection
+   *            if it's not the case it will remove the element
+   *            that is on the position where the provided `value` would be.
+   */
+  delete(value: V): TopKChanges<V> {
+    let result: TopKChanges<V> = { moveIn: null, moveOut: null }
+
+    // Lookup delete position
+    const index = this.#findIndex(value)
+    // Remove the value at that position
+    const [removedElem] = this.#sortedValues.splice(index, 1)
+
+    // Check if the topK changed
+    if (index < this.#topKEnd) {
+      // The removed element is either before the top K or within the top K
+      // If it is before the top K then the first element of the topK moves out of the topK
+      // If it is within the top K then the removed element moves out of the topK
+      result.moveOut = removedElem
+      if (index < this.#topKStart) {
+        // The removed element is before the topK
+        // so actually, the first element of the topK moves out of the topK
+        // and not the element that we removed
+        // The first element of the topK is now at index topKStart - 1
+        // since we removed an element before the topK
+        const moveOutIndex = this.#topKStart - 1
+        if (moveOutIndex < this.#sortedValues.length) {
+          result.moveOut = this.#sortedValues[moveOutIndex]
+        } else {
+          // No value is moving out of the topK
+          // because there are no elements in the topK
+          result.moveOut = null
+        }
+      }
+
+      // Since we removed an element that was before or in the topK
+      // the first element after the topK moved one position to the left
+      // and thus falls into the topK now
+      const moveInIndex = this.#topKEnd - 1
+      if (moveInIndex < this.#sortedValues.length) {
+        result.moveIn = this.#sortedValues[moveInIndex]
+      }
+    }
+
+    return result
+  }
+
+  // TODO: see if there is a way to refactor the code for insert and delete in the topK above
+  //       because they are very similar, one is shifting the topK window to the left and the other is shifting it to the right
+  //       so i have the feeling there is a common pattern here and we can implement both cases using that pattern
+
+  #findIndex(value: V): number {
+    return binarySearch(this.#sortedValues, indexedValue(value, ''), (a, b) =>
+      this.#comparator(getValue(a), getValue(b)),
+    )
+  }
 }
 
 /**
@@ -22,13 +163,15 @@ interface TopKWithFractionalIndexOptions {
  */
 export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
   [K, V1],
-  [K, [V1, string]]
+  [K, IndexedValue<V1>]
 > {
   #index = new Index<K, V1>()
-  #indexOut = new Index<K, [V1, string]>()
-  #comparator: (a: V1, b: V1) => number
-  #limit: number
-  #offset: number
+
+  /**
+   * topK data structure that supports insertions and deletions
+   * and returns changes to the topK.
+   */
+  #topK: TopK<HashTaggedValue<V1>>
 
   constructor(
     id: number,
@@ -38,261 +181,85 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
     options: TopKWithFractionalIndexOptions,
   ) {
     super(id, inputA, output)
-    this.#comparator = comparator
-    this.#limit = options.limit ?? Infinity
-    this.#offset = options.offset ?? 0
+    const limit = options.limit ?? Infinity
+    const offset = options.offset ?? 0
+    const compareTaggedValues = (
+      a: HashTaggedValue<V1>,
+      b: HashTaggedValue<V1>,
+    ) => {
+      // First compare on the value
+      const valueComparison = comparator(getValue(a), getValue(b))
+      if (valueComparison !== 0) {
+        return valueComparison
+      }
+      // If the values are equal, compare on the hash
+      const hashA = getHash(a)
+      const hashB = getHash(b)
+      return hashA < hashB ? -1 : hashA > hashB ? 1 : 0
+    }
+    this.#topK = this.createTopK(offset, limit, compareTaggedValues)
+  }
+
+  protected createTopK(
+    offset: number,
+    limit: number,
+    comparator: (a: HashTaggedValue<V1>, b: HashTaggedValue<V1>) => number,
+  ): TopK<HashTaggedValue<V1>> {
+    return new TopKArray(offset, limit, comparator)
   }
 
   run(): void {
-    const keysTodo = new Set<K>()
-
+    const result: Array<[[K, [V1, string]], number]> = []
     for (const message of this.inputMessages()) {
       for (const [item, multiplicity] of message.getInner()) {
         const [key, value] = item
-        this.#index.addValue(key, [value, multiplicity])
-        keysTodo.add(key)
-      }
-    }
-
-    const result: [[K, [V1, string]], number][] = []
-
-    for (const key of keysTodo) {
-      const curr = this.#index.get(key)
-      const currOut = this.#indexOut.get(key)
-
-      // Sort the current values
-      const consolidated = new MultiSet(curr).consolidate()
-      const sortedValues = consolidated
-        .getInner()
-        .sort((a, b) => this.#comparator(a[0] as V1, b[0] as V1))
-        .slice(this.#offset, this.#offset + this.#limit)
-
-      // Create a map for quick value lookup with pre-stringified keys
-      const currValueMap = new Map<string, V1>()
-      const prevOutputMap = new Map<string, [V1, string]>()
-
-      // Pre-stringify all values once
-      const valueKeys: string[] = []
-      const valueToKey = new Map<V1, string>()
-
-      // Process current values
-      for (const [value, multiplicity] of sortedValues) {
-        if (multiplicity > 0) {
-          // Only stringify each value once and store the result
-          let valueKey = valueToKey.get(value as V1)
-          if (!valueKey) {
-            valueKey = hash(value)
-            valueToKey.set(value as V1, valueKey)
-            valueKeys.push(valueKey)
-          }
-          currValueMap.set(valueKey, value as V1)
-        }
-      }
-
-      // Process previous output values
-      for (const [[value, index], multiplicity] of currOut) {
-        if (multiplicity > 0) {
-          // Only stringify each value once and store the result
-          let valueKey = valueToKey.get(value as V1)
-          if (!valueKey) {
-            valueKey = hash(value)
-            valueToKey.set(value as V1, valueKey)
-          }
-          prevOutputMap.set(valueKey, [value as V1, index as string])
-        }
-      }
-
-      // Find values that are no longer in the result
-      for (const [valueKey, [value, index]] of prevOutputMap.entries()) {
-        if (!currValueMap.has(valueKey)) {
-          // Value is no longer in the result, remove it
-          result.push([[key, [value, index]], -1])
-          this.#indexOut.addValue(key, [[value, index], -1])
-        }
-      }
-
-      // Process the sorted values and assign fractional indices
-      let prevIndex: string | null = null
-      let nextIndex: string | null = null
-      const newIndices = new Map<string, string>()
-
-      // First pass: reuse existing indices for values that haven't moved
-      for (let i = 0; i < sortedValues.length; i++) {
-        const [value, _multiplicity] = sortedValues[i]
-        // Use the pre-computed valueKey
-        const valueKey = valueToKey.get(value as V1) as string
-
-        // Check if this value already has an index
-        const existingEntry = prevOutputMap.get(valueKey)
-
-        if (existingEntry) {
-          const [_, existingIndex] = existingEntry
-
-          // Check if we need to update the index
-          if (i === 0) {
-            // First element
-            prevIndex = null
-            nextIndex =
-              i + 1 < sortedValues.length
-                ? newIndices.get(
-                    valueToKey.get(sortedValues[i + 1][0] as V1) as string,
-                  ) || null
-                : null
-
-            if (nextIndex !== null && existingIndex >= nextIndex) {
-              // Need to update index
-              const newIndex = generateKeyBetween(prevIndex, nextIndex)
-              newIndices.set(valueKey, newIndex)
-            } else {
-              // Can reuse existing index
-              newIndices.set(valueKey, existingIndex)
-            }
-          } else if (i === sortedValues.length - 1) {
-            // Last element
-            prevIndex =
-              newIndices.get(
-                valueToKey.get(sortedValues[i - 1][0] as V1) as string,
-              ) || null
-            nextIndex = null
-
-            if (prevIndex !== null && existingIndex <= prevIndex) {
-              // Need to update index
-              const newIndex = generateKeyBetween(prevIndex, nextIndex)
-              newIndices.set(valueKey, newIndex)
-            } else {
-              // Can reuse existing index
-              newIndices.set(valueKey, existingIndex)
-            }
-          } else {
-            // Middle element
-            prevIndex =
-              newIndices.get(
-                valueToKey.get(sortedValues[i - 1][0] as V1) as string,
-              ) || null
-            nextIndex =
-              i + 1 < sortedValues.length
-                ? newIndices.get(
-                    valueToKey.get(sortedValues[i + 1][0] as V1) as string,
-                  ) || null
-                : null
-
-            if (
-              (prevIndex !== null && existingIndex <= prevIndex) ||
-              (nextIndex !== null && existingIndex >= nextIndex)
-            ) {
-              // Need to update index
-              const newIndex = generateKeyBetween(prevIndex, nextIndex)
-              newIndices.set(valueKey, newIndex)
-            } else {
-              // Can reuse existing index
-              newIndices.set(valueKey, existingIndex)
-            }
-          }
-        }
-      }
-
-      // Pre-compute valid previous and next indices for each position
-      // This avoids repeated lookups during index generation
-      const validPrevIndices: (string | null)[] = new Array(sortedValues.length)
-      const validNextIndices: (string | null)[] = new Array(sortedValues.length)
-
-      // Initialize with null values
-      validPrevIndices.fill(null)
-      validNextIndices.fill(null)
-
-      // First element has no previous
-      validPrevIndices[0] = null
-
-      // Last element has no next
-      validNextIndices[sortedValues.length - 1] = null
-
-      // Compute next valid indices (working forward)
-      let lastValidNextIndex: string | null = null
-      for (let i = sortedValues.length - 1; i >= 0; i--) {
-        const valueKey = valueToKey.get(sortedValues[i][0] as V1) as string
-
-        // Set the next index for the current position
-        validNextIndices[i] = lastValidNextIndex
-
-        // Update lastValidNextIndex if this element has an index
-        if (newIndices.has(valueKey)) {
-          lastValidNextIndex = newIndices.get(valueKey) || null
-        } else {
-          const existingEntry = prevOutputMap.get(valueKey)
-          if (existingEntry) {
-            lastValidNextIndex = existingEntry[1]
-          }
-        }
-      }
-
-      // Compute previous valid indices (working backward)
-      let lastValidPrevIndex: string | null = null
-      for (let i = 0; i < sortedValues.length; i++) {
-        const valueKey = valueToKey.get(sortedValues[i][0] as V1) as string
-
-        // Set the previous index for the current position
-        validPrevIndices[i] = lastValidPrevIndex
-
-        // Update lastValidPrevIndex if this element has an index
-        if (newIndices.has(valueKey)) {
-          lastValidPrevIndex = newIndices.get(valueKey) || null
-        } else {
-          const existingEntry = prevOutputMap.get(valueKey)
-          if (existingEntry) {
-            lastValidPrevIndex = existingEntry[1]
-          }
-        }
-      }
-
-      // Second pass: assign new indices for values that don't have one or need to be updated
-      for (let i = 0; i < sortedValues.length; i++) {
-        const [value, _multiplicity] = sortedValues[i]
-        // Use the pre-computed valueKey
-        const valueKey = valueToKey.get(value as V1) as string
-
-        if (!newIndices.has(valueKey)) {
-          // This value doesn't have an index yet, use pre-computed indices
-          prevIndex = validPrevIndices[i]
-          nextIndex = validNextIndices[i]
-
-          const newIndex = generateKeyBetween(prevIndex, nextIndex)
-          newIndices.set(valueKey, newIndex)
-
-          // Update validPrevIndices for subsequent elements
-          if (i < sortedValues.length - 1 && validPrevIndices[i + 1] === null) {
-            validPrevIndices[i + 1] = newIndex
-          }
-        }
-      }
-
-      // Now create the output with the new indices
-      for (let i = 0; i < sortedValues.length; i++) {
-        const [value, _multiplicity] = sortedValues[i]
-        // Use the pre-computed valueKey
-        const valueKey = valueToKey.get(value as V1) as string
-        const index = newIndices.get(valueKey)!
-
-        // Check if this is a new value or if the index has changed
-        const existingEntry = prevOutputMap.get(valueKey)
-
-        if (!existingEntry) {
-          // New value
-          result.push([[key, [value as V1, index]], 1])
-          this.#indexOut.addValue(key, [[value as V1, index], 1])
-        } else if (existingEntry[1] !== index) {
-          // Index has changed, remove old entry and add new one
-          result.push([[key, existingEntry], -1])
-          result.push([[key, [value as V1, index]], 1])
-          this.#indexOut.addValue(key, [existingEntry, -1])
-          this.#indexOut.addValue(key, [[value as V1, index], 1])
-        }
-        // If the value exists and the index hasn't changed, do nothing
+        this.processElement(key, value, multiplicity, result)
       }
     }
 
     if (result.length > 0) {
       this.output.sendData(new MultiSet(result))
     }
+  }
+
+  processElement(
+    key: K,
+    value: V1,
+    multiplicity: number,
+    result: Array<[[K, [V1, string]], number]>,
+  ): void {
+    const oldMultiplicity = this.#index.getMultiplicity(key, value)
+    this.#index.addValue(key, [value, multiplicity])
+    const newMultiplicity = this.#index.getMultiplicity(key, value)
+
+    let res: TopKChanges<HashTaggedValue<V1>> = { moveIn: null, moveOut: null }
+    if (oldMultiplicity <= 0 && newMultiplicity > 0) {
+      // The value was invisible but should now be visible
+      // Need to insert it into the array of sorted values
+      const taggedValue = tagValue(value)
+      res = this.#topK.insert(taggedValue)
+    } else if (oldMultiplicity > 0 && newMultiplicity <= 0) {
+      // The value was visible but should now be invisible
+      // Need to remove it from the array of sorted values
+      const taggedValue = tagValue(value)
+      res = this.#topK.delete(taggedValue)
+    } else {
+      // The value was invisible and it remains invisible
+      // or it was visible and remains visible
+      // so it doesn't affect the topK
+    }
+
+    if (res.moveIn) {
+      const valueWithoutHash = mapValue(res.moveIn, untagValue)
+      result.push([[key, valueWithoutHash], 1])
+    }
+
+    if (res.moveOut) {
+      const valueWithoutHash = mapValue(res.moveOut, untagValue)
+      result.push([[key, valueWithoutHash], -1])
+    }
+
+    return
   }
 }
 
@@ -339,4 +306,46 @@ export function topKWithFractionalIndex<
     stream.graph.addStream(output.connectReader())
     return output
   }
+}
+
+// Abstraction for fractionally indexed values
+export type FractionalIndex = string
+export type IndexedValue<V> = [V, FractionalIndex]
+
+export function indexedValue<V>(
+  value: V,
+  index: FractionalIndex,
+): IndexedValue<V> {
+  return [value, index]
+}
+
+export function getValue<V>(indexedValue: IndexedValue<V>): V {
+  return indexedValue[0]
+}
+
+export function getIndex<V>(indexedValue: IndexedValue<V>): FractionalIndex {
+  return indexedValue[1]
+}
+
+function mapValue<V, W>(
+  value: IndexedValue<V>,
+  f: (value: V) => W,
+): IndexedValue<W> {
+  return [f(getValue(value)), getIndex(value)]
+}
+
+// Abstraction for values tagged with a hash
+export type Hash = string
+export type HashTaggedValue<V> = [V, Hash]
+
+function tagValue<V>(value: V): HashTaggedValue<V> {
+  return [value, hash(value)]
+}
+
+function untagValue<V>(hashTaggedValue: HashTaggedValue<V>): V {
+  return hashTaggedValue[0]
+}
+
+function getHash<V>(hashTaggedValue: HashTaggedValue<V>): Hash {
+  return hashTaggedValue[1]
 }
