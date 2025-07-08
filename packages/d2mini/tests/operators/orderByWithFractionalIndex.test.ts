@@ -1,11 +1,13 @@
-import { describe, test, expect } from 'vitest'
+import { describe, test, expect, beforeAll } from 'vitest'
 import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import {
   orderByWithFractionalIndex,
+  orderByWithFractionalIndexBTree,
   output,
 } from '../../src/operators/index.js'
 import { KeyValue } from '../../src/types.js'
+import { loadBTree } from '../../src/operators/topKWithFractionalIndexBTree.js'
 
 const stripFractionalIndex = ([[key, [value, _index]], multiplicity]) => [
   key,
@@ -13,8 +15,15 @@ const stripFractionalIndex = ([[key, [value, _index]], multiplicity]) => [
   multiplicity,
 ]
 
+beforeAll(async () => {
+  await loadBTree()
+})
+
 describe('Operators', () => {
-  describe('OrderByWithFractionalIndex operation', () => {
+  describe.each([
+    ['with array', { orderBy: orderByWithFractionalIndex }],
+    ['with B+ tree', { orderBy: orderByWithFractionalIndexBTree }],
+  ])('OrderByWithFractionalIndex operator %s', (_, { orderBy }) => {
     test('initial results with default comparator', () => {
       const graph = new D2()
       const input = graph.newInput<
@@ -29,7 +38,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex((item) => item.value),
+        orderBy((item) => item.value),
         output((message) => {
           latestMessage = message
         }),
@@ -77,7 +86,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex((item) => item.value, {
+        orderBy((item) => item.value, {
           comparator: (a, b) => b.localeCompare(a), // reverse order
         }),
         output((message) => {
@@ -127,7 +136,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex((item) => item.value, { limit: 3 }),
+        orderBy((item) => item.value, { limit: 3 }),
         output((message) => {
           latestMessage = message
         }),
@@ -173,7 +182,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex((item) => item.value, {
+        orderBy((item) => item.value, {
           limit: 2,
           offset: 2,
         }),
@@ -221,7 +230,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex((item) => item.id),
+        orderBy((item) => item.id),
         output((message) => {
           latestMessage = message
         }),
@@ -269,7 +278,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex((item) => item.value, { limit: 3 }),
+        orderBy((item) => item.value, { limit: 3 }),
         output((message) => {
           latestMessage = message
         }),
@@ -333,7 +342,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex((item) => item.value, { limit: 3 }),
+        orderBy((item) => item.value, { limit: 3 }),
         output((message) => {
           latestMessage = message
         }),
@@ -399,7 +408,7 @@ describe('Operators', () => {
       let latestMessage: any = null
 
       input.pipe(
-        orderByWithFractionalIndex((item) => item.value, { limit: 3 }),
+        orderBy((item) => item.value, { limit: 3 }),
         output((message) => {
           latestMessage = message
         }),
