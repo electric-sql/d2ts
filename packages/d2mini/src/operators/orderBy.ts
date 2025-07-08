@@ -2,12 +2,11 @@ import { IStreamBuilder } from '../types'
 import { KeyValue } from '../types.js'
 import { topK, topKWithIndex } from './topK.js'
 import { topKWithFractionalIndex } from './topKWithFractionalIndex.js'
-import { topKWithFractionalIndexBTree } from './topKWithFractionalIndexBTree.js'
 import { map } from './map.js'
 import { innerJoin } from './join.js'
 import { consolidate } from './consolidate.js'
 
-interface OrderByOptions<Ve> {
+export interface OrderByOptions<Ve> {
   comparator?: (a: Ve, b: Ve) => number
   limit?: number
   offset?: number
@@ -129,7 +128,7 @@ export function orderByWithIndex<
   }
 }
 
-function orderByWithFractionalIndexBase<
+export function orderByWithFractionalIndexBase<
   T extends KeyValue<unknown, unknown>,
   Ve = unknown,
 >(
@@ -208,22 +207,6 @@ export function orderByWithFractionalIndex<
 ) {
   return orderByWithFractionalIndexBase(
     topKWithFractionalIndex,
-    valueExtractor,
-    options,
-  )
-}
-
-export function orderByWithFractionalIndexBTree<
-  T extends KeyValue<unknown, unknown>,
-  Ve = unknown,
->(
-  valueExtractor: (
-    value: T extends KeyValue<unknown, infer V> ? V : never,
-  ) => Ve,
-  options?: OrderByOptions<Ve>,
-) {
-  return orderByWithFractionalIndexBase(
-    topKWithFractionalIndexBTree,
     valueExtractor,
     options,
   )

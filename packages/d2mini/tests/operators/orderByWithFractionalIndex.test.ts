@@ -3,9 +3,9 @@ import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import {
   orderByWithFractionalIndex,
-  orderByWithFractionalIndexBTree,
   output,
 } from '../../src/operators/index.js'
+import { orderByWithFractionalIndexBTree } from '../../src/operators/orderByBTree.js'
 import { KeyValue } from '../../src/types.js'
 import { loadBTree } from '../../src/operators/topKWithFractionalIndexBTree.js'
 
