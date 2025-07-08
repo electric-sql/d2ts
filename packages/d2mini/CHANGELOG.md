@@ -1,5 +1,12 @@
 # @electric-sql/d2mini
 
+## 0.1.5
+
+### Patch Changes
+
+- c5a59cf: Introduce topKWithFractionalIndexBTree and orderByWithFractionalIndexBTree operators. These variants use a B+ tree which is more efficient on big collections as its time complexity is logarithmic.
+- 47e33ab: Modify index implementation to keep a map of consolidated values and their multiplicities. This improves efficiency to get a value's multiplicity since it's already precomputed. Also modify reduce operator to emit a single diff instead of 2 diffs (1 that is -oldMultiplicity and 1 that is +newMultiplicity).
+
 ## 0.1.4
 
 ### Patch Changes
