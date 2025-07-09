@@ -1,5 +1,11 @@
 # @electric-sql/d2mini
 
+## 0.1.7
+
+### Patch Changes
+
+- d6c4ed9: rebuild the distinct to be more efficient
+
 ## 0.1.6
 
 ### Patch Changes
