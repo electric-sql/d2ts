@@ -45,6 +45,45 @@ function testDistinct() {
     ])
   })
 
+  test('distinct by certain property', () => {
+    const graph = new D2()
+    const input = graph.newInput<[number, { name: string, country: string }]>()
+    const messages: MultiSet<[number, { name: string, country: string }]>[] = []
+
+    input.pipe(
+      distinct(([_, value]) => value.country),
+      output((message) => {
+        messages.push(message)
+      }),
+    )
+
+    graph.finalize()
+
+    input.sendData(
+      new MultiSet([
+        [[1, { name: 'Valter', country: 'Portugal' }], 1],
+        [[2, { name: 'Sam', country: 'UK' }], 1],
+        [[2, { name: 'Kevin', country: 'Belgium' }], 1],
+        [[3, { name: 'Garry', country: 'UK' }], 1],
+        [[4, { name: 'Kyle', country: 'USA' }], 1],
+      ]),
+    )
+
+    graph.run()
+
+    const data = messages.map((m) => m.getInner())[0]
+    const countries = data.map((([[_, value], multiplicity]) => [value.country, multiplicity])).sort()
+
+    expect(countries).toEqual(
+      [
+        ['Belgium', 1],
+        ['Portugal', 1],
+        ['UK', 1],
+        ['USA', 1],
+      ].sort()
+    )
+  })
+
   test('distinct with updates', () => {
     const graph = new D2()
     const input = graph.newInput<[number, string]>()
