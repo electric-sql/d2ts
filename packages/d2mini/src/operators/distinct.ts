@@ -1,9 +1,5 @@
 import { IStreamBuilder } from '../types.js'
-import {
-  DifferenceStreamReader,
-  DifferenceStreamWriter,
-  UnaryOperator,
-} from '../graph.js'
+import { DifferenceStreamReader, DifferenceStreamWriter, UnaryOperator } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { hash } from '../utils.js'
 import { MultiSet } from '../multiset.js'
@@ -33,7 +29,7 @@ export class DistinctOperator<T> extends UnaryOperator<T> {
     for (const message of this.inputMessages()) {
       for (const [value, diff] of message.getInner()) {
         const hashedValue = hash(value)
-
+        
         const oldMultiplicity = this.#values.get(hashedValue) ?? 0
         const newMultiplicity = oldMultiplicity + diff
 
@@ -44,18 +40,15 @@ export class DistinctOperator<T> extends UnaryOperator<T> {
     const result: Array<[T, number]> = []
 
     // Check which values became visible or disappeared
-    for (const [
-      hashedValue,
-      [newMultiplicity, value],
-    ] of updatedValues.entries()) {
+    for (const [hashedValue, [newMultiplicity, value]] of updatedValues.entries()) {
       const oldMultiplicity = this.#values.get(hashedValue) ?? 0
-
+      
       if (newMultiplicity === 0) {
         this.#values.delete(hashedValue)
       } else {
         this.#values.set(hashedValue, newMultiplicity)
       }
-
+      
       if (oldMultiplicity <= 0 && newMultiplicity > 0) {
         // The value wasn't present in the stream
         // but with this change it is now present in the stream

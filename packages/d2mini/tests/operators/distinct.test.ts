@@ -63,6 +63,7 @@ function testDistinct() {
       new MultiSet([
         [[1, 'a'], 1],
         [[1, 'b'], 1],
+        [[1, 'a'], 1],
       ]),
     )
     graph.run()
@@ -71,6 +72,7 @@ function testDistinct() {
       new MultiSet([
         [[1, 'b'], -1],
         [[1, 'c'], 2],
+        [[1, 'a'], -1],
       ]),
     )
     graph.run()
