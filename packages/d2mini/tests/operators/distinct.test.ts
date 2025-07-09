@@ -187,7 +187,8 @@ function testDistinct() {
     input.sendData(
       new MultiSet([
         [['key1', 1], 2],
-        [['key1', 2], 3],
+        [['key1', 2], 2],
+        [['key1', 2], 1],
         [['key2', 1], 1],
         [['key1', 2], -3], // cancels out the previous addition of [['key2', 2], 3]
         [['key2', 1], 1],
