@@ -47,8 +47,8 @@ function testDistinct() {
 
   test('distinct by certain property', () => {
     const graph = new D2()
-    const input = graph.newInput<[number, { name: string, country: string }]>()
-    const messages: MultiSet<[number, { name: string, country: string }]>[] = []
+    const input = graph.newInput<[number, { name: string; country: string }]>()
+    const messages: MultiSet<[number, { name: string; country: string }]>[] = []
 
     input.pipe(
       distinct(([_, value]) => value.country),
@@ -72,7 +72,9 @@ function testDistinct() {
     graph.run()
 
     const data = messages.map((m) => m.getInner())[0]
-    const countries = data.map((([[_, value], multiplicity]) => [value.country, multiplicity])).sort()
+    const countries = data
+      .map(([[_, value], multiplicity]) => [value.country, multiplicity])
+      .sort()
 
     expect(countries).toEqual(
       [
@@ -80,7 +82,7 @@ function testDistinct() {
         ['Portugal', 1],
         ['UK', 1],
         ['USA', 1],
-      ].sort()
+      ].sort(),
     )
   })
 
