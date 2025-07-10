@@ -70,7 +70,7 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
     // Join existing indexA with deltaB
     results.extend(this.#indexA.join(deltaB))
 
-    // Send results
+    // Send results - 🟢 LAZY OUTPUT: Use LazyMultiSet for incremental consumption
     if (results.getInner().length > 0) {
       this.output.sendData(LazyMultiSet.from(results))
     }

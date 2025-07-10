@@ -217,6 +217,7 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
       }
     }
 
+    // 🟢 PSEUDO-LAZY: Use LazyMultiSet for output streaming
     if (result.length > 0) {
       this.output.sendData(LazyMultiSet.fromArray(result))
     }
