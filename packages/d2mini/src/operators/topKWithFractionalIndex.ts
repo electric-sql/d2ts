@@ -209,16 +209,31 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
   }
 
   run(): void {
-    const result: Array<[[K, [V1, string]], number]> = []
-    for (const message of this.inputMessages()) {
-      for (const [item, multiplicity] of message.getInner()) {
-        const [key, value] = item
-        this.processElement(key, value, multiplicity, result)
-      }
-    }
+    const self = this
+    const messages = Array.from(this.inputMessages())
 
-    if (result.length > 0) {
-      this.output.sendData(LazyMultiSet.fromArray(result))
+    if (messages.length > 0) {
+      const allResults: [[K, [V1, string]], number][] = []
+      
+      for (const message of messages) {
+        for (const [item, multiplicity] of message.getInner()) {
+          const [key, value] = item
+          
+          for (const result of self.processElementLazy(key, value, multiplicity)) {
+            allResults.push(result)
+          }
+        }
+      }
+
+      if (allResults.length > 0) {
+        const lazyResults = new LazyMultiSet(function* (): Generator<[[K, [V1, string]], number], void, unknown> {
+          for (const result of allResults) {
+            yield result
+          }
+        })
+
+        this.output.sendData(lazyResults)
+      }
     }
   }
 
@@ -260,6 +275,35 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
     }
 
     return
+  }
+
+  *processElementLazy(
+    key: K,
+    value: V1,
+    multiplicity: number,
+  ): Generator<[[K, [V1, string]], number], void, unknown> {
+    const oldMultiplicity = this.#index.getMultiplicity(key, value)
+    this.#index.addValue(key, [value, multiplicity])
+    const newMultiplicity = this.#index.getMultiplicity(key, value)
+
+    let res: TopKChanges<HashTaggedValue<V1>> = { moveIn: null, moveOut: null }
+    if (oldMultiplicity <= 0 && newMultiplicity > 0) {
+      const taggedValue = tagValue(value)
+      res = this.#topK.insert(taggedValue)
+    } else if (oldMultiplicity > 0 && newMultiplicity <= 0) {
+      const taggedValue = tagValue(value)
+      res = this.#topK.delete(taggedValue)
+    }
+
+    if (res.moveIn) {
+      const valueWithoutHash = mapValue(res.moveIn, untagValue)
+      yield [[key, valueWithoutHash], 1]
+    }
+
+    if (res.moveOut) {
+      const valueWithoutHash = mapValue(res.moveOut, untagValue)
+      yield [[key, valueWithoutHash], -1]
+    }
   }
 
 
