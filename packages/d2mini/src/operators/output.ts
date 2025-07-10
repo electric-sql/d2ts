@@ -5,19 +5,19 @@ import {
   UnaryOperator,
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
-import { MultiSet } from '../multiset.js'
+import { IMultiSet } from '../multiset.js'
 
 /**
  * Operator that outputs the messages in the stream
  */
 export class OutputOperator<T> extends UnaryOperator<T> {
-  #fn: (data: MultiSet<T>) => void
+  #fn: (data: IMultiSet<T>) => void
 
   constructor(
     id: number,
     inputA: DifferenceStreamReader<T>,
     output: DifferenceStreamWriter<T>,
-    fn: (data: MultiSet<T>) => void,
+    fn: (data: IMultiSet<T>) => void,
   ) {
     super(id, inputA, output)
     this.#fn = fn
@@ -36,7 +36,7 @@ export class OutputOperator<T> extends UnaryOperator<T> {
  * @param fn - The function to call with each message
  */
 export function output<T>(
-  fn: (data: MultiSet<T>) => void,
+  fn: (data: IMultiSet<T>) => void,
 ): PipedOperator<T, T> {
   return (stream: IStreamBuilder<T>): IStreamBuilder<T> => {
     const output = new StreamBuilder<T>(

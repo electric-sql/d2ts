@@ -5,7 +5,7 @@ import {
   UnaryOperator,
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
-import { MultiSet } from '../multiset.js'
+import { LazyMultiSet } from '../multiset.js'
 import { Index } from '../indexes.js'
 import { generateKeyBetween } from 'fractional-indexing'
 import { binarySearch, hash } from '../utils.js'
@@ -218,7 +218,7 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
     }
 
     if (result.length > 0) {
-      this.output.sendData(new MultiSet(result))
+      this.output.sendData(LazyMultiSet.fromArray(result))
     }
   }
 

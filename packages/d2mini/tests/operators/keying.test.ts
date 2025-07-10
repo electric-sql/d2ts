@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { D2 } from '../../src/d2.js'
 import { keyBy, unkey, rekey } from '../../src/operators/keying.js'
 import { output } from '../../src/operators/index.js'
-import { MultiSet } from '../../src/multiset.js'
+import { MultiSet, IMultiSet } from '../../src/multiset.js'
 
 interface TestItem {
   id: number
@@ -14,7 +14,7 @@ describe('keying operators', () => {
   it('should key a stream by a property', () => {
     const d2 = new D2()
     const input = d2.newInput<TestItem>()
-    const messages: MultiSet<TestItem>[] = []
+    const messages: IMultiSet<TestItem>[] = []
 
     const keyed = input.pipe(keyBy((item) => item.id))
     const outputStream = keyed.pipe(unkey())
@@ -25,16 +25,16 @@ describe('keying operators', () => {
     d2.finalize()
     d2.run()
 
-    expect(messages).toEqual([
-      new MultiSet([[{ id: 1, name: 'a', value: 10 }, 1]]),
-      new MultiSet([[{ id: 2, name: 'b', value: 20 }, 1]]),
+    expect(messages.map(m => m.getInner())).toEqual([
+      [[{ id: 1, name: 'a', value: 10 }, 1]],
+      [[{ id: 2, name: 'b', value: 20 }, 1]],
     ])
   })
 
   it('should rekey a stream with new keys', () => {
     const d2 = new D2()
     const input = d2.newInput<TestItem>()
-    const messages: MultiSet<TestItem>[] = []
+    const messages: IMultiSet<TestItem>[] = []
 
     // First key by id
     const keyed = input.pipe(keyBy((item) => item.id))
@@ -48,16 +48,16 @@ describe('keying operators', () => {
     d2.finalize()
     d2.run()
 
-    expect(messages).toEqual([
-      new MultiSet([[{ id: 1, name: 'a', value: 10 }, 1]]),
-      new MultiSet([[{ id: 2, name: 'b', value: 20 }, 1]]),
+    expect(messages.map(m => m.getInner())).toEqual([
+      [[{ id: 1, name: 'a', value: 10 }, 1]],
+      [[{ id: 2, name: 'b', value: 20 }, 1]],
     ])
   })
 
   it('should handle multiple updates to the same key', () => {
     const d2 = new D2()
     const input = d2.newInput<TestItem>()
-    const messages: MultiSet<TestItem>[] = []
+    const messages: IMultiSet<TestItem>[] = []
 
     const keyed = input.pipe(keyBy((item) => item.id))
     const outputStream = keyed.pipe(unkey())
@@ -68,9 +68,9 @@ describe('keying operators', () => {
     d2.finalize()
     d2.run()
 
-    expect(messages).toEqual([
-      new MultiSet([[{ id: 1, name: 'a', value: 10 }, 1]]),
-      new MultiSet([[{ id: 1, name: 'a', value: 20 }, 1]]),
+    expect(messages.map(m => m.getInner())).toEqual([
+      [[{ id: 1, name: 'a', value: 10 }, 1]],
+      [[{ id: 1, name: 'a', value: 20 }, 1]],
     ])
   })
 })

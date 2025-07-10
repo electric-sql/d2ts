@@ -5,7 +5,7 @@ import {
   BinaryOperator,
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
-import { MultiSet } from '../multiset.js'
+import { MultiSet, IMultiSet, LazyMultiSet } from '../multiset.js'
 import { Index } from '../indexes.js'
 import { negate } from './negate.js'
 import { map } from './map.js'
@@ -72,7 +72,7 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
 
     // Send results
     if (results.getInner().length > 0) {
-      this.output.sendData(results)
+      this.output.sendData(LazyMultiSet.from(results))
     }
 
     // Append deltaB to indexB

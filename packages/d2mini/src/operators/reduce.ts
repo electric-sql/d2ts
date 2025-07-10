@@ -5,7 +5,7 @@ import {
   UnaryOperator,
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
-import { MultiSet } from '../multiset.js'
+import { IMultiSet, LazyMultiSet } from '../multiset.js'
 import { Index } from '../indexes.js'
 import { hash } from '../utils.js'
 
@@ -117,7 +117,7 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1], [K, V2]> {
     }
 
     if (result.length > 0) {
-      this.output.sendData(new MultiSet(result))
+      this.output.sendData(LazyMultiSet.fromArray(result))
     }
   }
 }
