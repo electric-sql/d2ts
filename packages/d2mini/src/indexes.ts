@@ -124,4 +124,38 @@ export class Index<K, V> {
 
     return new MultiSet(result)
   }
+
+  /**
+   * 🟢 TRULY LAZY: Generator-based join that yields results incrementally
+   * instead of materializing all results upfront
+   */
+  *lazyJoin<V2>(other: Index<K, V2>): Generator<[[K, [V, V2]], number], void, unknown> {
+    // We want to iterate over the smaller of the two indexes to reduce the
+    // number of operations we need to do.
+    if (this.size <= other.size) {
+      for (const [key, valueMap] of this.entries()) {
+        if (!other.has(key)) continue
+        const otherValues = other.get(key)
+        for (const [val1, mul1] of valueMap.values()) {
+          for (const [val2, mul2] of otherValues) {
+            if (mul1 !== 0 && mul2 !== 0) {
+              yield [[key, [val1, val2]], mul1 * mul2]
+            }
+          }
+        }
+      }
+    } else {
+      for (const [key, otherValueMap] of other.entries()) {
+        if (!this.has(key)) continue
+        const values = this.get(key)
+        for (const [val2, mul2] of otherValueMap.values()) {
+          for (const [val1, mul1] of values) {
+            if (mul1 !== 0 && mul2 !== 0) {
+              yield [[key, [val1, val2]], mul1 * mul2]
+            }
+          }
+        }
+      }
+    }
+  }
 }

@@ -58,25 +58,35 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
       }
     }
 
-    // Process results
-    const results = new MultiSet<[K, [V1, V2]]>()
+    const self = this
 
-    // Join deltaA with existing indexB
-    results.extend(deltaA.join(this.#indexB))
+    // Check if we could have any join results without executing the generator
+    const couldHaveResults = (deltaA.size > 0 && self.#indexB.size > 0) || 
+                            (self.#indexA.size > 0 && deltaB.size > 0) ||
+                            (deltaA.size > 0 && deltaB.size > 0)
 
-    // Append deltaA to indexA
-    this.#indexA.append(deltaA)
+    if (couldHaveResults) {
+      // 🟢 TRULY LAZY: Create generator that yields join results incrementally
+      const lazyResults = new LazyMultiSet(function* () {
+        // First: Join deltaA with existing indexB (new A data × existing B data)
+        yield* deltaA.lazyJoin(self.#indexB)
 
-    // Join existing indexA with deltaB
-    results.extend(this.#indexA.join(deltaB))
+        // Update indexA to include deltaA (matching original implementation)
+        self.#indexA.append(deltaA)
 
-    // Send results - 🟢 LAZY OUTPUT: Use LazyMultiSet for incremental consumption
-    if (results.getInner().length > 0) {
-      this.output.sendData(LazyMultiSet.from(results))
+        // Second: Join updated indexA with deltaB (includes deltaA × deltaB cross-product)
+        yield* self.#indexA.lazyJoin(deltaB)
+
+        // Update indexB for future operations
+        self.#indexB.append(deltaB)
+      })
+
+      this.output.sendData(lazyResults)
+    } else {
+      // No potential results, just update indexes
+      this.#indexA.append(deltaA)
+      this.#indexB.append(deltaB)
     }
-
-    // Append deltaB to indexB
-    this.#indexB.append(deltaB)
   }
 }
 
