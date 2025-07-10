@@ -2,7 +2,7 @@ import { IStreamBuilder, PipedOperator } from '../types.js'
 import { DifferenceStreamReader, DifferenceStreamWriter } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { LinearUnaryOperator } from '../graph.js'
-import { MultiSet } from '../multiset.js'
+import { IMultiSet, LazyMultiSet } from '../multiset.js'
 
 /**
  * Operator that applies a function to each element in the input stream
@@ -20,8 +20,9 @@ export class MapOperator<T, U> extends LinearUnaryOperator<T, U> {
     this.#f = f
   }
 
-  inner(collection: MultiSet<T>): MultiSet<U> {
-    return collection.map(this.#f)
+  inner(collection: IMultiSet<T>): IMultiSet<U> {
+    // Use LazyMultiSet for lazy evaluation
+    return LazyMultiSet.from(collection).map(this.#f)
   }
 }
 

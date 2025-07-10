@@ -1,15 +1,24 @@
 import { IStreamBuilder, PipedOperator } from '../types.js'
-import { DifferenceStreamWriter } from '../graph.js'
+import { DifferenceStreamReader, DifferenceStreamWriter } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { LinearUnaryOperator } from '../graph.js'
-import { MultiSet } from '../multiset.js'
+import { IMultiSet, LazyMultiSet } from '../multiset.js'
 
 /**
- * Operator that negates the multiplicities in the input stream
+ * Operator that negates all multiplicities in the input stream
  */
 export class NegateOperator<T> extends LinearUnaryOperator<T, T> {
-  inner(collection: MultiSet<T>): MultiSet<T> {
-    return collection.negate()
+  constructor(
+    id: number,
+    inputA: DifferenceStreamReader<T>,
+    output: DifferenceStreamWriter<T>,
+  ) {
+    super(id, inputA, output)
+  }
+
+  inner(collection: IMultiSet<T>): IMultiSet<T> {
+    // Use LazyMultiSet for lazy evaluation
+    return LazyMultiSet.from(collection).negate()
   }
 }
 

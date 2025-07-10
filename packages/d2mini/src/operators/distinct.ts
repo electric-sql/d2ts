@@ -6,7 +6,7 @@ import {
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { hash } from '../utils.js'
-import { MultiSet } from '../multiset.js'
+import { IMultiSet, LazyMultiSet } from '../multiset.js'
 
 type HashedValue = string
 type Multiplicity = number
@@ -74,7 +74,7 @@ export class DistinctOperator<T> extends UnaryOperator<T> {
     }
 
     if (result.length > 0) {
-      this.output.sendData(new MultiSet(result))
+      this.output.sendData(LazyMultiSet.fromArray(result))
     }
   }
 }

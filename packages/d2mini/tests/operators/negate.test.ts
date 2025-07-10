@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest'
 import { D2 } from '../../src/d2.js'
-import { MultiSet } from '../../src/multiset.js'
+import { MultiSet, IMultiSet } from '../../src/multiset.js'
 import { map, negate, output } from '../../src/operators/index.js'
 
 describe('Operators', () => {
@@ -8,7 +8,7 @@ describe('Operators', () => {
     test('basic negate operation', () => {
       const graph = new D2()
       const input = graph.newInput<number>()
-      const messages: MultiSet<number>[] = []
+      const messages: IMultiSet<number>[] = []
 
       input.pipe(
         negate(),
@@ -22,26 +22,26 @@ describe('Operators', () => {
       input.sendData(
         new MultiSet([
           [1, 1],
-          [2, 1],
-          [3, 1],
+          [2, 2],
+          [3, 3],
         ]),
       )
 
       graph.run()
 
-      expect(messages).toEqual([
-        new MultiSet([
+      expect(messages.map(m => m.getInner())).toEqual([
+        [
           [1, -1],
-          [2, -1],
-          [3, -1],
-        ]),
+          [2, -2],
+          [3, -3],
+        ],
       ])
     })
 
     test('negate with mixed multiplicities', () => {
       const graph = new D2()
       const input = graph.newInput<number>()
-      const messages: MultiSet<number>[] = []
+      const messages: IMultiSet<number>[] = []
 
       input.pipe(
         negate(),
@@ -55,26 +55,26 @@ describe('Operators', () => {
       input.sendData(
         new MultiSet([
           [1, -1],
-          [2, -2],
-          [3, 1],
+          [2, 2],
+          [3, -3],
         ]),
       )
 
       graph.run()
 
-      expect(messages).toEqual([
-        new MultiSet([
+      expect(messages.map(m => m.getInner())).toEqual([
+        [
           [1, 1],
-          [2, 2],
-          [3, -1],
-        ]),
+          [2, -2],
+          [3, 3],
+        ],
       ])
     })
 
     test('negate with already negative multiplicities', () => {
       const graph = new D2()
       const input = graph.newInput<number>()
-      const messages: MultiSet<number>[] = []
+      const messages: IMultiSet<number>[] = []
 
       input.pipe(
         negate(),
@@ -88,31 +88,30 @@ describe('Operators', () => {
       input.sendData(
         new MultiSet([
           [1, -2],
-          [2, 1],
+          [2, -1],
           [3, -3],
         ]),
       )
 
       graph.run()
 
-      expect(messages).toEqual([
-        new MultiSet([
+      expect(messages.map(m => m.getInner())).toEqual([
+        [
           [1, 2],
-          [2, -1],
+          [2, 1],
           [3, 3],
-        ]),
+        ],
       ])
     })
 
     test('negate with chained operations', () => {
       const graph = new D2()
       const input = graph.newInput<number>()
-      const messages: MultiSet<number>[] = []
+      const messages: IMultiSet<number>[] = []
 
       input.pipe(
-        map((x) => x * 2),
+        map((x) => x + 2),
         negate(),
-        map((x) => x + 1),
         output((message) => {
           messages.push(message)
         }),
@@ -123,17 +122,19 @@ describe('Operators', () => {
       input.sendData(
         new MultiSet([
           [1, 1],
-          [2, 1],
+          [2, 2],
+          [3, 3],
         ]),
       )
 
       graph.run()
 
-      expect(messages).toEqual([
-        new MultiSet([
+      expect(messages.map(m => m.getInner())).toEqual([
+        [
           [3, -1],
-          [5, -1],
-        ]),
+          [4, -2],
+          [5, -3],
+        ],
       ])
     })
   })
