@@ -209,37 +209,16 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
   }
 
   run(): void {
-    const self = this
-    
-    // Collect all messages first to avoid consuming the iterator multiple times
-    const messages = Array.from(this.inputMessages())
-
-    if (messages.length > 0) {
-      // Collect all results first to check if we have any
-      const allResults: [[K, [V1, string]], number][] = []
-      
-      for (const message of messages) {
-        for (const [item, multiplicity] of message.getInner()) {
-          const [key, value] = item
-          
-          // Collect results from processElementLazy into the array
-          for (const result of self.processElementLazy(key, value, multiplicity)) {
-            allResults.push(result)
-          }
-        }
+    const result: Array<[[K, [V1, string]], number]> = []
+    for (const message of this.inputMessages()) {
+      for (const [item, multiplicity] of message.getInner()) {
+        const [key, value] = item
+        this.processElement(key, value, multiplicity, result)
       }
+    }
 
-      // Only send data if there are results (matching original behavior)
-      if (allResults.length > 0) {
-        // 🟢 TRULY LAZY: Create generator that yields topK changes incrementally
-        const lazyResults = new LazyMultiSet(function* (): Generator<[[K, [V1, string]], number], void, unknown> {
-          for (const result of allResults) {
-            yield result
-          }
-        })
-
-        this.output.sendData(lazyResults)
-      }
+    if (result.length > 0) {
+      this.output.sendData(LazyMultiSet.fromArray(result))
     }
   }
 
@@ -283,46 +262,7 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
     return
   }
 
-  /**
-   * 🟢 TRULY LAZY: Generator-based element processing that yields topK changes incrementally
-   * instead of pushing all results to an array
-   */
-  *processElementLazy(
-    key: K,
-    value: V1,
-    multiplicity: number,
-  ): Generator<[[K, [V1, string]], number], void, unknown> {
-    const oldMultiplicity = this.#index.getMultiplicity(key, value)
-    this.#index.addValue(key, [value, multiplicity])
-    const newMultiplicity = this.#index.getMultiplicity(key, value)
 
-    let res: TopKChanges<HashTaggedValue<V1>> = { moveIn: null, moveOut: null }
-    if (oldMultiplicity <= 0 && newMultiplicity > 0) {
-      // The value was invisible but should now be visible
-      // Need to insert it into the array of sorted values
-      const taggedValue = tagValue(value)
-      res = this.#topK.insert(taggedValue)
-    } else if (oldMultiplicity > 0 && newMultiplicity <= 0) {
-      // The value was visible but should now be invisible
-      // Need to remove it from the array of sorted values
-      const taggedValue = tagValue(value)
-      res = this.#topK.delete(taggedValue)
-    } else {
-      // The value was invisible and it remains invisible
-      // or it was visible and remains visible
-      // so it doesn't affect the topK
-    }
-
-    if (res.moveIn) {
-      const valueWithoutHash = mapValue(res.moveIn, untagValue)
-      yield [[key, valueWithoutHash], 1]
-    }
-
-    if (res.moveOut) {
-      const valueWithoutHash = mapValue(res.moveOut, untagValue)
-      yield [[key, valueWithoutHash], -1]
-    }
-  }
 }
 
 /**

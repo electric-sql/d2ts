@@ -60,30 +60,20 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
 
     const self = this
 
-    // Check if we could have any join results without executing the generator
     const couldHaveResults = (deltaA.size > 0 && self.#indexB.size > 0) || 
                             (self.#indexA.size > 0 && deltaB.size > 0) ||
                             (deltaA.size > 0 && deltaB.size > 0)
 
     if (couldHaveResults) {
-      // 🟢 TRULY LAZY: Create generator that yields join results incrementally
       const lazyResults = new LazyMultiSet(function* () {
-        // First: Join deltaA with existing indexB (new A data × existing B data)
         yield* deltaA.lazyJoin(self.#indexB)
-
-        // Update indexA to include deltaA (matching original implementation)
         self.#indexA.append(deltaA)
-
-        // Second: Join updated indexA with deltaB (includes deltaA × deltaB cross-product)
         yield* self.#indexA.lazyJoin(deltaB)
-
-        // Update indexB for future operations
         self.#indexB.append(deltaB)
       })
 
       this.output.sendData(lazyResults)
     } else {
-      // No potential results, just update indexes
       this.#indexA.append(deltaA)
       this.#indexB.append(deltaB)
     }

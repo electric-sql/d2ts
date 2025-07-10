@@ -125,13 +125,7 @@ export class Index<K, V> {
     return new MultiSet(result)
   }
 
-  /**
-   * 🟢 TRULY LAZY: Generator-based join that yields results incrementally
-   * instead of materializing all results upfront
-   */
   *lazyJoin<V2>(other: Index<K, V2>): Generator<[[K, [V, V2]], number], void, unknown> {
-    // We want to iterate over the smaller of the two indexes to reduce the
-    // number of operations we need to do.
     if (this.size <= other.size) {
       for (const [key, valueMap] of this.entries()) {
         if (!other.has(key)) continue

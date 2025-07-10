@@ -116,7 +116,6 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1], [K, V2]> {
       }
     }
 
-    // 🟢 PSEUDO-LAZY: Use LazyMultiSet for output streaming
     if (result.length > 0) {
       this.output.sendData(LazyMultiSet.fromArray(result))
     }
