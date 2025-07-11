@@ -210,31 +210,20 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
 
   run(): void {
     const self = this
-    const messages = Array.from(this.inputMessages())
 
-    if (messages.length > 0) {
-      const allResults: [[K, [V1, string]], number][] = []
-      
-      for (const message of messages) {
+    // Create truly lazy generator that processes messages on-demand
+    const lazyResults = new LazyMultiSet(function* (): Generator<[[K, [V1, string]], number], void, unknown> {
+      for (const message of self.inputMessages()) {
         for (const [item, multiplicity] of message.getInner()) {
           const [key, value] = item
           
-          for (const result of self.processElementLazy(key, value, multiplicity)) {
-            allResults.push(result)
-          }
+          // Yield results directly from processElementLazy without intermediate array
+          yield* self.processElementLazy(key, value, multiplicity)
         }
       }
+    })
 
-      if (allResults.length > 0) {
-        const lazyResults = new LazyMultiSet(function* (): Generator<[[K, [V1, string]], number], void, unknown> {
-          for (const result of allResults) {
-            yield result
-          }
-        })
-
-        this.output.sendData(lazyResults)
-      }
-    }
+    this.output.sendData(lazyResults)
   }
 
   processElement(
