@@ -151,7 +151,7 @@ describe('LazyMultiSet', () => {
     })
 
     it('should be iterable', () => {
-      const result = []
+      const result: [[string, string | string[]], number][] = []
       for (const entry of a) {
         result.push(entry)
       }
