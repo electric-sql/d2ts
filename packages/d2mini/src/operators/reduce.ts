@@ -31,7 +31,7 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1], [K, V2]> {
     // Collect all input messages and update the index
     const keysTodo = new Set<K>()
     for (const message of this.inputMessages()) {
-      for (const [item, multiplicity] of message.getInner()) {
+      for (const [item, multiplicity] of message) {
         const [key, value] = item
         this.#index.addValue(key, [value, multiplicity])
         keysTodo.add(key)

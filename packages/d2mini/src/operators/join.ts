@@ -42,7 +42,7 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
     const messagesA = this.inputAMessages()
     for (const message of messagesA) {
       const multiSetMessage = message as unknown as MultiSet<[K, V1]>
-      for (const [item, multiplicity] of multiSetMessage.getInner()) {
+      for (const [item, multiplicity] of multiSetMessage) {
         const [key, value] = item
         deltaA.addValue(key, [value, multiplicity])
       }
@@ -52,7 +52,7 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
     const messagesB = this.inputBMessages()
     for (const message of messagesB) {
       const multiSetMessage = message as unknown as MultiSet<[K, V2]>
-      for (const [item, multiplicity] of multiSetMessage.getInner()) {
+      for (const [item, multiplicity] of multiSetMessage) {
         const [key, value] = item
         deltaB.addValue(key, [value, multiplicity])
       }

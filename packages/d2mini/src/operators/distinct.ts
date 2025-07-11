@@ -34,7 +34,7 @@ export class DistinctOperator<T> extends UnaryOperator<T> {
 
     // Compute the new multiplicity for each value
     for (const message of this.inputMessages()) {
-      for (const [value, diff] of message.getInner()) {
+      for (const [value, diff] of message) {
         const hashedValue = hash(this.#by(value))
 
         const oldMultiplicity =

@@ -35,8 +35,7 @@ export function topK<
       reduce((values) => {
         // `values` is a list of tuples, first element is the value, second is the multiplicity
         const consolidated = LazyMultiSet.fromArray(values).consolidate()
-        const sortedValues = consolidated
-          .getInner()
+        const sortedValues = Array.from(consolidated)
           .sort((a, b) => comparator(a[0] as V1, b[0] as V1))
         return sortedValues.slice(offset, offset + limit)
       }),
@@ -76,8 +75,7 @@ export function topKWithIndex<
         // `values` is a list of tuples, first element is the value, second is the multiplicity
         const consolidated = LazyMultiSet.fromArray(values).consolidate()
         let i = offset
-        const sortedValues = consolidated
-          .getInner()
+        const sortedValues = Array.from(consolidated)
           .sort((a, b) => comparator(a[0] as V1, b[0] as V1))
           .slice(offset, offset + limit)
           .map(([value, multiplicity]): [[V1, number], number] => [

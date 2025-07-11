@@ -10,19 +10,35 @@ export class ConsolidateOperator<T> extends UnaryOperator<T> {
   run(): void {
     const messages = this.inputMessages()
 
-    // Create lazy generator that yields all items from all messages
-    const lazyResults = new LazyMultiSet(function* () {
-      for (const message of messages) {
-        for (const item of message) {
-          yield item
+    // Create generator that yields all items from all messages then consolidates
+    function* generateConsolidatedResults() {
+      const lazyResults = new LazyMultiSet(function* () {
+        for (const message of messages) {
+          for (const item of message) {
+            yield item
+          }
         }
-      }
-    }).consolidate()
+      }).consolidate()
+      
+      yield* lazyResults
+    }
 
-    // Only send if there are results after consolidation
-    if (lazyResults.getInner().length > 0) {
+    // Peek to see if there are any results after consolidation
+    const generator = generateConsolidatedResults()
+    const firstResult = generator.next()
+    
+    if (!firstResult.done) {
+      // We have at least one result, create lazy set that includes the first result and the rest
+      const lazyResults = new LazyMultiSet(function* () {
+        // Yield the first result we already got
+        yield firstResult.value
+        // Yield the rest of the results
+        yield* generator
+      })
+
       this.output.sendData(lazyResults)
     }
+    // If no results after consolidation, don't send anything
   }
 }
 

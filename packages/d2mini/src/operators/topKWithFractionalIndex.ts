@@ -214,7 +214,7 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
     // Create generator that processes messages on-demand
     function* generateResults(): Generator<[[K, [V1, string]], number], void, unknown> {
       for (const message of self.inputMessages()) {
-        for (const [item, multiplicity] of message.getInner()) {
+        for (const [item, multiplicity] of message) {
           const [key, value] = item
           
           // Yield results directly from processElementLazy without intermediate array
