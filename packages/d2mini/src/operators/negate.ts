@@ -8,14 +8,6 @@ import { IMultiSet, LazyMultiSet } from '../multiset.js'
  * Operator that negates all multiplicities in the input stream
  */
 export class NegateOperator<T> extends LinearUnaryOperator<T, T> {
-  constructor(
-    id: number,
-    inputA: DifferenceStreamReader<T>,
-    output: DifferenceStreamWriter<T>,
-  ) {
-    super(id, inputA, output)
-  }
-
   inner(collection: IMultiSet<T>): IMultiSet<T> {
     // Use LazyMultiSet for lazy evaluation
     return LazyMultiSet.from(collection).negate()
