@@ -8,10 +8,7 @@ import { LazyMultiSet } from '../multiset.js'
  */
 export class ConsolidateOperator<T> extends UnaryOperator<T> {
   run(): void {
-    const messages = Array.from(this.inputMessages())
-    if (messages.length === 0) {
-      return
-    }
+    const messages = this.inputMessages()
 
     // Create lazy generator that yields all items from all messages
     const lazyResults = new LazyMultiSet(function* () {
