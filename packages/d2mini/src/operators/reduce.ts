@@ -38,8 +38,14 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1], [K, V2]> {
       }
     }
 
-    // For each key, compute the reduction and delta
-    const result: [[K, V2], number][] = []
+    // Pre-compute all changes and state updates for each key
+    const allChanges = new Map<K, { 
+      newOutputMap: Map<string, { value: V2; multiplicity: number }>, 
+      oldOutputMap: Map<string, { value: V2; multiplicity: number }>,
+      commonKeys: Set<string>
+    }>()
+
+    // First pass: compute all the output maps for each key
     for (const key of keysTodo) {
       const curr = this.#index.get(key)
       const currOut = this.#indexOut.get(key)
@@ -77,48 +83,86 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1], [K, V2]> {
 
       const commonKeys = new Set<string>()
 
-      // First, emit removals for old values that are no longer present
+      // Identify common keys between old and new outputs
+      for (const [valueKey] of oldOutputMap) {
+        if (newOutputMap.has(valueKey)) {
+          commonKeys.add(valueKey)
+        }
+      }
+      for (const [valueKey] of newOutputMap) {
+        if (oldOutputMap.has(valueKey)) {
+          commonKeys.add(valueKey)
+        }
+      }
+
+      allChanges.set(key, { newOutputMap, oldOutputMap, commonKeys })
+    }
+
+    // Second pass: apply all state updates
+    for (const [key, { newOutputMap, oldOutputMap, commonKeys }] of allChanges) {
+      // Apply removals to state
       for (const [valueKey, { value, multiplicity }] of oldOutputMap) {
         const newEntry = newOutputMap.get(valueKey)
         if (!newEntry) {
-          // Remove the old value entirely
-          result.push([[key, value], -multiplicity])
           this.#indexOut.addValue(key, [value, -multiplicity])
-        } else {
-          commonKeys.add(valueKey)
         }
       }
 
-      // Then, emit additions for new values that are not present in old
+      // Apply additions to state
       for (const [valueKey, { value, multiplicity }] of newOutputMap) {
         const oldEntry = oldOutputMap.get(valueKey)
         if (!oldEntry) {
-          // Add the new value only if it has non-zero multiplicity
           if (multiplicity !== 0) {
-            result.push([[key, value], multiplicity])
             this.#indexOut.addValue(key, [value, multiplicity])
           }
-        } else {
-          commonKeys.add(valueKey)
         }
       }
 
-      // Then, emit multiplicity changes for values that were present and are still present
+      // Apply multiplicity changes to state
       for (const valueKey of commonKeys) {
         const newEntry = newOutputMap.get(valueKey)
         const oldEntry = oldOutputMap.get(valueKey)
         const delta = newEntry!.multiplicity - oldEntry!.multiplicity
-        // Only emit actual changes, i.e. non-zero deltas
         if (delta !== 0) {
-          result.push([[key, newEntry!.value], delta])
           this.#indexOut.addValue(key, [newEntry!.value, delta])
         }
       }
     }
 
-    if (result.length > 0) {
-      this.output.sendData(LazyMultiSet.fromArray(result))
-    }
+    // Create lazy generator that yields results without intermediate array
+    const lazyResults = new LazyMultiSet(function* (): Generator<[[K, V2], number], void, unknown> {
+      for (const [key, { newOutputMap, oldOutputMap, commonKeys }] of allChanges) {
+        // Yield removals for old values that are no longer present
+        for (const [valueKey, { value, multiplicity }] of oldOutputMap) {
+          const newEntry = newOutputMap.get(valueKey)
+          if (!newEntry) {
+            yield [[key, value], -multiplicity] as [[K, V2], number]
+          }
+        }
+
+        // Yield additions for new values that are not present in old
+        for (const [valueKey, { value, multiplicity }] of newOutputMap) {
+          const oldEntry = oldOutputMap.get(valueKey)
+          if (!oldEntry) {
+            if (multiplicity !== 0) {
+              yield [[key, value], multiplicity] as [[K, V2], number]
+            }
+          }
+        }
+
+        // Yield multiplicity changes for values that were present and are still present
+        for (const valueKey of commonKeys) {
+          const newEntry = newOutputMap.get(valueKey)
+          const oldEntry = oldOutputMap.get(valueKey)
+          const delta = newEntry!.multiplicity - oldEntry!.multiplicity
+          if (delta !== 0) {
+            yield [[key, newEntry!.value], delta] as [[K, V2], number]
+          }
+        }
+      }
+    })
+
+    this.output.sendData(lazyResults)
   }
 }
 
