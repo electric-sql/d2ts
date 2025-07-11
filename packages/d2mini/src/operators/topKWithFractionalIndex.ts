@@ -211,8 +211,8 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
   run(): void {
     const self = this
 
-    // Create truly lazy generator that processes messages on-demand
-    const lazyResults = new LazyMultiSet(function* (): Generator<[[K, [V1, string]], number], void, unknown> {
+    // Create generator that processes messages on-demand
+    function* generateResults(): Generator<[[K, [V1, string]], number], void, unknown> {
       for (const message of self.inputMessages()) {
         for (const [item, multiplicity] of message.getInner()) {
           const [key, value] = item
@@ -221,9 +221,24 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
           yield* self.processElementLazy(key, value, multiplicity)
         }
       }
-    })
+    }
 
-    this.output.sendData(lazyResults)
+    // Peek into generator to see if there are any results before sending
+    const generator = generateResults()
+    const firstResult = generator.next()
+    
+    if (!firstResult.done) {
+      // We have at least one result, create lazy set that includes the first result and the rest
+      const lazyResults = new LazyMultiSet(function* (): Generator<[[K, [V1, string]], number], void, unknown> {
+        // Yield the first result we already got
+        yield firstResult.value
+        // Yield the rest of the results
+        yield* generator
+      })
+
+      this.output.sendData(lazyResults)
+    }
+    // If no results, don't send anything
   }
 
   processElement(
