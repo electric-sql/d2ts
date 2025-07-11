@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest'
 import { D2 } from '../../src/d2.js'
-import { MultiSet } from '../../src/multiset.js'
+import { MultiSet, IMultiSet } from '../../src/multiset.js'
 import { map, output, pipe } from '../../src/operators/index.js'
 
 describe('Operators', () => {
@@ -8,7 +8,7 @@ describe('Operators', () => {
     test('basic pipe operation', () => {
       const graph = new D2()
       const input = graph.newInput<number>()
-      const messages: MultiSet<number>[] = []
+      const messages: IMultiSet<number>[] = []
 
       input.pipe(
         pipe(
@@ -32,12 +32,12 @@ describe('Operators', () => {
 
       graph.run()
 
-      expect(messages).toEqual([
-        new MultiSet([
+      expect(messages.map(m => m.getInner())).toEqual([
+        [
           [12, 1],
           [14, 1],
           [16, 1],
-        ]),
+        ],
       ])
     })
   })

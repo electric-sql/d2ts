@@ -5,7 +5,7 @@ import {
   UnaryOperator,
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
-import { MultiSet } from '../multiset.js'
+import { LazyMultiSet } from '../multiset.js'
 import { Index } from '../indexes.js'
 import { generateKeyBetween } from 'fractional-indexing'
 import { binarySearch, hash } from '../utils.js'
@@ -209,17 +209,36 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
   }
 
   run(): void {
-    const result: Array<[[K, [V1, string]], number]> = []
-    for (const message of this.inputMessages()) {
-      for (const [item, multiplicity] of message.getInner()) {
-        const [key, value] = item
-        this.processElement(key, value, multiplicity, result)
+    const self = this
+
+    // Create generator that processes messages on-demand
+    function* generateResults(): Generator<[[K, [V1, string]], number], void, unknown> {
+      for (const message of self.inputMessages()) {
+        for (const [item, multiplicity] of message) {
+          const [key, value] = item
+          
+          // Yield results directly from processElementLazy without intermediate array
+          yield* self.processElementLazy(key, value, multiplicity)
+        }
       }
     }
 
-    if (result.length > 0) {
-      this.output.sendData(new MultiSet(result))
+    // Peek into generator to see if there are any results before sending
+    const generator = generateResults()
+    const firstResult = generator.next()
+    
+    if (!firstResult.done) {
+      // We have at least one result, create lazy set that includes the first result and the rest
+      const lazyResults = new LazyMultiSet(function* (): Generator<[[K, [V1, string]], number], void, unknown> {
+        // Yield the first result we already got
+        yield firstResult.value
+        // Yield the rest of the results
+        yield* generator
+      })
+
+      this.output.sendData(lazyResults)
     }
+    // If no results, don't send anything
   }
 
   processElement(
@@ -261,6 +280,37 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
 
     return
   }
+
+  *processElementLazy(
+    key: K,
+    value: V1,
+    multiplicity: number,
+  ): Generator<[[K, [V1, string]], number], void, unknown> {
+    const oldMultiplicity = this.#index.getMultiplicity(key, value)
+    this.#index.addValue(key, [value, multiplicity])
+    const newMultiplicity = this.#index.getMultiplicity(key, value)
+
+    let res: TopKChanges<HashTaggedValue<V1>> = { moveIn: null, moveOut: null }
+    if (oldMultiplicity <= 0 && newMultiplicity > 0) {
+      const taggedValue = tagValue(value)
+      res = this.#topK.insert(taggedValue)
+    } else if (oldMultiplicity > 0 && newMultiplicity <= 0) {
+      const taggedValue = tagValue(value)
+      res = this.#topK.delete(taggedValue)
+    }
+
+    if (res.moveIn) {
+      const valueWithoutHash = mapValue(res.moveIn, untagValue)
+      yield [[key, valueWithoutHash], 1]
+    }
+
+    if (res.moveOut) {
+      const valueWithoutHash = mapValue(res.moveOut, untagValue)
+      yield [[key, valueWithoutHash], -1]
+    }
+  }
+
+
 }
 
 /**

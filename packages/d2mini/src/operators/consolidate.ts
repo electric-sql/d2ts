@@ -1,7 +1,7 @@
 import { IStreamBuilder, PipedOperator } from '../types.js'
 import { DifferenceStreamWriter, UnaryOperator } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
-import { MultiSet } from '../multiset.js'
+import { LazyMultiSet } from '../multiset.js'
 
 /**
  * Operator that consolidates collections
@@ -9,23 +9,36 @@ import { MultiSet } from '../multiset.js'
 export class ConsolidateOperator<T> extends UnaryOperator<T> {
   run(): void {
     const messages = this.inputMessages()
-    if (messages.length === 0) {
-      return
+
+    // Create generator that yields all items from all messages then consolidates
+    function* generateConsolidatedResults() {
+      const lazyResults = new LazyMultiSet(function* () {
+        for (const message of messages) {
+          for (const item of message) {
+            yield item
+          }
+        }
+      }).consolidate()
+      
+      yield* lazyResults
     }
 
-    // Combine all messages into a single MultiSet
-    const combined = new MultiSet<T>()
-    for (const message of messages) {
-      combined.extend(message)
-    }
+    // Peek to see if there are any results after consolidation
+    const generator = generateConsolidatedResults()
+    const firstResult = generator.next()
+    
+    if (!firstResult.done) {
+      // We have at least one result, create lazy set that includes the first result and the rest
+      const lazyResults = new LazyMultiSet(function* () {
+        // Yield the first result we already got
+        yield firstResult.value
+        // Yield the rest of the results
+        yield* generator
+      })
 
-    // Consolidate the combined MultiSet
-    const consolidated = combined.consolidate()
-
-    // Only send if there are results
-    if (consolidated.getInner().length > 0) {
-      this.output.sendData(consolidated)
+      this.output.sendData(lazyResults)
     }
+    // If no results after consolidation, don't send anything
   }
 }
 

@@ -5,7 +5,7 @@ import {
   BinaryOperator,
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
-import { MultiSet } from '../multiset.js'
+import { MultiSet, LazyMultiSet } from '../multiset.js'
 import { Index } from '../indexes.js'
 import { negate } from './negate.js'
 import { map } from './map.js'
@@ -42,7 +42,7 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
     const messagesA = this.inputAMessages()
     for (const message of messagesA) {
       const multiSetMessage = message as unknown as MultiSet<[K, V1]>
-      for (const [item, multiplicity] of multiSetMessage.getInner()) {
+      for (const [item, multiplicity] of multiSetMessage) {
         const [key, value] = item
         deltaA.addValue(key, [value, multiplicity])
       }
@@ -52,31 +52,31 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
     const messagesB = this.inputBMessages()
     for (const message of messagesB) {
       const multiSetMessage = message as unknown as MultiSet<[K, V2]>
-      for (const [item, multiplicity] of multiSetMessage.getInner()) {
+      for (const [item, multiplicity] of multiSetMessage) {
         const [key, value] = item
         deltaB.addValue(key, [value, multiplicity])
       }
     }
 
-    // Process results
-    const results = new MultiSet<[K, [V1, V2]]>()
+    const self = this
 
-    // Join deltaA with existing indexB
-    results.extend(deltaA.join(this.#indexB))
+    const couldHaveResults = (deltaA.size > 0 && self.#indexB.size > 0) || 
+                            (self.#indexA.size > 0 && deltaB.size > 0) ||
+                            (deltaA.size > 0 && deltaB.size > 0)
 
-    // Append deltaA to indexA
-    this.#indexA.append(deltaA)
+    if (couldHaveResults) {
+      const lazyResults = new LazyMultiSet(function* () {
+        yield* deltaA.lazyJoin(self.#indexB)
+        self.#indexA.append(deltaA)
+        yield* self.#indexA.lazyJoin(deltaB)
+        self.#indexB.append(deltaB)
+      })
 
-    // Join existing indexA with deltaB
-    results.extend(this.#indexA.join(deltaB))
-
-    // Send results
-    if (results.getInner().length > 0) {
-      this.output.sendData(results)
+      this.output.sendData(lazyResults)
+    } else {
+      this.#indexA.append(deltaA)
+      this.#indexB.append(deltaB)
     }
-
-    // Append deltaB to indexB
-    this.#indexB.append(deltaB)
   }
 }
 

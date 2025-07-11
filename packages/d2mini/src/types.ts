@@ -1,4 +1,4 @@
-import type { MultiSet, MultiSetArray } from './multiset.js'
+import type { MultiSetArray, IMultiSet } from './multiset.js'
 import type { DifferenceStreamWriter, DifferenceStreamReader } from './graph.js'
 
 export type KeyValue<K, V> = [K, V]
@@ -9,12 +9,12 @@ export interface IOperator<_T> {
 }
 
 export interface IDifferenceStreamReader<T> {
-  drain(): MultiSet<T>[]
+  drain(): IMultiSet<T>[]
   isEmpty(): boolean
 }
 
 export interface IDifferenceStreamWriter<T> {
-  sendData(collection: MultiSet<T> | MultiSetArray<T>): void
+  sendData(collection: IMultiSet<T> | MultiSetArray<T>): void
   newReader(): IDifferenceStreamReader<T>
 }
 

@@ -1,4 +1,4 @@
-import { MultiSet, MultiSetArray } from './multiset.js'
+import { MultiSet, MultiSetArray, IMultiSet } from './multiset.js'
 import {
   IOperator,
   IDifferenceStreamReader,
@@ -9,13 +9,13 @@ import {
  * A read handle to a dataflow edge that receives data from a writer.
  */
 export class DifferenceStreamReader<T> implements IDifferenceStreamReader<T> {
-  #queue: MultiSet<T>[]
+  #queue: IMultiSet<T>[]
 
-  constructor(queue: MultiSet<T>[]) {
+  constructor(queue: IMultiSet<T>[]) {
     this.#queue = queue
   }
 
-  drain(): MultiSet<T>[] {
+  drain(): IMultiSet<T>[] {
     const out = [...this.#queue].reverse()
     this.#queue.length = 0
     return out
@@ -30,20 +30,20 @@ export class DifferenceStreamReader<T> implements IDifferenceStreamReader<T> {
  * A write handle to a dataflow edge that is allowed to publish data.
  */
 export class DifferenceStreamWriter<T> implements IDifferenceStreamWriter<T> {
-  #queues: MultiSet<T>[][] = []
+  #queues: IMultiSet<T>[][] = []
 
-  sendData(collection: MultiSet<T> | MultiSetArray<T>): void {
-    if (!(collection instanceof MultiSet)) {
+  sendData(collection: IMultiSet<T> | MultiSetArray<T>): void {
+    if (!(collection instanceof MultiSet) && !('getInner' in collection)) {
       collection = new MultiSet(collection)
     }
 
     for (const q of this.#queues) {
-      q.unshift(collection)
+      q.unshift(collection as IMultiSet<T>)
     }
   }
 
   newReader(): DifferenceStreamReader<T> {
-    const q: MultiSet<T>[] = []
+    const q: IMultiSet<T>[] = []
     this.#queues.push(q)
     return new DifferenceStreamReader(q)
   }
@@ -88,8 +88,8 @@ export abstract class UnaryOperator<Tin, Tout = Tin> extends Operator<
     super(id, [inputA], output)
   }
 
-  inputMessages(): MultiSet<Tin>[] {
-    return this.inputs[0].drain() as MultiSet<Tin>[]
+  inputMessages(): IMultiSet<Tin>[] {
+    return this.inputs[0].drain() as IMultiSet<Tin>[]
   }
 }
 
@@ -107,11 +107,11 @@ export abstract class BinaryOperator<T> extends Operator<T> {
     super(id, [inputA, inputB], output)
   }
 
-  inputAMessages(): MultiSet<T>[] {
+  inputAMessages(): IMultiSet<T>[] {
     return this.inputs[0].drain()
   }
 
-  inputBMessages(): MultiSet<T>[] {
+  inputBMessages(): IMultiSet<T>[] {
     return this.inputs[1].drain()
   }
 }
@@ -120,7 +120,7 @@ export abstract class BinaryOperator<T> extends Operator<T> {
  * Base class for operators that process a single input stream
  */
 export abstract class LinearUnaryOperator<T, U> extends UnaryOperator<T | U> {
-  abstract inner(collection: MultiSet<T | U>): MultiSet<U>
+  abstract inner(collection: IMultiSet<T | U>): IMultiSet<U>
 
   run(): void {
     for (const message of this.inputMessages()) {
