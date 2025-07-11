@@ -1,4 +1,4 @@
-import type { MultiSet, MultiSetArray, IMultiSet } from './multiset.js'
+import type { MultiSetArray, IMultiSet } from './multiset.js'
 import type { DifferenceStreamWriter, DifferenceStreamReader } from './graph.js'
 
 export type KeyValue<K, V> = [K, V]

@@ -247,11 +247,11 @@ export class LazyMultiSet<T> implements IMultiSet<T> {
   /**
    * Concatenate two collections together.
    */
-  concat(other: IMultiSet<T>): IMultiSet<T> {
+  concat(_other: IMultiSet<T>): IMultiSet<T> {
     const sourceGenerator = this.#generator
     return new LazyMultiSet(function* () {
       yield* sourceGenerator()
-      yield* other
+      yield* _other
     })
   }
 
@@ -303,7 +303,7 @@ export class LazyMultiSet<T> implements IMultiSet<T> {
     })
   }
 
-  extend(other: IMultiSet<T> | MultiSetArray<T>): void {
+  extend(_other: IMultiSet<T> | MultiSetArray<T>): void {
     // For lazy multisets, extend creates a new generator that yields both
     // Since we can't modify the generator in place, we'll throw an error for now
     // This method is mainly used internally and we may need to reconsider its API

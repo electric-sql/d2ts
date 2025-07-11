@@ -5,7 +5,7 @@ import {
   UnaryOperator,
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
-import { IMultiSet, LazyMultiSet } from '../multiset.js'
+import { LazyMultiSet } from '../multiset.js'
 import { Index } from '../indexes.js'
 import { hash } from '../utils.js'
 

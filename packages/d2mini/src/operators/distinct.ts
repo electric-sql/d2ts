@@ -6,7 +6,7 @@ import {
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { hash } from '../utils.js'
-import { IMultiSet, LazyMultiSet } from '../multiset.js'
+import { LazyMultiSet } from '../multiset.js'
 
 type HashedValue = string
 type Multiplicity = number

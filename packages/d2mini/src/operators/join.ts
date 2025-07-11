@@ -5,7 +5,7 @@ import {
   BinaryOperator,
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
-import { MultiSet, IMultiSet, LazyMultiSet } from '../multiset.js'
+import { MultiSet, LazyMultiSet } from '../multiset.js'
 import { Index } from '../indexes.js'
 import { negate } from './negate.js'
 import { map } from './map.js'

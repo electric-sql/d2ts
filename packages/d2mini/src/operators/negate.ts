@@ -1,5 +1,5 @@
 import { IStreamBuilder, PipedOperator } from '../types.js'
-import { DifferenceStreamReader, DifferenceStreamWriter } from '../graph.js'
+import { DifferenceStreamWriter } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
 import { LinearUnaryOperator } from '../graph.js'
 import { IMultiSet, LazyMultiSet } from '../multiset.js'
