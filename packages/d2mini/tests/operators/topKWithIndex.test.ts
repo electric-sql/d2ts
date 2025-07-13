@@ -3,7 +3,11 @@ import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import { output } from '../../src/operators/index.js'
 import { topKWithIndex } from '../../src/operators/topK.js'
-import { MessageTracker, assertResults } from '../test-utils.js'
+import {
+  MessageTracker,
+  assertResults,
+  assertOnlyKeysAffected,
+} from '../test-utils.js'
 
 describe('Operators', () => {
   describe('TopKWithIndex operation', () => {
@@ -211,10 +215,6 @@ describe('Operators', () => {
       // and that only the affected key (null) produces output
       const updateResult = tracker.getResult()
 
-      console.log(
-        `topK after removing b: ${updateResult.messageCount} messages, ${updateResult.sortedResults.length} final results`,
-      )
-
       // Verify we got a reasonable number of messages (not the entire dataset)
       expect(updateResult.messageCount).toBeLessThanOrEqual(8) // Should be incremental, not full recompute
       expect(updateResult.messageCount).toBeGreaterThan(0) // Should have some changes
@@ -223,11 +223,7 @@ describe('Operators', () => {
       expect(updateResult.sortedResults.length).toBeGreaterThan(0)
 
       // Check that the messages only affect the null key (verify incremental processing)
-      const affectedKeys = new Set(
-        updateResult.messages.map(([[key, _value], _mult]) => key),
-      )
-      expect(affectedKeys.size).toBe(1)
-      expect(affectedKeys.has(null)).toBe(true)
+      assertOnlyKeysAffected('topK remove row', updateResult.messages, [null])
     })
 
     test('incremental update - adding rows that push existing rows out of limit window', () => {

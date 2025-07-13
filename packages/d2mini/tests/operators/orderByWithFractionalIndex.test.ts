@@ -8,7 +8,11 @@ import {
 import { orderByWithFractionalIndexBTree } from '../../src/operators/orderByBTree.js'
 import { KeyValue } from '../../src/types.js'
 import { loadBTree } from '../../src/operators/topKWithFractionalIndexBTree.js'
-import { MessageTracker } from '../test-utils.js'
+import {
+  MessageTracker,
+  assertOnlyKeysAffected,
+  assertKeyedResults,
+} from '../test-utils.js'
 
 const stripFractionalIndex = ([[key, [value, _index]], multiplicity]) => [
   key,
@@ -365,10 +369,6 @@ describe('Operators', () => {
       graph.run()
 
       const initialResult = tracker.getResult()
-      console.log(
-        `orderBy initial: ${initialResult.messageCount} messages, ${initialResult.sortedResults.length} final results`,
-      )
-
       // Should have the top 3 items by value
       expect(initialResult.sortedResults.length).toBe(3)
       expect(initialResult.messageCount).toBeLessThanOrEqual(4) // Should be efficient
@@ -384,24 +384,15 @@ describe('Operators', () => {
       graph.run()
 
       const updateResult = tracker.getResult()
-      console.log(
-        `orderBy remove: ${updateResult.messageCount} messages, ${updateResult.sortedResults.length} final results`,
-      )
-
       // Should have efficient incremental update
       expect(updateResult.messageCount).toBeLessThanOrEqual(4) // Should be incremental
       expect(updateResult.messageCount).toBeGreaterThan(0) // Should have changes
 
       // Check that only affected keys produce messages - should be key1 (removed) and key4 (added to top 3)
-      const affectedKeys = new Set(
-        updateResult.messages.map(([[key, _value], _mult]) => key),
-      )
-      expect(affectedKeys.size).toBeLessThanOrEqual(2) // Should only affect key1 and key4
-
-      // Verify specific keys are affected
-      for (const key of affectedKeys) {
-        expect(['key1', 'key4'].includes(key)).toBe(true)
-      }
+      assertOnlyKeysAffected('orderBy remove', updateResult.messages, [
+        'key1',
+        'key4',
+      ])
     })
 
     test('incremental update - modifying a row', () => {
@@ -440,10 +431,6 @@ describe('Operators', () => {
       graph.run()
 
       const initialResult = tracker.getResult()
-      console.log(
-        `orderBy modify initial: ${initialResult.messageCount} messages, ${initialResult.sortedResults.length} final results`,
-      )
-
       // Should have the top 3 items by value
       expect(initialResult.sortedResults.length).toBe(3)
       expect(initialResult.messageCount).toBeLessThanOrEqual(4) // Should be efficient
@@ -460,24 +447,15 @@ describe('Operators', () => {
       graph.run()
 
       const updateResult = tracker.getResult()
-      console.log(
-        `orderBy modify update: ${updateResult.messageCount} messages, ${updateResult.sortedResults.length} final results`,
-      )
-
       // Should have efficient incremental update
       expect(updateResult.messageCount).toBeLessThanOrEqual(6) // Should be incremental (modify operation)
       expect(updateResult.messageCount).toBeGreaterThan(0) // Should have changes
 
       // Check that only affected keys produce messages - should be key2 (modified) and key4 (added to top 3)
-      const affectedKeys = new Set(
-        updateResult.messages.map(([[key, _value], _mult]) => key),
-      )
-      expect(affectedKeys.size).toBeLessThanOrEqual(2) // Should only affect key2 and key4
-
-      // Verify specific keys are affected
-      for (const key of affectedKeys) {
-        expect(['key2', 'key4'].includes(key)).toBe(true)
-      }
+      assertOnlyKeysAffected('orderBy modify', updateResult.messages, [
+        'key2',
+        'key4',
+      ])
     })
   })
 })
