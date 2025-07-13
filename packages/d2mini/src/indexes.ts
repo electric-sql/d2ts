@@ -13,7 +13,7 @@ export class Index<K, V> {
     this.#inner = new DefaultMap<K, Map<V, number>>(
       () => new Map<V, number>(),
     )
-    // #inner is now a map of:
+    // #inner is a map of:
     // {
     //   [key]: Map<V, number>  // Direct value-to-multiplicity mapping
     // }

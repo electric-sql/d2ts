@@ -1,4 +1,4 @@
-import { chunkedArrayPush } from './utils.js'
+import { DefaultMap, chunkedArrayPush, hash } from './utils.js'
 
 export type MultiSetArray<T> = [T, number][]
 export type KeyedData<T> = [key: string, value: T]
@@ -66,21 +66,42 @@ export class MultiSet<T> {
    * (record, multiplicity) pair.
    */
   consolidate(): MultiSet<T> {
-    const consolidated = new Map<string, { data: T, multiplicity: number }>()
+    const consolidated = new DefaultMap<string | number, number>(() => 0)
+    const values = new Map<string, any>()
 
-    for (const [data, multiplicity] of this.#inner) {
-      const key = JSON.stringify(data)
-      const existing = consolidated.get(key)
-      const newMultiplicity = (existing?.multiplicity ?? 0) + multiplicity
-      
-      if (newMultiplicity === 0) {
-        consolidated.delete(key)
+    let hasString = false
+    let hasNumber = false
+    let hasOther = false
+    for (const [data, _] of this.#inner) {
+      if (typeof data === 'string') {
+        hasString = true
+      } else if (typeof data === 'number') {
+        hasNumber = true
       } else {
-        consolidated.set(key, { data, multiplicity: newMultiplicity })
+        hasOther = true
+        break
       }
     }
 
-    return new MultiSet([...consolidated.values()].map(entry => [entry.data, entry.multiplicity]))
+    const requireJson = hasOther || (hasString && hasNumber)
+
+    for (const [data, multiplicity] of this.#inner) {
+      const key = requireJson ? hash(data) : (data as string | number)
+      if (requireJson && !values.has(key as string)) {
+        values.set(key as string, data)
+      }
+      consolidated.update(key, (count) => count + multiplicity)
+    }
+
+    const result: MultiSetArray<T> = []
+    for (const [key, multiplicity] of consolidated.entries()) {
+      if (multiplicity !== 0) {
+        const parsedKey = requireJson ? values.get(key as string) : key
+        result.push([parsedKey as T, multiplicity])
+      }
+    }
+
+    return new MultiSet(result)
   }
 
   extend(other: MultiSet<T> | MultiSetArray<T>): void {

@@ -5,9 +5,10 @@ import {
   UnaryOperator,
 } from '../graph.js'
 import { StreamBuilder } from '../d2.js'
-import { MultiSet } from '../multiset.js'
 import { hash } from '../utils.js'
+import { MultiSet } from '../multiset.js'
 
+type HashedValue = string
 type Multiplicity = number
 
 /**
@@ -15,7 +16,7 @@ type Multiplicity = number
  */
 export class DistinctOperator<T> extends UnaryOperator<T> {
   #by: (value: T) => any
-  #values: Map<string, { multiplicity: Multiplicity, value: T }> // keeps track of the number of times each distinct value has been seen
+  #values: Map<HashedValue, Multiplicity> // keeps track of the number of times each value has been seen
 
   constructor(
     id: number,
@@ -29,21 +30,20 @@ export class DistinctOperator<T> extends UnaryOperator<T> {
   }
 
   run(): void {
-    const updatedValues = new Map<string, [Multiplicity, T]>()
+    const updatedValues = new Map<HashedValue, [Multiplicity, T]>()
 
     // Compute the new multiplicity for each value
     for (const message of this.inputMessages()) {
       for (const [value, diff] of message.getInner()) {
-        const distinctValue = this.#by(value)
-        const distinctKey = hash(distinctValue)
+        const hashedValue = hash(this.#by(value))
 
         const oldMultiplicity =
-          updatedValues.get(distinctKey)?.[0] ??
-          this.#values.get(distinctKey)?.multiplicity ??
+          updatedValues.get(hashedValue)?.[0] ??
+          this.#values.get(hashedValue) ??
           0
         const newMultiplicity = oldMultiplicity + diff
 
-        updatedValues.set(distinctKey, [newMultiplicity, value])
+        updatedValues.set(hashedValue, [newMultiplicity, value])
       }
     }
 
@@ -51,15 +51,15 @@ export class DistinctOperator<T> extends UnaryOperator<T> {
 
     // Check which values became visible or disappeared
     for (const [
-      distinctKey,
+      hashedValue,
       [newMultiplicity, value],
     ] of updatedValues.entries()) {
-      const oldMultiplicity = this.#values.get(distinctKey)?.multiplicity ?? 0
+      const oldMultiplicity = this.#values.get(hashedValue) ?? 0
 
       if (newMultiplicity === 0) {
-        this.#values.delete(distinctKey)
+        this.#values.delete(hashedValue)
       } else {
-        this.#values.set(distinctKey, { multiplicity: newMultiplicity, value })
+        this.#values.set(hashedValue, newMultiplicity)
       }
 
       if (oldMultiplicity <= 0 && newMultiplicity > 0) {

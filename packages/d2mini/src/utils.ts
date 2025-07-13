@@ -1,4 +1,4 @@
-import * as murmurhash from 'murmurhash-js'
+import murmurhash from 'murmurhash-js'
 
 /**
  * A map that returns a default value for keys that are not present.
@@ -71,31 +71,16 @@ function hashReplacer(_key: string, value: any): any {
  * A hash method that caches the hash of a value in a week map
  */
 export function hash(data: any): string {
-  // Fast path for primitives - avoid JSON.stringify overhead
-  // Include type prefix to ensure different types don't collide
-  if (typeof data === 'string') {
-    return murmurhash.murmur3(`s:${data}`).toString(16)
-  }
-  if (typeof data === 'number') {
-    return murmurhash.murmur3(`n:${data.toString()}`).toString(16)
-  }
-  if (typeof data === 'boolean') {
-    return murmurhash.murmur3(`b:${data ? 'true' : 'false'}`).toString(16)
-  }
-  if (data === null) {
-    return murmurhash.murmur3('null').toString(16)
-  }
-  if (data === undefined) {
-    return murmurhash.murmur3('undefined').toString(16)
-  }
-  if (typeof data === 'bigint') {
-    return murmurhash.murmur3(`i:${data.toString()}`).toString(16)
-  }
-  if (typeof data === 'symbol') {
-    return murmurhash.murmur3(`y:${data.toString()}`).toString(16)
+  if (
+    data === null ||
+    data === undefined ||
+    (typeof data !== 'object' && typeof data !== 'function')
+  ) {
+    // Can't be cached in the weak map because it's not an object
+    const serialized = JSON.stringify(data, hashReplacer)
+    return murmurhash.murmur3(serialized).toString(16)
   }
 
-  // For objects and functions, use the existing caching mechanism
   if (hashCache.has(data)) {
     return hashCache.get(data)
   }
