@@ -4,6 +4,7 @@ import { MultiSet } from '../../src/multiset.js'
 import { join, JoinType } from '../../src/operators/join.js'
 import { output } from '../../src/operators/output.js'
 import { consolidate } from '../../src/operators/consolidate.js'
+import { KeyedMessageTracker, assertKeyedResults, assertOnlyKeysAffected } from '../test-utils.js'
 
 /**
  * Sort results by multiplicity and then key
@@ -36,13 +37,13 @@ describe('Operators', () => {
           const graph = new D2()
           const inputA = graph.newInput<[string, string]>()
           const inputB = graph.newInput<[string, string]>()
-          const results: any[] = []
+          const tracker = new KeyedMessageTracker<string, [string | null, string | null]>()
 
           inputA.pipe(
             join(inputB, joinType as any),
             consolidate(),
             output((message) => {
-              results.push(...message.getInner())
+              tracker.addMessage(message)
             }),
           )
 
@@ -78,78 +79,33 @@ describe('Operators', () => {
           // Run the graph - should process all batches
           graph.run()
 
-          // Collect all keys that appear in the results (regardless of multiplicity)
-          const processedKeys = new Set<string>()
-          for (const [[key, _], _mult] of results) {
-            processedKeys.add(key)
-          }
+          const result = tracker.getResult()
 
-          // Verify behavior based on join type
+          // Determine expected keys based on join type
+          let expectedKeys: string[] = []
           switch (joinType) {
             case 'inner':
-              // Only matching keys should appear
-              expect(processedKeys.has('batch1_item1')).toBe(true)
-              expect(processedKeys.has('batch2_item1')).toBe(true)
-              expect(processedKeys.has('batch3_item2')).toBe(true)
-              // Non-matching keys should not appear
-              expect(processedKeys.has('batch1_item2')).toBe(false)
-              expect(processedKeys.has('batch3_item1')).toBe(false)
-              expect(processedKeys.has('non_matching')).toBe(false)
-              expect(processedKeys.size).toBe(3)
+              expectedKeys = ['batch1_item1', 'batch2_item1', 'batch3_item2']
               break
-
             case 'left':
-              // All inputA keys should appear (some with null for inputB)
-              expect(processedKeys.has('batch1_item1')).toBe(true) // matched
-              expect(processedKeys.has('batch1_item2')).toBe(true) // unmatched
-              expect(processedKeys.has('batch2_item1')).toBe(true) // matched
-              expect(processedKeys.has('batch3_item1')).toBe(true) // unmatched
-              expect(processedKeys.has('batch3_item2')).toBe(true) // matched
-              // InputB-only keys should not appear
-              expect(processedKeys.has('non_matching')).toBe(false)
-              expect(processedKeys.size).toBe(5)
+              expectedKeys = ['batch1_item1', 'batch1_item2', 'batch2_item1', 'batch3_item1', 'batch3_item2']
               break
-
             case 'right':
-              // All inputB keys should appear (some with null for inputA)
-              expect(processedKeys.has('batch1_item1')).toBe(true) // matched
-              expect(processedKeys.has('batch2_item1')).toBe(true) // matched
-              expect(processedKeys.has('batch3_item2')).toBe(true) // matched
-              expect(processedKeys.has('non_matching')).toBe(true) // unmatched
-              // InputA-only keys should not appear
-              expect(processedKeys.has('batch1_item2')).toBe(false)
-              expect(processedKeys.has('batch3_item1')).toBe(false)
-              expect(processedKeys.size).toBe(4)
+              expectedKeys = ['batch1_item1', 'batch2_item1', 'batch3_item2', 'non_matching']
               break
-
             case 'full':
-              // All keys from both inputs should appear
-              expect(processedKeys.has('batch1_item1')).toBe(true) // matched
-              expect(processedKeys.has('batch1_item2')).toBe(true) // inputA only
-              expect(processedKeys.has('batch2_item1')).toBe(true) // matched
-              expect(processedKeys.has('batch3_item1')).toBe(true) // inputA only
-              expect(processedKeys.has('batch3_item2')).toBe(true) // matched
-              expect(processedKeys.has('non_matching')).toBe(true) // inputB only
-              expect(processedKeys.size).toBe(6)
+              expectedKeys = ['batch1_item1', 'batch1_item2', 'batch2_item1', 'batch3_item1', 'batch3_item2', 'non_matching']
               break
-
             case 'anti':
-              // Only inputA keys that don't match inputB should appear
-              expect(processedKeys.has('batch1_item2')).toBe(true) // unmatched in inputA
-              expect(processedKeys.has('batch3_item1')).toBe(true) // unmatched in inputA
-              // Matched keys should not appear
-              expect(processedKeys.has('batch1_item1')).toBe(false)
-              expect(processedKeys.has('batch2_item1')).toBe(false)
-              expect(processedKeys.has('batch3_item2')).toBe(false)
-              // InputB-only keys should not appear
-              expect(processedKeys.has('non_matching')).toBe(false)
-              expect(processedKeys.size).toBe(2)
+              expectedKeys = ['batch1_item2', 'batch3_item1']
               break
           }
 
-          // Most importantly: ensure we actually got some results
-          // (This test would have failed before the bug fix due to data loss)
-          expect(results.length).toBeGreaterThan(0)
+          // Assert only expected keys are affected
+          assertOnlyKeysAffected(`${joinType} join with multiple batches`, result.messages, expectedKeys)
+
+          // Verify that we actually got some results
+          expect(result.messages.length).toBeGreaterThan(0)
         })
       })
     })
@@ -161,13 +117,13 @@ function testJoin(joinType: JoinType) {
     const graph = new D2()
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
-    const results: any[] = []
+    const tracker = new KeyedMessageTracker<number, [string | null, string | null]>()
 
     inputA.pipe(
       join(inputB, joinType as any),
       consolidate(),
       output((message) => {
-        results.push(...message.getInner())
+        tracker.addMessage(message)
       }),
     )
 
@@ -187,46 +143,52 @@ function testJoin(joinType: JoinType) {
     )
     graph.run()
 
-    const expectedResults = {
+    const expectedResults: Record<JoinType, [number, [string | null, string | null]][]> = {
       inner: [
         // only 2 is in both streams, so we get it
-        [[2, ['B', 'X']], 1],
+        [2, ['B', 'X']],
       ],
       left: [
         // 1 and 2 are in inputA, so we get them
         // 3 is not in inputA, so we don't get it
-        [[1, ['A', null]], 1],
-        [[2, ['B', 'X']], 1],
+        [1, ['A', null]],
+        [2, ['B', 'X']],
       ],
       right: [
         // 2 and 3 are in inputB, so we get them
         // 1 is not in inputB, so we don't get it
-        [[2, ['B', 'X']], 1],
-        [[3, [null, 'Y']], 1],
+        [2, ['B', 'X']],
+        [3, [null, 'Y']],
       ],
       full: [
         // We get all the rows from both streams
-        [[1, ['A', null]], 1],
-        [[2, ['B', 'X']], 1],
-        [[3, [null, 'Y']], 1],
+        [1, ['A', null]],
+        [2, ['B', 'X']],
+        [3, [null, 'Y']],
       ],
-      anti: [[[1, ['A', null]], 1]],
+      anti: [[1, ['A', null]]],
     }
 
-    expect(sortResults(results)).toEqual(expectedResults[joinType])
+    const result = tracker.getResult()
+    assertKeyedResults(
+      `${joinType} join - initial join with missing rows`,
+      result,
+      expectedResults[joinType],
+      6 // Max expected messages (generous upper bound)
+    )
   })
 
   test('insert left', () => {
     const graph = new D2()
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
-    const results: any[] = []
+    const tracker = new KeyedMessageTracker<number, [string | null, string | null]>()
 
     inputA.pipe(
       join(inputB, joinType as any),
       consolidate(),
       output((message) => {
-        results.push(...message.getInner())
+        tracker.addMessage(message)
       }),
     )
 
@@ -253,38 +215,42 @@ function testJoin(joinType: JoinType) {
         */
 
     // Check initial state
-    const initialExpectedResults = {
+    const initialExpectedResults: Record<JoinType, [number, [string | null, string | null]][]> = {
       inner: [
         // Only 1 is in both tables, so it's the only result
-        [[1, ['A', 'X']], 1],
+        [1, ['A', 'X']],
       ],
       left: [
         // Only 1 is in both tables, so it's the only result
-        [[1, ['A', 'X']], 1],
+        [1, ['A', 'X']],
       ],
       right: [
         // 1 is in both so we get it
-        [[1, ['A', 'X']], 1],
+        [1, ['A', 'X']],
         // 2 is in inputB, but not in inputA, we get null for inputA
-        [[2, [null, 'Y']], 1],
+        [2, [null, 'Y']],
       ],
       full: [
         // 1 is in both so we get it
-        [[1, ['A', 'X']], 1],
+        [1, ['A', 'X']],
         // 2 is in inputB, but not in inputA, we get null for inputA
-        [[2, [null, 'Y']], 1],
+        [2, [null, 'Y']],
       ],
       anti: [
         // there is nothing unmatched on the left side, so we get nothing
       ],
     }
 
-    expect(sortResults(results)).toEqual(
-      sortResults(initialExpectedResults[joinType]),
+    const initialResult = tracker.getResult()
+    assertKeyedResults(
+      `${joinType} join - insert left (initial)`,
+      initialResult,
+      initialExpectedResults[joinType],
+      4 // Max expected messages for initial join
     )
 
     // Clear results after initial join
-    results.length = 0
+    tracker.reset()
 
     // Insert on left side
     inputA.sendData(new MultiSet([[[2, 'B'], 1]]))
@@ -301,33 +267,44 @@ function testJoin(joinType: JoinType) {
         | 2 | Y |
         */
 
-    const expectedResults = {
+    const expectedResults: Record<JoinType, [number, [string | null, string | null]][]> = {
       inner: [
         // 2 is now in both tables, so we receive it for the first time
-        [[2, ['B', 'Y']], 1],
+        [2, ['B', 'Y']],
       ],
       left: [
         // 2 is now in both tables, so we receive it for the first time
-        [[2, ['B', 'Y']], 1],
+        [2, ['B', 'Y']],
       ],
       right: [
         // we already received 2, but it's updated so we get a -1 and a +1
         // this changes its inputA value from null to B
-        [[2, [null, 'Y']], -1],
-        [[2, ['B', 'Y']], 1],
+        [2, ['B', 'Y']],
       ],
       full: [
         // we already received 2, but it's updated so we get a -1 and a +1
         // this changes its inputA value from null to B
-        [[2, [null, 'Y']], -1],
-        [[2, ['B', 'Y']], 1],
+        [2, ['B', 'Y']],
       ],
       anti: [
         // there is nothing unmatched on the left side, so we get nothing
       ],
     }
 
-    expect(sortResults(results)).toEqual(sortResults(expectedResults[joinType]))
+    const result = tracker.getResult()
+    assertKeyedResults(
+      `${joinType} join - insert left`,
+      result,
+      expectedResults[joinType],
+      4 // Max expected messages for incremental update
+    )
+    
+    // Verify only affected keys produced messages
+    assertOnlyKeysAffected(
+      `${joinType} join - insert left`,
+      result.messages,
+      [2] // Only key 2 should be affected
+    )
   })
 
   test('insert right', () => {
