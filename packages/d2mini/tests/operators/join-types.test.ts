@@ -4,7 +4,11 @@ import { MultiSet } from '../../src/multiset.js'
 import { join, JoinType } from '../../src/operators/join.js'
 import { output } from '../../src/operators/output.js'
 import { consolidate } from '../../src/operators/consolidate.js'
-import { KeyedMessageTracker, assertKeyedResults, assertOnlyKeysAffected } from '../test-utils.js'
+import {
+  KeyedMessageTracker,
+  assertKeyedResults,
+  assertOnlyKeysAffected,
+} from '../test-utils.js'
 
 /**
  * Sort results by multiplicity and then key
@@ -37,7 +41,10 @@ describe('Operators', () => {
           const graph = new D2()
           const inputA = graph.newInput<[string, string]>()
           const inputB = graph.newInput<[string, string]>()
-          const tracker = new KeyedMessageTracker<string, [string | null, string | null]>()
+          const tracker = new KeyedMessageTracker<
+            string,
+            [string | null, string | null]
+          >()
 
           inputA.pipe(
             join(inputB, joinType as any),
@@ -88,13 +95,31 @@ describe('Operators', () => {
               expectedKeys = ['batch1_item1', 'batch2_item1', 'batch3_item2']
               break
             case 'left':
-              expectedKeys = ['batch1_item1', 'batch1_item2', 'batch2_item1', 'batch3_item1', 'batch3_item2']
+              expectedKeys = [
+                'batch1_item1',
+                'batch1_item2',
+                'batch2_item1',
+                'batch3_item1',
+                'batch3_item2',
+              ]
               break
             case 'right':
-              expectedKeys = ['batch1_item1', 'batch2_item1', 'batch3_item2', 'non_matching']
+              expectedKeys = [
+                'batch1_item1',
+                'batch2_item1',
+                'batch3_item2',
+                'non_matching',
+              ]
               break
             case 'full':
-              expectedKeys = ['batch1_item1', 'batch1_item2', 'batch2_item1', 'batch3_item1', 'batch3_item2', 'non_matching']
+              expectedKeys = [
+                'batch1_item1',
+                'batch1_item2',
+                'batch2_item1',
+                'batch3_item1',
+                'batch3_item2',
+                'non_matching',
+              ]
               break
             case 'anti':
               expectedKeys = ['batch1_item2', 'batch3_item1']
@@ -102,7 +127,11 @@ describe('Operators', () => {
           }
 
           // Assert only expected keys are affected
-          assertOnlyKeysAffected(`${joinType} join with multiple batches`, result.messages, expectedKeys)
+          assertOnlyKeysAffected(
+            `${joinType} join with multiple batches`,
+            result.messages,
+            expectedKeys,
+          )
 
           // Verify that we actually got some results
           expect(result.messages.length).toBeGreaterThan(0)
@@ -117,7 +146,10 @@ function testJoin(joinType: JoinType) {
     const graph = new D2()
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
-    const tracker = new KeyedMessageTracker<number, [string | null, string | null]>()
+    const tracker = new KeyedMessageTracker<
+      number,
+      [string | null, string | null]
+    >()
 
     inputA.pipe(
       join(inputB, joinType as any),
@@ -143,7 +175,10 @@ function testJoin(joinType: JoinType) {
     )
     graph.run()
 
-    const expectedResults: Record<JoinType, [number, [string | null, string | null]][]> = {
+    const expectedResults: Record<
+      JoinType,
+      [number, [string | null, string | null]][]
+    > = {
       inner: [
         // only 2 is in both streams, so we get it
         [2, ['B', 'X']],
@@ -174,7 +209,7 @@ function testJoin(joinType: JoinType) {
       `${joinType} join - initial join with missing rows`,
       result,
       expectedResults[joinType],
-      6 // Max expected messages (generous upper bound)
+      6, // Max expected messages (generous upper bound)
     )
   })
 
@@ -182,7 +217,10 @@ function testJoin(joinType: JoinType) {
     const graph = new D2()
     const inputA = graph.newInput<[number, string]>()
     const inputB = graph.newInput<[number, string]>()
-    const tracker = new KeyedMessageTracker<number, [string | null, string | null]>()
+    const tracker = new KeyedMessageTracker<
+      number,
+      [string | null, string | null]
+    >()
 
     inputA.pipe(
       join(inputB, joinType as any),
@@ -215,7 +253,10 @@ function testJoin(joinType: JoinType) {
         */
 
     // Check initial state
-    const initialExpectedResults: Record<JoinType, [number, [string | null, string | null]][]> = {
+    const initialExpectedResults: Record<
+      JoinType,
+      [number, [string | null, string | null]][]
+    > = {
       inner: [
         // Only 1 is in both tables, so it's the only result
         [1, ['A', 'X']],
@@ -246,7 +287,7 @@ function testJoin(joinType: JoinType) {
       `${joinType} join - insert left (initial)`,
       initialResult,
       initialExpectedResults[joinType],
-      4 // Max expected messages for initial join
+      4, // Max expected messages for initial join
     )
 
     // Clear results after initial join
@@ -267,7 +308,10 @@ function testJoin(joinType: JoinType) {
         | 2 | Y |
         */
 
-    const expectedResults: Record<JoinType, [number, [string | null, string | null]][]> = {
+    const expectedResults: Record<
+      JoinType,
+      [number, [string | null, string | null]][]
+    > = {
       inner: [
         // 2 is now in both tables, so we receive it for the first time
         [2, ['B', 'Y']],
@@ -296,14 +340,14 @@ function testJoin(joinType: JoinType) {
       `${joinType} join - insert left`,
       result,
       expectedResults[joinType],
-      4 // Max expected messages for incremental update
+      4, // Max expected messages for incremental update
     )
-    
+
     // Verify only affected keys produced messages
     assertOnlyKeysAffected(
       `${joinType} join - insert left`,
       result.messages,
-      [2] // Only key 2 should be affected
+      [2], // Only key 2 should be affected
     )
   })
 

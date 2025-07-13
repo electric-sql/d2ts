@@ -9,6 +9,7 @@ import { MultiSet } from '../multiset.js'
 import { Index } from '../indexes.js'
 import { generateKeyBetween } from 'fractional-indexing'
 import { binarySearch } from '../utils.js'
+import { globalObjectIdGenerator } from '../utils.js'
 
 export interface TopKWithFractionalIndexOptions {
   limit?: number
@@ -203,7 +204,10 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
   protected createTopK(
     offset: number,
     limit: number,
-    comparator: (a: TieBreakerTaggedValue<V1>, b: TieBreakerTaggedValue<V1>) => number,
+    comparator: (
+      a: TieBreakerTaggedValue<V1>,
+      b: TieBreakerTaggedValue<V1>,
+    ) => number,
   ): TopK<TieBreakerTaggedValue<V1>> {
     return new TopKArray(offset, limit, comparator)
   }
@@ -232,7 +236,10 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
     this.#index.addValue(key, [value, multiplicity])
     const newMultiplicity = this.#index.getMultiplicity(key, value)
 
-    let res: TopKChanges<TieBreakerTaggedValue<V1>> = { moveIn: null, moveOut: null }
+    let res: TopKChanges<TieBreakerTaggedValue<V1>> = {
+      moveIn: null,
+      moveOut: null,
+    }
     if (oldMultiplicity <= 0 && newMultiplicity > 0) {
       // The value was invisible but should now be visible
       // Need to insert it into the array of sorted values
@@ -334,43 +341,19 @@ function mapValue<V, W>(
   return [f(getValue(value)), getIndex(value)]
 }
 
-  // Abstraction for values tagged with a tie breaker
-// Object identity-based tie-breaking using WeakMap
-const objectIds = new WeakMap<object, number>()
-let nextObjectId = 0
-
-function getObjectId(value: any): number {
-  // For primitives, use a simple hash of their string representation
-  if (typeof value !== 'object' || value === null) {
-    // Simple string-based hash for primitives to ensure consistency
-    const str = String(value)
-    let hash = 0
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i)
-      hash = ((hash << 5) - hash) + char
-      hash = hash & hash // Convert to 32-bit integer
-    }
-    return hash
-  }
-  
-  // For objects, use WeakMap to assign unique IDs
-  if (!objectIds.has(value)) {
-    objectIds.set(value, nextObjectId++)
-  }
-  return objectIds.get(value)!
-}
-
 export type TieBreaker = number
 export type TieBreakerTaggedValue<V> = [V, TieBreaker]
 
 function tagValue<V>(value: V): TieBreakerTaggedValue<V> {
-  return [value, getObjectId(value)]
+  return [value, globalObjectIdGenerator.getId(value)]
 }
 
 function untagValue<V>(tieBreakerTaggedValue: TieBreakerTaggedValue<V>): V {
   return tieBreakerTaggedValue[0]
 }
 
-function getTieBreaker<V>(tieBreakerTaggedValue: TieBreakerTaggedValue<V>): TieBreaker {
+function getTieBreaker<V>(
+  tieBreakerTaggedValue: TieBreakerTaggedValue<V>,
+): TieBreaker {
   return tieBreakerTaggedValue[1]
 }

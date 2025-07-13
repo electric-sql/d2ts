@@ -240,7 +240,10 @@ export class TopKWithFractionalIndexBTreeOperator<
   protected override createTopK(
     offset: number,
     limit: number,
-    comparator: (a: TieBreakerTaggedValue<V1>, b: TieBreakerTaggedValue<V1>) => number,
+    comparator: (
+      a: TieBreakerTaggedValue<V1>,
+      b: TieBreakerTaggedValue<V1>,
+    ) => number,
   ): TopK<TieBreakerTaggedValue<V1>> {
     if (!BTree) {
       throw new Error(

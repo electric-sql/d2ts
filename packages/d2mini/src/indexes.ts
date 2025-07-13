@@ -10,9 +10,7 @@ export class Index<K, V> {
   #inner: DefaultMap<K, Map<V, number>>
 
   constructor() {
-    this.#inner = new DefaultMap<K, Map<V, number>>(
-      () => new Map<V, number>(),
-    )
+    this.#inner = new DefaultMap<K, Map<V, number>>(() => new Map<V, number>())
     // #inner is a map of:
     // {
     //   [key]: Map<V, number>  // Direct value-to-multiplicity mapping
@@ -58,7 +56,7 @@ export class Index<K, V> {
     const valueMap = this.#inner.get(key)
     const existingMultiplicity = valueMap.get(val) ?? 0
     const newMultiplicity = existingMultiplicity + multiplicity
-    
+
     if (multiplicity !== 0) {
       if (newMultiplicity === 0) {
         valueMap.delete(val)

@@ -3,7 +3,11 @@ import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import { count } from '../../src/operators/count.js'
 import { output } from '../../src/operators/output.js'
-import { KeyedMessageTracker, assertKeyedResults, assertOnlyKeysAffected } from '../test-utils.js'
+import {
+  KeyedMessageTracker,
+  assertKeyedResults,
+  assertOnlyKeysAffected,
+} from '../test-utils.js'
 
 describe('Operators', () => {
   describe('Count operation', () => {
@@ -40,10 +44,10 @@ function testCount() {
     graph.run()
 
     const result = tracker.getResult()
-    
+
     // Assert only keys that have values are affected
     assertOnlyKeysAffected('basic count operation', result.messages, [1, 2, 3])
-    
+
     // Assert the final materialized results are correct
     assertKeyedResults(
       'basic count operation',
@@ -53,7 +57,7 @@ function testCount() {
         [2, 3], // 3 values for key 2
         [3, 1], // 1 value for key 3 (1 + (-1) + 1 = 1)
       ],
-      6 // Expected message count
+      6, // Expected message count
     )
   })
 
@@ -80,10 +84,14 @@ function testCount() {
     graph.run()
 
     const result = tracker.getResult()
-    
+
     // Assert only key 1 is affected
-    assertOnlyKeysAffected('count with all negative multiplicities', result.messages, [1])
-    
+    assertOnlyKeysAffected(
+      'count with all negative multiplicities',
+      result.messages,
+      [1],
+    )
+
     // Assert the final materialized results are correct
     assertKeyedResults(
       'count with all negative multiplicities',
@@ -91,7 +99,7 @@ function testCount() {
       [
         [1, -3], // -1 + (-2) = -3
       ],
-      2 // Expected message count
+      2, // Expected message count
     )
   })
 
@@ -126,10 +134,13 @@ function testCount() {
     graph.run()
 
     const result = tracker.getResult()
-    
+
     // Assert only keys 'one' and 'two' are affected
-    assertOnlyKeysAffected('count with multiple batches', result.messages, ['one', 'two'])
-    
+    assertOnlyKeysAffected('count with multiple batches', result.messages, [
+      'one',
+      'two',
+    ])
+
     // Assert the final materialized results are correct
     assertKeyedResults(
       'count with multiple batches',
@@ -138,7 +149,7 @@ function testCount() {
         ['one', 3], // 2 + 1 = 3
         ['two', 1], // 1
       ],
-      5 // Expected message count
+      5, // Expected message count
     )
   })
 
@@ -182,10 +193,13 @@ function testCount() {
     graph.run()
 
     const result = tracker.getResult()
-    
+
     // Assert only keys 'a' and 'c' are affected (NOT 'b')
-    assertOnlyKeysAffected('count incremental updates', result.messages, ['a', 'c'])
-    
+    assertOnlyKeysAffected('count incremental updates', result.messages, [
+      'a',
+      'c',
+    ])
+
     // Assert the final materialized results are correct
     assertKeyedResults(
       'count incremental updates',
@@ -194,7 +208,7 @@ function testCount() {
         ['a', 3], // Count increased from 2 to 3
         ['c', 0], // Count decreased from 1 to 0
       ],
-      4 // Expected message count: remove old 'a', add new 'a', remove old 'c', add new 'c'
+      4, // Expected message count: remove old 'a', add new 'a', remove old 'c', add new 'c'
     )
   })
 }

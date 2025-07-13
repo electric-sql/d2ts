@@ -3,7 +3,11 @@ import { D2 } from '../../src/d2.js'
 import { MultiSet } from '../../src/multiset.js'
 import { reduce } from '../../src/operators/reduce.js'
 import { output } from '../../src/operators/output.js'
-import { KeyedMessageTracker, assertKeyedResults, assertOnlyKeysAffected } from '../test-utils.js'
+import {
+  KeyedMessageTracker,
+  assertKeyedResults,
+  assertOnlyKeysAffected,
+} from '../test-utils.js'
 
 describe('Operators', () => {
   describe('Reduce operation', () => {
@@ -39,10 +43,13 @@ describe('Operators', () => {
       graph.run()
 
       const result = tracker.getResult()
-      
+
       // Assert only keys 'a' and 'b' are affected
-      assertOnlyKeysAffected('basic reduce operation', result.messages, ['a', 'b'])
-      
+      assertOnlyKeysAffected('basic reduce operation', result.messages, [
+        'a',
+        'b',
+      ])
+
       // Assert the final materialized results are correct
       assertKeyedResults(
         'basic reduce operation',
@@ -51,7 +58,7 @@ describe('Operators', () => {
           ['a', 7], // 1*2 + 2*1 + 3*1 = 7
           ['b', 9], // 4*1 + 5*1 = 9
         ],
-        4 // Expected message count
+        4, // Expected message count
       )
     })
 
@@ -85,10 +92,14 @@ describe('Operators', () => {
       graph.run()
 
       const result = tracker.getResult()
-      
+
       // Assert only keys 'a' and 'b' are affected
-      assertOnlyKeysAffected('reduce with negative multiplicities', result.messages, ['a', 'b'])
-      
+      assertOnlyKeysAffected(
+        'reduce with negative multiplicities',
+        result.messages,
+        ['a', 'b'],
+      )
+
       // Assert the final materialized results are correct
       assertKeyedResults(
         'reduce with negative multiplicities',
@@ -97,7 +108,7 @@ describe('Operators', () => {
           ['a', 3], // 1*(-1) + 2*2 = 3
           ['b', -6], // 3*(-2) = -6
         ],
-        4 // Expected message count
+        4, // Expected message count
       )
     })
 
@@ -131,7 +142,10 @@ describe('Operators', () => {
       graph.run()
 
       const firstResult = tracker.getResult()
-      assertOnlyKeysAffected('reduce first update', firstResult.messages, ['a', 'b'])
+      assertOnlyKeysAffected('reduce first update', firstResult.messages, [
+        'a',
+        'b',
+      ])
       assertKeyedResults(
         'reduce first update',
         firstResult,
@@ -139,7 +153,7 @@ describe('Operators', () => {
           ['a', 1],
           ['b', 2],
         ],
-        4 // Expected message count
+        4, // Expected message count
       )
 
       tracker.reset()
@@ -154,7 +168,10 @@ describe('Operators', () => {
       graph.run()
 
       const secondResult = tracker.getResult()
-      assertOnlyKeysAffected('reduce second update', secondResult.messages, ['a', 'b'])
+      assertOnlyKeysAffected('reduce second update', secondResult.messages, [
+        'a',
+        'b',
+      ])
       assertKeyedResults(
         'reduce second update',
         secondResult,
@@ -162,7 +179,7 @@ describe('Operators', () => {
           ['a', 4], // 1+3
           ['b', 6], // 2+4
         ],
-        6 // Expected message count (old removed, new added for both keys)
+        6, // Expected message count (old removed, new added for both keys)
       )
 
       tracker.reset()
@@ -180,7 +197,7 @@ describe('Operators', () => {
         [
           ['a', 3], // 4-1=3
         ],
-        3 // Expected message count (old removed, new added for key a)
+        3, // Expected message count (old removed, new added for key a)
       )
     })
 
@@ -224,10 +241,14 @@ describe('Operators', () => {
       graph.run()
 
       const result = tracker.getResult()
-      
+
       // Assert only keys 'a' and 'b' are affected
-      assertOnlyKeysAffected('updates that cancel out completely', result.messages, ['a', 'b'])
-      
+      assertOnlyKeysAffected(
+        'updates that cancel out completely',
+        result.messages,
+        ['a', 'b'],
+      )
+
       // Assert the final materialized results are correct
       assertKeyedResults(
         'updates that cancel out completely',
@@ -236,7 +257,7 @@ describe('Operators', () => {
           ['a', 0], // 5+3-5-3 = 0
           ['b', 10], // 10 (unchanged)
         ],
-        6 // Expected message count
+        6, // Expected message count
       )
     })
 
@@ -283,10 +304,14 @@ describe('Operators', () => {
       graph.run()
 
       const result = tracker.getResult()
-      
+
       // Assert only keys 'a', 'b', and 'c' are affected
-      assertOnlyKeysAffected('mixed positive and negative updates', result.messages, ['a', 'b', 'c'])
-      
+      assertOnlyKeysAffected(
+        'mixed positive and negative updates',
+        result.messages,
+        ['a', 'b', 'c'],
+      )
+
       // Assert the final materialized results are correct
       assertKeyedResults(
         'mixed positive and negative updates',
@@ -296,14 +321,17 @@ describe('Operators', () => {
           ['b', 15], // 20-20+15 = 15
           ['c', 100], // 100
         ],
-        8 // Expected message count
+        8, // Expected message count
       )
     })
 
     test('complex aggregation with multiple updates', () => {
       const graph = new D2()
       const input = graph.newInput<[string, { value: number; count: number }]>()
-      const tracker = new KeyedMessageTracker<string, { avg: number; total: number }>()
+      const tracker = new KeyedMessageTracker<
+        string,
+        { avg: number; total: number }
+      >()
 
       input.pipe(
         reduce((vals) => {
@@ -350,10 +378,14 @@ describe('Operators', () => {
       graph.run()
 
       const result = tracker.getResult()
-      
+
       // Assert only keys 'a' and 'b' are affected
-      assertOnlyKeysAffected('complex aggregation with multiple updates', result.messages, ['a', 'b'])
-      
+      assertOnlyKeysAffected(
+        'complex aggregation with multiple updates',
+        result.messages,
+        ['a', 'b'],
+      )
+
       // Assert the final materialized results are correct
       assertKeyedResults(
         'complex aggregation with multiple updates',
@@ -362,7 +394,7 @@ describe('Operators', () => {
           ['a', { avg: 25, total: 50 }], // Final: (20*1+30*1)/(1+1) = 50/2 = 25
           ['b', { avg: 50, total: 150 }], // Final: 50*3 = 150
         ],
-        6 // Expected message count
+        6, // Expected message count
       )
     })
 
@@ -406,10 +438,14 @@ describe('Operators', () => {
       graph.run()
 
       const result = tracker.getResult()
-      
+
       // Assert only keys 'a' and 'b' are affected
-      assertOnlyKeysAffected('updates with zero-multiplicity results', result.messages, ['a', 'b'])
-      
+      assertOnlyKeysAffected(
+        'updates with zero-multiplicity results',
+        result.messages,
+        ['a', 'b'],
+      )
+
       // Assert the final materialized results are correct
       assertKeyedResults(
         'updates with zero-multiplicity results',
@@ -418,7 +454,7 @@ describe('Operators', () => {
           ['a', 7], // Final: 5-3-2+7 = 7
           ['b', 10], // Final: 10 (unchanged)
         ],
-        5 // Expected message count
+        5, // Expected message count
       )
     })
 
@@ -468,10 +504,13 @@ describe('Operators', () => {
       graph.run()
 
       const result = tracker.getResult()
-      
+
       // Assert only keys 'x' and 'z' are affected (NOT 'y')
-      assertOnlyKeysAffected('reduce incremental updates', result.messages, ['x', 'z'])
-      
+      assertOnlyKeysAffected('reduce incremental updates', result.messages, [
+        'x',
+        'z',
+      ])
+
       // Assert the final materialized results are correct
       assertKeyedResults(
         'reduce incremental updates',
@@ -480,7 +519,7 @@ describe('Operators', () => {
           ['x', 60], // Sum increased from 30 to 60
           ['z', 0], // Sum decreased from 100 to 0
         ],
-        4 // Expected message count: remove old 'x', add new 'x', remove old 'z', add new 'z'
+        4, // Expected message count: remove old 'x', add new 'x', remove old 'z', add new 'z'
       )
     })
 
@@ -524,27 +563,29 @@ describe('Operators', () => {
       input.sendData(
         new MultiSet([
           [['a', { id: 1, value: 10 }], -1], // Remove 10
-          [['a', { id: 6, value: 10 }], 1],   // Add 10 (same value, different object)
+          [['a', { id: 6, value: 10 }], 1], // Add 10 (same value, different object)
           [['b', { id: 3, value: 100 }], -1], // Remove from 'b' (100 -> 0)
         ]),
       )
       graph.run()
 
       const result = tracker.getResult()
-      
+
       // With object identity: 'a' produces messages even though content is identical
       // This demonstrates the object identity issue, but keysTodo should still limit processing
-      const aMessages = result.messages.filter(([[key, _value], _mult]) => key === 'a')
+      const aMessages = result.messages.filter(
+        ([[key, _value], _mult]) => key === 'a',
+      )
       expect(aMessages.length).toBe(2) // Object identity causes 2 messages (remove + add)
-      
+
       // But the messages cancel out due to identical content
       assertKeyedResults(
         'reduce with object identity',
         result,
         [
-          ['b', { result: 0 }],   // Changed from 100 to 0
+          ['b', { result: 0 }], // Changed from 100 to 0
         ],
-        4 // With object identity: 4 messages total (2 for 'a', 2 for 'b')
+        4, // With object identity: 4 messages total (2 for 'a', 2 for 'b')
       )
     })
   })

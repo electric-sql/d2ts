@@ -115,8 +115,11 @@ function testDistinct() {
     assertResults(
       'distinct with updates - initial',
       initialResult,
-      [[1, 'a'], [1, 'b']], // Should have both distinct values
-      4 // Max expected messages
+      [
+        [1, 'a'],
+        [1, 'b'],
+      ], // Should have both distinct values
+      4, // Max expected messages
     )
 
     tracker.reset()
@@ -125,7 +128,7 @@ function testDistinct() {
     input.sendData(
       new MultiSet([
         [[1, 'b'], -1], // Remove 'b'
-        [[1, 'c'], 2],  // Add 'c' (multiplicity should be capped at 1)
+        [[1, 'c'], 2], // Add 'c' (multiplicity should be capped at 1)
         [[1, 'a'], -1], // Remove 'a'
       ]),
     )
@@ -136,7 +139,7 @@ function testDistinct() {
       'distinct with updates - second batch',
       secondResult,
       [[1, 'c']], // Should only have 'c' remaining
-      4 // Max expected messages
+      4, // Max expected messages
     )
 
     tracker.reset()
@@ -150,7 +153,7 @@ function testDistinct() {
       'distinct with updates - third batch',
       thirdResult,
       [], // Should have no remaining distinct values
-      2 // Max expected messages
+      2, // Max expected messages
     )
   })
 
@@ -204,12 +207,12 @@ function testDistinct() {
 
     input.sendData(
       new MultiSet([
-        [['key1', 1], 2],  // Add ['key1', 1] with multiplicity 2 -> should become 1 (distinct)
-        [['key1', 2], 2],  // Add ['key1', 2] with multiplicity 2 -> should become 1 (distinct)
-        [['key1', 2], 1],  // Add more ['key1', 2] with multiplicity 1 -> total 3, still 1 in distinct
-        [['key2', 1], 1],  // Add ['key2', 1] with multiplicity 1 -> should become 1 (distinct)
+        [['key1', 1], 2], // Add ['key1', 1] with multiplicity 2 -> should become 1 (distinct)
+        [['key1', 2], 2], // Add ['key1', 2] with multiplicity 2 -> should become 1 (distinct)
+        [['key1', 2], 1], // Add more ['key1', 2] with multiplicity 1 -> total 3, still 1 in distinct
+        [['key2', 1], 1], // Add ['key2', 1] with multiplicity 1 -> should become 1 (distinct)
         [['key1', 2], -3], // Remove all ['key1', 2] (total was 3) -> should be removed from distinct
-        [['key2', 1], 1],  // Add more ['key2', 1] -> still 1 in distinct
+        [['key2', 1], 1], // Add more ['key2', 1] -> still 1 in distinct
       ]),
     )
     graph.run()
@@ -222,7 +225,7 @@ function testDistinct() {
         ['key1', 1], // Should remain (multiplicity 2 -> 1 in distinct)
         ['key2', 1], // Should remain (multiplicity 2 -> 1 in distinct)
       ],
-      6 // Max expected messages (generous upper bound)
+      6, // Max expected messages (generous upper bound)
     )
   })
 }

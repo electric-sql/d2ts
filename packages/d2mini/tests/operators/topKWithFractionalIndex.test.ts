@@ -75,7 +75,9 @@ describe('Operators', () => {
     it('should assign fractional indices to sorted elements', () => {
       const graph = new D2()
       const input = graph.newInput<[null, { id: number; value: string }]>()
-      const tracker = new MessageTracker<[null, [{ id: number; value: string }, string]]>()
+      const tracker = new MessageTracker<
+        [null, [{ id: number; value: string }, string]]
+      >()
 
       input.pipe(
         topK((a, b) => a.value.localeCompare(b.value)),
@@ -100,14 +102,20 @@ describe('Operators', () => {
 
       // Initial result should have all elements with fractional indices
       const initialResult = tracker.getResult()
-      console.log(`topKFractional initial: ${initialResult.messageCount} messages, ${initialResult.sortedResults.length} final results`)
-      
+      console.log(
+        `topKFractional initial: ${initialResult.messageCount} messages, ${initialResult.sortedResults.length} final results`,
+      )
+
       expect(initialResult.sortedResults.length).toBe(5) // Should have all 5 elements
       expect(initialResult.messageCount).toBeLessThanOrEqual(6) // Should be efficient
 
       // Check that indices are in lexicographic order by examining raw messages
       const initialMessages = initialResult.messages
-      expect(checkLexicographicOrder(initialMessages.map(([item, mult]) => [item, mult]))).toBe(true)
+      expect(
+        checkLexicographicOrder(
+          initialMessages.map(([item, mult]) => [item, mult]),
+        ),
+      ).toBe(true)
 
       tracker.reset()
 
@@ -122,23 +130,30 @@ describe('Operators', () => {
 
       // Check the incremental changes
       const updateResult = tracker.getResult()
-      console.log(`topKFractional update: ${updateResult.messageCount} messages, ${updateResult.sortedResults.length} final results`)
+      console.log(
+        `topKFractional update: ${updateResult.messageCount} messages, ${updateResult.sortedResults.length} final results`,
+      )
 
       // Should have reasonable incremental changes (not recomputing everything)
       expect(updateResult.messageCount).toBeLessThanOrEqual(4) // Should be incremental
       expect(updateResult.messageCount).toBeGreaterThan(0) // Should have some changes
 
       // Check that only the affected key (null) produces messages
-      const affectedKeys = new Set(updateResult.messages.map(([[key, _value], _mult]) => key))
+      const affectedKeys = new Set(
+        updateResult.messages.map(([[key, _value], _mult]) => key),
+      )
       expect(affectedKeys.size).toBe(1)
       expect(affectedKeys.has(null)).toBe(true)
 
       // For TopKWithFractionalIndex, the incremental update might be optimized
       // so we mainly verify that the operation is incremental and maintains ordering
-      
+
       // Check that the update messages maintain lexicographic order on their own
       if (updateResult.messages.length > 0) {
-        const updateMessages = updateResult.messages.map(([item, mult]) => [item, mult])
+        const updateMessages = updateResult.messages.map(([item, mult]) => [
+          item,
+          mult,
+        ])
         expect(checkLexicographicOrder(updateMessages)).toBe(true)
       }
     })
@@ -146,7 +161,9 @@ describe('Operators', () => {
     it('should support duplicate ordering keys', () => {
       const graph = new D2()
       const input = graph.newInput<[null, { id: number; value: string }]>()
-      const tracker = new MessageTracker<[null, [{ id: number; value: string }, string]]>()
+      const tracker = new MessageTracker<
+        [null, [{ id: number; value: string }, string]]
+      >()
 
       input.pipe(
         topK((a, b) => a.value.localeCompare(b.value)),
@@ -171,10 +188,16 @@ describe('Operators', () => {
 
       // Initial result should have all elements with fractional indices
       const initialResult = tracker.getResult()
-      console.log(`topKFractional duplicate keys initial: ${initialResult.messageCount} messages, ${initialResult.sortedResults.length} final results`)
-      
+      console.log(
+        `topKFractional duplicate keys initial: ${initialResult.messageCount} messages, ${initialResult.sortedResults.length} final results`,
+      )
+
       expect(initialResult.sortedResults.length).toBe(5) // Should have all 5 elements
-      expect(checkLexicographicOrder(initialResult.messages.map(([item, mult]) => [item, mult]))).toBe(true)
+      expect(
+        checkLexicographicOrder(
+          initialResult.messages.map(([item, mult]) => [item, mult]),
+        ),
+      ).toBe(true)
 
       tracker.reset()
 
@@ -184,7 +207,9 @@ describe('Operators', () => {
 
       // Check the incremental changes
       const updateResult = tracker.getResult()
-      console.log(`topKFractional duplicate keys update: ${updateResult.messageCount} messages, ${updateResult.sortedResults.length} final results`)
+      console.log(
+        `topKFractional duplicate keys update: ${updateResult.messageCount} messages, ${updateResult.sortedResults.length} final results`,
+      )
 
       // Should have efficient incremental update
       expect(updateResult.messageCount).toBeLessThanOrEqual(2) // Should be incremental (1 addition)
@@ -193,10 +218,13 @@ describe('Operators', () => {
       // For TopKWithFractionalIndex, verify that incremental updates maintain ordering
       // Check that the update messages maintain lexicographic order on their own
       if (updateResult.messages.length > 0) {
-        const updateMessages = updateResult.messages.map(([item, mult]) => [item, mult])
+        const updateMessages = updateResult.messages.map(([item, mult]) => [
+          item,
+          mult,
+        ])
         expect(checkLexicographicOrder(updateMessages)).toBe(true)
       }
-      
+
       // The total state should have more elements after adding a duplicate
       expect(updateResult.sortedResults.length).toBeGreaterThan(0) // Should have the new element
     })
@@ -247,7 +275,9 @@ describe('Operators', () => {
     it('should handle limit and offset correctly', () => {
       const graph = new D2()
       const input = graph.newInput<[null, { id: number; value: string }]>()
-      const tracker = new MessageTracker<[null, [{ id: number; value: string }, string]]>()
+      const tracker = new MessageTracker<
+        [null, [{ id: number; value: string }, string]]
+      >()
 
       input.pipe(
         topK((a, b) => a.value.localeCompare(b.value), {
@@ -275,8 +305,10 @@ describe('Operators', () => {
 
       // Initial result should be b, c, d (offset 1, limit 3)
       const initialResult = tracker.getResult()
-      console.log(`topK limit+offset initial: ${initialResult.messageCount} messages, ${initialResult.sortedResults.length} final results`)
-      
+      console.log(
+        `topK limit+offset initial: ${initialResult.messageCount} messages, ${initialResult.sortedResults.length} final results`,
+      )
+
       expect(initialResult.sortedResults.length).toBe(3) // Should have 3 elements
       expect(initialResult.messageCount).toBeLessThanOrEqual(6) // Should be efficient
 
@@ -286,14 +318,16 @@ describe('Operators', () => {
         const bIndex = b[1][1] // fractional index
         return aIndex < bIndex ? -1 : aIndex > bIndex ? 1 : 0
       })
-      
-      const sortedValues = sortedByIndex.map(([_key, [value, _index]]) => value.value)
+
+      const sortedValues = sortedByIndex.map(
+        ([_key, [value, _index]]) => value.value,
+      )
       expect(sortedValues).toEqual(['b', 'c', 'd']) // Should be in correct order with offset 1, limit 3
 
       tracker.reset()
 
       // Test a few incremental updates to verify limit/offset behavior
-      
+
       // Add element that should be included (between c and d)
       input.sendData(
         new MultiSet([
@@ -303,17 +337,21 @@ describe('Operators', () => {
       graph.run()
 
       const updateResult = tracker.getResult()
-      console.log(`topK limit+offset update: ${updateResult.messageCount} messages, ${updateResult.sortedResults.length} final results`)
-      
+      console.log(
+        `topK limit+offset update: ${updateResult.messageCount} messages, ${updateResult.sortedResults.length} final results`,
+      )
+
       // Should have efficient incremental update
       expect(updateResult.messageCount).toBeLessThanOrEqual(4) // Should be incremental
       expect(updateResult.messageCount).toBeGreaterThan(0) // Should have changes
 
       // Check that final results still maintain correct limit/offset behavior
       expect(updateResult.sortedResults.length).toBeLessThanOrEqual(3) // Should respect limit
-      
+
       // Check that only the affected key produces messages
-      const affectedKeys = new Set(updateResult.messages.map(([[key, _value], _mult]) => key))
+      const affectedKeys = new Set(
+        updateResult.messages.map(([[key, _value], _mult]) => key),
+      )
       expect(affectedKeys.size).toBe(1)
       expect(affectedKeys.has(null)).toBe(true)
     })
@@ -321,7 +359,9 @@ describe('Operators', () => {
     it('should handle elements moving positions correctly', () => {
       const graph = new D2()
       const input = graph.newInput<[null, { id: number; value: string }]>()
-      const tracker = new MessageTracker<[null, [{ id: number; value: string }, string]]>()
+      const tracker = new MessageTracker<
+        [null, [{ id: number; value: string }, string]]
+      >()
 
       input.pipe(
         topK((a, b) => a.value.localeCompare(b.value)),
@@ -345,8 +385,10 @@ describe('Operators', () => {
       graph.run()
 
       const initialResult = tracker.getResult()
-      console.log(`topK move positions initial: ${initialResult.messageCount} messages, ${initialResult.sortedResults.length} final results`)
-      
+      console.log(
+        `topK move positions initial: ${initialResult.messageCount} messages, ${initialResult.sortedResults.length} final results`,
+      )
+
       expect(initialResult.sortedResults.length).toBe(5) // Should have all 5 elements
       expect(initialResult.messageCount).toBeLessThanOrEqual(6) // Should be efficient
 
@@ -356,8 +398,10 @@ describe('Operators', () => {
         const bIndex = b[1][1] // fractional index
         return aIndex < bIndex ? -1 : aIndex > bIndex ? 1 : 0
       })
-      
-      const initialSortedValues = initialSortedByIndex.map(([_key, [value, _index]]) => value.value)
+
+      const initialSortedValues = initialSortedByIndex.map(
+        ([_key, [value, _index]]) => value.value,
+      )
       expect(initialSortedValues).toEqual(['a', 'b', 'c', 'd', 'e']) // Should be in lexicographic order
 
       tracker.reset()
@@ -374,14 +418,18 @@ describe('Operators', () => {
       graph.run()
 
       const updateResult = tracker.getResult()
-      console.log(`topK move positions update: ${updateResult.messageCount} messages, ${updateResult.sortedResults.length} final results`)
+      console.log(
+        `topK move positions update: ${updateResult.messageCount} messages, ${updateResult.sortedResults.length} final results`,
+      )
 
       // Should have efficient incremental update
       expect(updateResult.messageCount).toBeLessThanOrEqual(6) // Should be incremental (4 changes max)
       expect(updateResult.messageCount).toBeGreaterThan(0) // Should have changes
 
       // Check that only the affected key produces messages
-      const affectedKeys = new Set(updateResult.messages.map(([[key, _value], _mult]) => key))
+      const affectedKeys = new Set(
+        updateResult.messages.map(([[key, _value], _mult]) => key),
+      )
       expect(affectedKeys.size).toBe(1)
       expect(affectedKeys.has(null)).toBe(true)
 
@@ -393,7 +441,9 @@ describe('Operators', () => {
     it('should maintain lexicographic order through multiple updates', () => {
       const graph = new D2()
       const input = graph.newInput<[null, { id: number; value: string }]>()
-      const tracker = new MessageTracker<[null, [{ id: number; value: string }, string]]>()
+      const tracker = new MessageTracker<
+        [null, [{ id: number; value: string }, string]]
+      >()
 
       input.pipe(
         topK((a, b) => a.value.localeCompare(b.value)),
@@ -417,8 +467,10 @@ describe('Operators', () => {
       graph.run()
 
       const initialResult = tracker.getResult()
-      console.log(`topK lexicographic initial: ${initialResult.messageCount} messages, ${initialResult.sortedResults.length} final results`)
-      
+      console.log(
+        `topK lexicographic initial: ${initialResult.messageCount} messages, ${initialResult.sortedResults.length} final results`,
+      )
+
       expect(initialResult.sortedResults.length).toBe(5) // Should have all 5 elements
       expect(initialResult.messageCount).toBeLessThanOrEqual(6) // Should be efficient
 
@@ -436,7 +488,9 @@ describe('Operators', () => {
       graph.run()
 
       const update1Result = tracker.getResult()
-      console.log(`topK lexicographic update1: ${update1Result.messageCount} messages, ${update1Result.sortedResults.length} final results`)
+      console.log(
+        `topK lexicographic update1: ${update1Result.messageCount} messages, ${update1Result.sortedResults.length} final results`,
+      )
 
       // Should have efficient incremental update
       expect(update1Result.messageCount).toBeLessThanOrEqual(6) // Should be incremental
@@ -456,14 +510,18 @@ describe('Operators', () => {
       graph.run()
 
       const update2Result = tracker.getResult()
-      console.log(`topK lexicographic update2: ${update2Result.messageCount} messages, ${update2Result.sortedResults.length} final results`)
+      console.log(
+        `topK lexicographic update2: ${update2Result.messageCount} messages, ${update2Result.sortedResults.length} final results`,
+      )
 
       // Should have efficient incremental update for value changes
       expect(update2Result.messageCount).toBeLessThanOrEqual(6) // Should be incremental
       expect(update2Result.messageCount).toBeGreaterThan(0) // Should have changes
 
       // Check that only the affected key produces messages
-      const affectedKeys = new Set(update2Result.messages.map(([[key, _value], _mult]) => key))
+      const affectedKeys = new Set(
+        update2Result.messages.map(([[key, _value], _mult]) => key),
+      )
       expect(affectedKeys.size).toBe(1)
       expect(affectedKeys.has(null)).toBe(true)
     })
@@ -471,7 +529,9 @@ describe('Operators', () => {
     it('should maintain correct order when cycling through multiple changes', () => {
       const graph = new D2()
       const input = graph.newInput<[null, { id: number; value: string }]>()
-      const tracker = new MessageTracker<[null, [{ id: number; value: string }, string]]>()
+      const tracker = new MessageTracker<
+        [null, [{ id: number; value: string }, string]]
+      >()
 
       input.pipe(
         topK((a, b) => a.value.localeCompare(b.value)),
@@ -495,8 +555,10 @@ describe('Operators', () => {
       graph.run()
 
       const initialResult = tracker.getResult()
-      console.log(`topK cycling initial: ${initialResult.messageCount} messages, ${initialResult.sortedResults.length} final results`)
-      
+      console.log(
+        `topK cycling initial: ${initialResult.messageCount} messages, ${initialResult.sortedResults.length} final results`,
+      )
+
       expect(initialResult.sortedResults.length).toBe(5) // Should have all 5 elements
       expect(initialResult.messageCount).toBeLessThanOrEqual(6) // Should be efficient
 
@@ -506,8 +568,10 @@ describe('Operators', () => {
         const bIndex = b[1][1] // fractional index
         return aIndex < bIndex ? -1 : aIndex > bIndex ? 1 : 0
       })
-      
-      const initialSortedValues = initialSortedByIndex.map(([_key, [value, _index]]) => value.value)
+
+      const initialSortedValues = initialSortedByIndex.map(
+        ([_key, [value, _index]]) => value.value,
+      )
       expect(initialSortedValues).toEqual(['a', 'b', 'c', 'd', 'e']) // Should be in lexicographic order
 
       tracker.reset()
@@ -522,7 +586,9 @@ describe('Operators', () => {
       graph.run()
 
       const cycle1Result = tracker.getResult()
-      console.log(`topK cycling update1: ${cycle1Result.messageCount} messages, ${cycle1Result.sortedResults.length} final results`)
+      console.log(
+        `topK cycling update1: ${cycle1Result.messageCount} messages, ${cycle1Result.sortedResults.length} final results`,
+      )
 
       // Should have efficient incremental update
       expect(cycle1Result.messageCount).toBeLessThanOrEqual(4) // Should be incremental
@@ -540,14 +606,18 @@ describe('Operators', () => {
       graph.run()
 
       const cycle2Result = tracker.getResult()
-      console.log(`topK cycling update2: ${cycle2Result.messageCount} messages, ${cycle2Result.sortedResults.length} final results`)
+      console.log(
+        `topK cycling update2: ${cycle2Result.messageCount} messages, ${cycle2Result.sortedResults.length} final results`,
+      )
 
       // Should have efficient incremental update for the repositioning
       expect(cycle2Result.messageCount).toBeLessThanOrEqual(4) // Should be incremental
       expect(cycle2Result.messageCount).toBeGreaterThan(0) // Should have changes
 
       // Check that only the affected key produces messages
-      const affectedKeys = new Set(cycle2Result.messages.map(([[key, _value], _mult]) => key))
+      const affectedKeys = new Set(
+        cycle2Result.messages.map(([[key, _value], _mult]) => key),
+      )
       expect(affectedKeys.size).toBe(1)
       expect(affectedKeys.has(null)).toBe(true)
 
