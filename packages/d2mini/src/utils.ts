@@ -151,7 +151,7 @@ export class ObjectIdGenerator {
   getStringId(value: any): string {
     if (value === null) return 'null'
     if (value === undefined) return 'undefined'
-    if (typeof value !== 'object') return String(value)
+    if (typeof value !== 'object') return `str_${String(value)}`
 
     return `obj_${this.getId(value)}`
   }
