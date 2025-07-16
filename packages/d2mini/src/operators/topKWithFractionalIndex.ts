@@ -172,7 +172,7 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
    * topK data structure that supports insertions and deletions
    * and returns changes to the topK.
    */
-  #topK: TopK<TieBreakerTaggedValue<V1>>
+  #topK: TopK<TaggedValue<V1>>
 
   constructor(
     id: number,
@@ -185,17 +185,17 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
     const limit = options.limit ?? Infinity
     const offset = options.offset ?? 0
     const compareTaggedValues = (
-      a: TieBreakerTaggedValue<V1>,
-      b: TieBreakerTaggedValue<V1>,
+      a: TaggedValue<V1>,
+      b: TaggedValue<V1>,
     ) => {
       // First compare on the value
       const valueComparison = comparator(untagValue(a), untagValue(b))
       if (valueComparison !== 0) {
         return valueComparison
       }
-      // If the values are equal, compare on the tie breaker (object identity)
-      const tieBreakerA = getTieBreaker(a)
-      const tieBreakerB = getTieBreaker(b)
+      // If the values are equal, compare on the tag (object identity)
+      const tieBreakerA = getTag(a)
+      const tieBreakerB = getTag(b)
       return tieBreakerA - tieBreakerB
     }
     this.#topK = this.createTopK(offset, limit, compareTaggedValues)
@@ -205,10 +205,10 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
     offset: number,
     limit: number,
     comparator: (
-      a: TieBreakerTaggedValue<V1>,
-      b: TieBreakerTaggedValue<V1>,
+      a: TaggedValue<V1>,
+      b: TaggedValue<V1>,
     ) => number,
-  ): TopK<TieBreakerTaggedValue<V1>> {
+  ): TopK<TaggedValue<V1>> {
     return new TopKArray(offset, limit, comparator)
   }
 
@@ -236,7 +236,7 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
     this.#index.addValue(key, [value, multiplicity])
     const newMultiplicity = this.#index.getMultiplicity(key, value)
 
-    let res: TopKChanges<TieBreakerTaggedValue<V1>> = {
+    let res: TopKChanges<TaggedValue<V1>> = {
       moveIn: null,
       moveOut: null,
     }
@@ -341,19 +341,19 @@ function mapValue<V, W>(
   return [f(getValue(value)), getIndex(value)]
 }
 
-export type TieBreaker = number
-export type TieBreakerTaggedValue<V> = [V, TieBreaker]
+export type Tag = number
+export type TaggedValue<V> = [V, Tag]
 
-function tagValue<V>(value: V): TieBreakerTaggedValue<V> {
+function tagValue<V>(value: V): TaggedValue<V> {
   return [value, globalObjectIdGenerator.getId(value)]
 }
 
-function untagValue<V>(tieBreakerTaggedValue: TieBreakerTaggedValue<V>): V {
+function untagValue<V>(tieBreakerTaggedValue: TaggedValue<V>): V {
   return tieBreakerTaggedValue[0]
 }
 
-function getTieBreaker<V>(
-  tieBreakerTaggedValue: TieBreakerTaggedValue<V>,
-): TieBreaker {
+function getTag<V>(
+  tieBreakerTaggedValue: TaggedValue<V>,
+): Tag {
   return tieBreakerTaggedValue[1]
 }
