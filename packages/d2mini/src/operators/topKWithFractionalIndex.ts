@@ -184,10 +184,7 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
     super(id, inputA, output)
     const limit = options.limit ?? Infinity
     const offset = options.offset ?? 0
-    const compareTaggedValues = (
-      a: TaggedValue<V1>,
-      b: TaggedValue<V1>,
-    ) => {
+    const compareTaggedValues = (a: TaggedValue<V1>, b: TaggedValue<V1>) => {
       // First compare on the value
       const valueComparison = comparator(untagValue(a), untagValue(b))
       if (valueComparison !== 0) {
@@ -204,10 +201,7 @@ export class TopKWithFractionalIndexOperator<K, V1> extends UnaryOperator<
   protected createTopK(
     offset: number,
     limit: number,
-    comparator: (
-      a: TaggedValue<V1>,
-      b: TaggedValue<V1>,
-    ) => number,
+    comparator: (a: TaggedValue<V1>, b: TaggedValue<V1>) => number,
   ): TopK<TaggedValue<V1>> {
     return new TopKArray(offset, limit, comparator)
   }
@@ -352,8 +346,6 @@ function untagValue<V>(tieBreakerTaggedValue: TaggedValue<V>): V {
   return tieBreakerTaggedValue[0]
 }
 
-function getTag<V>(
-  tieBreakerTaggedValue: TaggedValue<V>,
-): Tag {
+function getTag<V>(tieBreakerTaggedValue: TaggedValue<V>): Tag {
   return tieBreakerTaggedValue[1]
 }

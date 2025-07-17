@@ -128,14 +128,7 @@ export class ObjectIdGenerator {
   getId(value: any): number {
     // For primitives, use a simple hash of their string representation
     if (typeof value !== 'object' || value === null) {
-      const str = String(value)
-      let hash = 0
-      for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i)
-        hash = (hash << 5) - hash + char
-        hash = hash & hash // Convert to 32-bit integer
-      }
-      return hash
+      return value
     }
 
     // For objects, use WeakMap to assign unique IDs
@@ -143,17 +136,6 @@ export class ObjectIdGenerator {
       this.objectIds.set(value, this.nextId++)
     }
     return this.objectIds.get(value)!
-  }
-
-  /**
-   * Get a string representation of the ID for use in composite keys.
-   */
-  getStringId(value: any): string {
-    if (value === null) return 'null'
-    if (value === undefined) return 'undefined'
-    if (typeof value !== 'object') return `str_${String(value)}`
-
-    return `obj_${this.getId(value)}`
   }
 }
 
