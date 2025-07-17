@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { MultiSet } from '../src/multiset.js'
 
+const sortData = (a: any, b: any) => {
+  return JSON.stringify(a[0]).localeCompare(JSON.stringify(b[0]))
+}
+
 describe('MultiSet', () => {
   describe('basic operations', () => {
     let a: MultiSet<[string, string | string[]]>
@@ -8,11 +12,12 @@ describe('MultiSet', () => {
 
     beforeEach(() => {
       a = new MultiSet<[string, string | string[]]>([
-        [['apple', '$5'], 2],
+        [['apple', '$5'], 1],
         [['banana', '$2'], 1],
       ])
       b = new MultiSet<[string, string | string[]]>([
         [['apple', '$3'], 1],
+        [['apple', '$5'], 1],
         [['apple', ['granny smith', '$2']], 1],
         [['kiwi', '$2'], 1],
       ])
@@ -20,11 +25,12 @@ describe('MultiSet', () => {
 
     it('should concatenate two multisets', () => {
       const concat = a.concat(b)
-      expect(concat.getInner()).toEqual([
-        [['apple', '$5'], 2],
-        [['banana', '$2'], 1],
+      const res = concat.getInner().sort(sortData)
+      expect(res).toEqual([
         [['apple', '$3'], 1],
+        [['apple', '$5'], 2],
         [['apple', ['granny smith', '$2']], 1],
+        [['banana', '$2'], 1],
         [['kiwi', '$2'], 1],
       ])
     })
@@ -36,9 +42,9 @@ describe('MultiSet', () => {
 
     it('should map elements', () => {
       const mapped = a.map((data) => [data[1], data[0]])
-      expect(mapped.getInner()).toEqual([
-        [['$5', 'apple'], 2],
+      expect(mapped.getInner().sort(sortData)).toEqual([
         [['$2', 'banana'], 1],
+        [['$5', 'apple'], 1],
       ])
     })
   })
@@ -106,5 +112,25 @@ describe('MultiSet', () => {
       [1, 3],
       ['1', 5],
     ])
+  })
+
+  it('should consolidate objects by reference', () => {
+    const a = { a: 1 }
+    const a2 = { a: 1 }
+    const b = { b: 2 }
+
+    const m1 = new MultiSet<Record<string, number>>([
+      [a, 1],
+      [a2, 1],
+    ])
+    const m2 = new MultiSet<Record<string, number>>([
+      [a2, 1],
+      [b, 1],
+    ])
+    const result = m1.concat(m2).consolidate()
+    expect(result.getInner().length).toEqual(3)
+    expect(result.get(a)).toEqual(1)
+    expect(result.get(a2)).toEqual(2)
+    expect(result.get(b)).toEqual(1)
   })
 })

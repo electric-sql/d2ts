@@ -330,10 +330,15 @@ describe('Operators', () => {
 
       graph.finalize()
 
+      const row1: [string, { id: number; value: string }] = [
+        'key1',
+        { id: 1, value: 'a' },
+      ]
+
       // Initial data
       input.sendData(
         new MultiSet([
-          [['key1', { id: 1, value: 'a' }], 1],
+          [row1, 1],
           [['key3', { id: 3, value: 'c' }], 1],
           [['key2', { id: 2, value: 'b' }], 1],
           [['key4', { id: 4, value: 'd' }], 1],
@@ -344,7 +349,7 @@ describe('Operators', () => {
       // Remove a row that was in the top 3
       input.sendData(
         new MultiSet([
-          [['key1', { id: 1, value: 'a' }], -1], // Remove the first item
+          [row1, -1], // Remove the first item
         ]),
       )
       graph.run()

@@ -278,13 +278,30 @@ describe('Operators', () => {
 
       graph.finalize()
 
+      const row1: [null, { id: number; value: string }] = [
+        null,
+        { id: 1, value: 'a' },
+      ]
+      const row2: [null, { id: number; value: string }] = [
+        null,
+        { id: 2, value: 'b' },
+      ]
+      const row3: [null, { id: number; value: string }] = [
+        null,
+        { id: 3, value: 'c' },
+      ]
+      const row4: [null, { id: number; value: string }] = [
+        null,
+        { id: 4, value: 'd' },
+      ]
+
       // Initial data
       input.sendData(
         new MultiSet([
-          [[null, { id: 1, value: 'a' }], 1],
-          [[null, { id: 2, value: 'b' }], 1],
-          [[null, { id: 3, value: 'c' }], 1],
-          [[null, { id: 4, value: 'd' }], 1],
+          [row1, 1],
+          [row2, 1],
+          [row3, 1],
+          [row4, 1],
         ]),
       )
       graph.run()
@@ -292,20 +309,20 @@ describe('Operators', () => {
       // Initial result should be first three items
       let result = latestMessage.getInner()
       expect(sortResults(result)).toEqual([
-        [[null, { id: 1, value: 'a' }], 1],
-        [[null, { id: 2, value: 'b' }], 1],
-        [[null, { id: 3, value: 'c' }], 1],
+        [row1, 1],
+        [row2, 1],
+        [row3, 1],
       ])
 
       // Remove 'b' from the result set
-      input.sendData(new MultiSet([[[null, { id: 2, value: 'b' }], -1]]))
+      input.sendData(new MultiSet([[row2, -1]]))
       graph.run()
 
       // Result should show 'b' being removed and 'd' being added
       result = latestMessage.getInner()
       expect(sortResults(result)).toEqual([
-        [[null, { id: 2, value: 'b' }], -1], // Removed row
-        [[null, { id: 4, value: 'd' }], 1], // New row added to results
+        [row2, -1], // Removed row
+        [row4, 1], // New row added to results
       ])
     })
 
@@ -449,15 +466,44 @@ describe('Operators', () => {
 
       graph.finalize()
 
+      const row1: [string, { id: number; value: string }] = [
+        'group1',
+        { id: 1, value: 'c' },
+      ]
+      const row2: [string, { id: number; value: string }] = [
+        'group1',
+        { id: 2, value: 'd' },
+      ]
+      const row3: [string, { id: number; value: string }] = [
+        'group1',
+        { id: 3, value: 'e' },
+      ]
+      const row4: [string, { id: number; value: string }] = [
+        'group2',
+        { id: 4, value: 'a' },
+      ]
+      const row5: [string, { id: number; value: string }] = [
+        'group2',
+        { id: 5, value: 'b' },
+      ]
+      const row6: [string, { id: number; value: string }] = [
+        'group2',
+        { id: 6, value: 'f' },
+      ]
+      const row7: [string, { id: number; value: string }] = [
+        'group1',
+        { id: 7, value: 'a' },
+      ]
+
       // Initial data
       input.sendData(
         new MultiSet([
-          [['group1', { id: 1, value: 'c' }], 1],
-          [['group1', { id: 2, value: 'd' }], 1],
-          [['group1', { id: 3, value: 'e' }], 1],
-          [['group2', { id: 4, value: 'a' }], 1],
-          [['group2', { id: 5, value: 'b' }], 1],
-          [['group2', { id: 6, value: 'f' }], 1],
+          [row1, 1],
+          [row2, 1],
+          [row3, 1],
+          [row4, 1],
+          [row5, 1],
+          [row6, 1],
         ]),
       )
       graph.run()
@@ -465,18 +511,18 @@ describe('Operators', () => {
       // Initial result should be top 2 from each group
       let result = latestMessage.getInner()
       expect(sortResults(result)).toEqual([
-        [['group1', { id: 1, value: 'c' }], 1],
-        [['group1', { id: 2, value: 'd' }], 1],
-        [['group2', { id: 4, value: 'a' }], 1],
-        [['group2', { id: 5, value: 'b' }], 1],
+        [row1, 1],
+        [row2, 1],
+        [row4, 1],
+        [row5, 1],
       ])
 
       // Add a new row to group1 that should appear in results
       // Remove a row from group2 that was in results
       input.sendData(
         new MultiSet([
-          [['group1', { id: 7, value: 'a' }], 1], // Should be first in group1
-          [['group2', { id: 4, value: 'a' }], -1], // Remove from group2
+          [row7, 1], // Should be first in group1
+          [row4, -1], // Remove from group2
         ]),
       )
       graph.run()
@@ -484,10 +530,10 @@ describe('Operators', () => {
       // Result should show the changes in each key group
       result = latestMessage.getInner()
       expect(sortResults(result)).toEqual([
-        [['group1', { id: 2, value: 'd' }], -1], // Pushed out of limit in group1
-        [['group2', { id: 4, value: 'a' }], -1], // Removed from group2
-        [['group2', { id: 6, value: 'f' }], 1], // Now in window for group2
-        [['group1', { id: 7, value: 'a' }], 1], // New row in group1
+        [row2, -1], // Pushed out of limit in group1
+        [row4, -1], // Removed from group2
+        [row6, 1], // Now in window for group2
+        [row7, 1], // New row in group1
       ])
     })
 
@@ -516,14 +562,47 @@ describe('Operators', () => {
 
       graph.finalize()
 
+      const row1: [null, { id: number; value: string }] = [
+        null,
+        { id: 1, value: 'a' },
+      ]
+      const row2: [null, { id: number; value: string }] = [
+        null,
+        { id: 2, value: 'b' },
+      ]
+      const row3: [null, { id: number; value: string }] = [
+        null,
+        { id: 3, value: 'c' },
+      ]
+      const row4: [null, { id: number; value: string }] = [
+        null,
+        { id: 4, value: 'd' },
+      ]
+      const row5: [null, { id: number; value: string }] = [
+        null,
+        { id: 5, value: 'e' },
+      ]
+      const row6: [null, { id: number; value: string }] = [
+        null,
+        { id: 6, value: '_' },
+      ]
+      const row7: [null, { id: number; value: string }] = [
+        null,
+        { id: 7, value: 'aa' },
+      ]
+      const row8: [null, { id: number; value: string }] = [
+        null,
+        { id: 8, value: 'z' },
+      ]
+
       // Initial data - a, b, c, d, e
       input.sendData(
         new MultiSet([
-          [[null, { id: 1, value: 'a' }], 1],
-          [[null, { id: 2, value: 'b' }], 1],
-          [[null, { id: 3, value: 'c' }], 1],
-          [[null, { id: 4, value: 'd' }], 1],
-          [[null, { id: 5, value: 'e' }], 1],
+          [row1, 1],
+          [row2, 1],
+          [row3, 1],
+          [row4, 1],
+          [row5, 1],
         ]),
       )
       graph.run()
@@ -531,9 +610,9 @@ describe('Operators', () => {
       // Initial result should be b, c, d (offset 1, limit 3)
       let result = latestMessage.getInner()
       expect(sortResults(result)).toEqual([
-        [[null, { id: 2, value: 'b' }], 1],
-        [[null, { id: 3, value: 'c' }], 1],
-        [[null, { id: 4, value: 'd' }], 1],
+        [row2, 1],
+        [row3, 1],
+        [row4, 1],
       ])
 
       // Multiple changes:
@@ -542,9 +621,9 @@ describe('Operators', () => {
       // 3. Add 'aa' (between 'a' and 'b')
       input.sendData(
         new MultiSet([
-          [[null, { id: 3, value: 'c' }], -1],
-          [[null, { id: 6, value: '_' }], 1],
-          [[null, { id: 7, value: 'aa' }], 1],
+          [row3, -1],
+          [row6, 1],
+          [row7, 1],
         ]),
       )
       graph.run()
@@ -553,10 +632,10 @@ describe('Operators', () => {
       // With offset 1, limit 3, result should show changes
       result = latestMessage.getInner()
       expect(sortResults(result)).toEqual([
-        [[null, { id: 1, value: 'a' }], 1], // Now in window due to offset shift
-        [[null, { id: 3, value: 'c' }], -1], // Removed row
-        [[null, { id: 4, value: 'd' }], -1], // Pushed out of window
-        [[null, { id: 7, value: 'aa' }], 1], // New row in window
+        [row1, 1], // Now in window due to offset shift
+        [row3, -1], // Removed row
+        [row4, -1], // Pushed out of window
+        [row7, 1], // New row in window
       ])
 
       // More changes:
@@ -564,8 +643,8 @@ describe('Operators', () => {
       // 2. Add 'z' (at the end)
       input.sendData(
         new MultiSet([
-          [[null, { id: 1, value: 'a' }], -1],
-          [[null, { id: 8, value: 'z' }], 1],
+          [row1, -1],
+          [row8, 1],
         ]),
       )
       graph.run()
@@ -574,8 +653,8 @@ describe('Operators', () => {
       // With offset 1, limit 3, result should show changes
       result = latestMessage.getInner()
       expect(sortResults(result)).toEqual([
-        [[null, { id: 1, value: 'a' }], -1], // Removed row
-        [[null, { id: 4, value: 'd' }], 1], // Now back in window
+        [row1, -1], // Removed row
+        [row4, 1], // Now back in window
       ])
     })
   })

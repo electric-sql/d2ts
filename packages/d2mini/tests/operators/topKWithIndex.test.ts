@@ -180,11 +180,16 @@ describe('Operators', () => {
 
       graph.finalize()
 
+      const row2: [null, { id: number; value: string }] = [
+        null,
+        { id: 2, value: 'b' },
+      ]
+
       // Initial data
       input.sendData(
         new MultiSet([
           [[null, { id: 1, value: 'a' }], 1],
-          [[null, { id: 2, value: 'b' }], 1],
+          [row2, 1],
           [[null, { id: 3, value: 'c' }], 1],
           [[null, { id: 4, value: 'd' }], 1],
         ]),
@@ -207,7 +212,7 @@ describe('Operators', () => {
       tracker.reset()
 
       // Remove 'b' from the result set
-      input.sendData(new MultiSet([[[null, { id: 2, value: 'b' }], -1]]))
+      input.sendData(new MultiSet([[row2, -1]]))
       graph.run()
 
       // After removing 'b', we should get incremental changes
@@ -315,10 +320,15 @@ describe('Operators', () => {
 
       graph.finalize()
 
+      const row1: [null, { id: number; value: string }] = [
+        null,
+        { id: 1, value: 'a' },
+      ]
+
       // Initial data
       input.sendData(
         new MultiSet([
-          [[null, { id: 1, value: 'a' }], 1],
+          [row1, 1],
           [[null, { id: 2, value: 'b' }], 1],
           [[null, { id: 3, value: 'c' }], 1],
         ]),
@@ -337,7 +347,7 @@ describe('Operators', () => {
       // Change 'a' to 'z' which should move it to the end, outside the limit
       input.sendData(
         new MultiSet([
-          [[null, { id: 1, value: 'a' }], -1],
+          [row1, -1],
           [[null, { id: 1, value: 'z' }], 1],
         ]),
       )
