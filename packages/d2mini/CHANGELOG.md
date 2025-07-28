@@ -1,5 +1,11 @@
 # @electric-sql/d2mini
 
+## 0.1.8
+
+### Patch Changes
+
+- 1b87f17: remove host hashing from the query pipline giving a significant speedup
+
 ## 0.1.7
 
 ### Patch Changes
