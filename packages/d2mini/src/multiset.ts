@@ -1,4 +1,9 @@
-import { DefaultMap, chunkedArrayPush, hash } from './utils.js'
+import {
+  DefaultMap,
+  chunkedArrayPush,
+  hash,
+  globalObjectIdGenerator,
+} from './utils.js'
 
 export type MultiSetArray<T> = [T, number][]
 export type KeyedData<T> = [key: string, value: T]
@@ -66,6 +71,101 @@ export class MultiSet<T> {
    * (record, multiplicity) pair.
    */
   consolidate(): MultiSet<T> {
+    // Check if this looks like a keyed multiset (first item is a tuple of length 2)
+    if (this.#inner.length > 0) {
+      const firstItem = this.#inner[0][0]
+      if (Array.isArray(firstItem) && firstItem.length === 2) {
+        return this.#consolidateKeyed()
+      }
+    }
+
+    // Fall back to original method for unkeyed data
+    return this.#consolidateUnkeyed()
+  }
+
+  /**
+   * Private method for consolidating keyed multisets where keys are strings/numbers
+   * and values are compared by reference equality.
+   *
+   * This method provides significant performance improvements over the hash-based approach
+   * by using WeakMap for object reference tracking and avoiding expensive serialization.
+   *
+   * Special handling for join operations: When values are tuples of length 2 (common in joins),
+   * we unpack them and compare each element individually to maintain proper equality semantics.
+   */
+  #consolidateKeyed(): MultiSet<T> {
+    const consolidated = new Map<string, number>()
+    const values = new Map<string, T>()
+
+    // Use global object ID generator for consistent reference equality
+
+    /**
+     * Special handler for tuples (arrays of length 2) commonly produced by join operations.
+     * Unpacks the tuple and generates an ID based on both elements to ensure proper
+     * consolidation of join results like ['A', null] and [null, 'X'].
+     */
+    const getTupleId = (tuple: any[]): string => {
+      if (tuple.length !== 2) {
+        throw new Error('Expected tuple of length 2')
+      }
+      const [first, second] = tuple
+      return `${globalObjectIdGenerator.getStringId(first)}|${globalObjectIdGenerator.getStringId(second)}`
+    }
+
+    // Process each item in the multiset
+    for (const [data, multiplicity] of this.#inner) {
+      // Verify this is still a keyed item (should be [key, value] pair)
+      if (!Array.isArray(data) || data.length !== 2) {
+        // Found non-keyed item, fall back to unkeyed consolidation
+        return this.#consolidateUnkeyed()
+      }
+
+      const [key, value] = data
+
+      // Verify key is string or number as expected for keyed multisets
+      if (typeof key !== 'string' && typeof key !== 'number') {
+        // Found non-string/number key, fall back to unkeyed consolidation
+        return this.#consolidateUnkeyed()
+      }
+
+      // Generate value ID with special handling for join tuples
+      let valueId: string
+      if (Array.isArray(value) && value.length === 2) {
+        // Special case: value is a tuple from join operations
+        valueId = getTupleId(value)
+      } else {
+        // Regular case: use reference/value equality
+        valueId = globalObjectIdGenerator.getStringId(value)
+      }
+
+      // Create composite key and consolidate
+      const compositeKey = key + '|' + valueId
+      consolidated.set(
+        compositeKey,
+        (consolidated.get(compositeKey) || 0) + multiplicity,
+      )
+
+      // Store the original data for the first occurrence
+      if (!values.has(compositeKey)) {
+        values.set(compositeKey, data as T)
+      }
+    }
+
+    // Build result array, filtering out zero multiplicities
+    const result: MultiSetArray<T> = []
+    for (const [compositeKey, multiplicity] of consolidated) {
+      if (multiplicity !== 0) {
+        result.push([values.get(compositeKey)!, multiplicity])
+      }
+    }
+
+    return new MultiSet(result)
+  }
+
+  /**
+   * Private method for consolidating unkeyed multisets using the original approach.
+   */
+  #consolidateUnkeyed(): MultiSet<T> {
     const consolidated = new DefaultMap<string | number, number>(() => 0)
     const values = new Map<string, any>()
 

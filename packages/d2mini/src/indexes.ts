@@ -1,5 +1,5 @@
 import { MultiSet } from './multiset.js'
-import { DefaultMap, hash } from './utils.js'
+import { DefaultMap } from './utils.js'
 
 /**
  * A map from a difference collection trace's keys -> (value, multiplicities) that changed.
@@ -7,18 +7,13 @@ import { DefaultMap, hash } from './utils.js'
  * exploit the key-value structure of the data to run efficiently.
  */
 export class Index<K, V> {
-  #inner: DefaultMap<K, DefaultMap<string, [V, number]>>
+  #inner: DefaultMap<K, Map<V, number>>
 
   constructor() {
-    this.#inner = new DefaultMap<K, DefaultMap<string, [V, number]>>(
-      () =>
-        new DefaultMap<string, [V, number]>(() => [undefined as any as V, 0]),
-    )
-    // #inner is as map of:
+    this.#inner = new DefaultMap<K, Map<V, number>>(() => new Map<V, number>())
+    // #inner is a map of:
     // {
-    //   [key]: {
-    //     [hash(value)]: [value, multiplicity]
-    //   }
+    //   [key]: Map<V, number>  // Direct value-to-multiplicity mapping
     // }
   }
 
@@ -32,14 +27,12 @@ export class Index<K, V> {
 
   get(key: K): [V, number][] {
     const valueMap = this.#inner.get(key)
-    return [...valueMap.values()]
+    return [...valueMap.entries()]
   }
 
   getMultiplicity(key: K, value: V): number {
     const valueMap = this.#inner.get(key)
-    const valueHash = hash(value)
-    const [, multiplicity] = valueMap.get(valueHash)
-    return multiplicity
+    return valueMap.get(value) ?? 0
   }
 
   entries() {
@@ -61,14 +54,14 @@ export class Index<K, V> {
   addValue(key: K, value: [V, number]): void {
     const [val, multiplicity] = value
     const valueMap = this.#inner.get(key)
-    const valueHash = hash(val)
-    const [, existingMultiplicity] = valueMap.get(valueHash)
+    const existingMultiplicity = valueMap.get(val) ?? 0
     const newMultiplicity = existingMultiplicity + multiplicity
+
     if (multiplicity !== 0) {
       if (newMultiplicity === 0) {
-        valueMap.delete(valueHash)
+        valueMap.delete(val)
       } else {
-        valueMap.set(valueHash, [val, newMultiplicity])
+        valueMap.set(val, newMultiplicity)
       }
     }
   }
@@ -76,16 +69,13 @@ export class Index<K, V> {
   append(other: Index<K, V>): void {
     for (const [key, otherValueMap] of other.entries()) {
       const thisValueMap = this.#inner.get(key)
-      for (const [
-        valueHash,
-        [value, multiplicity],
-      ] of otherValueMap.entries()) {
-        const [, existingMultiplicity] = thisValueMap.get(valueHash)
+      for (const [value, multiplicity] of otherValueMap.entries()) {
+        const existingMultiplicity = thisValueMap.get(value) ?? 0
         const newMultiplicity = existingMultiplicity + multiplicity
         if (newMultiplicity === 0) {
-          thisValueMap.delete(valueHash)
+          thisValueMap.delete(value)
         } else {
-          thisValueMap.set(valueHash, [value, newMultiplicity])
+          thisValueMap.set(value, newMultiplicity)
         }
       }
     }
@@ -100,7 +90,7 @@ export class Index<K, V> {
       for (const [key, valueMap] of this.entries()) {
         if (!other.has(key)) continue
         const otherValues = other.get(key)
-        for (const [val1, mul1] of valueMap.values()) {
+        for (const [val1, mul1] of valueMap.entries()) {
           for (const [val2, mul2] of otherValues) {
             if (mul1 !== 0 && mul2 !== 0) {
               result.push([[key, [val1, val2]], mul1 * mul2])
@@ -112,7 +102,7 @@ export class Index<K, V> {
       for (const [key, otherValueMap] of other.entries()) {
         if (!this.has(key)) continue
         const values = this.get(key)
-        for (const [val2, mul2] of otherValueMap.values()) {
+        for (const [val2, mul2] of otherValueMap.entries()) {
           for (const [val1, mul1] of values) {
             if (mul1 !== 0 && mul2 !== 0) {
               result.push([[key, [val1, val2]], mul1 * mul2])

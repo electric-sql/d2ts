@@ -7,7 +7,6 @@ import {
 import { StreamBuilder } from '../d2.js'
 import { MultiSet } from '../multiset.js'
 import { Index } from '../indexes.js'
-import { hash } from '../utils.js'
 
 /**
  * Base operator for reduction operations (version-free)
@@ -45,73 +44,52 @@ export class ReduceOperator<K, V1, V2> extends UnaryOperator<[K, V1], [K, V2]> {
       const currOut = this.#indexOut.get(key)
       const out = this.#f(curr)
 
-      // Create maps for current and previous outputs
-      const newOutputMap = new Map<
-        string,
-        { value: V2; multiplicity: number }
-      >()
-      const oldOutputMap = new Map<
-        string,
-        { value: V2; multiplicity: number }
-      >()
+      // Create maps for current and previous outputs using values directly as keys
+      const newOutputMap = new Map<V2, number>()
+      const oldOutputMap = new Map<V2, number>()
 
       // Process new output
       for (const [value, multiplicity] of out) {
-        const valueKey = hash(value)
-        if (newOutputMap.has(valueKey)) {
-          newOutputMap.get(valueKey)!.multiplicity += multiplicity
-        } else {
-          newOutputMap.set(valueKey, { value, multiplicity })
-        }
+        const existing = newOutputMap.get(value) ?? 0
+        newOutputMap.set(value, existing + multiplicity)
       }
 
       // Process previous output
       for (const [value, multiplicity] of currOut) {
-        const valueKey = hash(value)
-        if (oldOutputMap.has(valueKey)) {
-          oldOutputMap.get(valueKey)!.multiplicity += multiplicity
-        } else {
-          oldOutputMap.set(valueKey, { value, multiplicity })
-        }
+        const existing = oldOutputMap.get(value) ?? 0
+        oldOutputMap.set(value, existing + multiplicity)
       }
 
-      const commonKeys = new Set<string>()
-
       // First, emit removals for old values that are no longer present
-      for (const [valueKey, { value, multiplicity }] of oldOutputMap) {
-        const newEntry = newOutputMap.get(valueKey)
-        if (!newEntry) {
+      for (const [value, multiplicity] of oldOutputMap) {
+        if (!newOutputMap.has(value)) {
           // Remove the old value entirely
           result.push([[key, value], -multiplicity])
           this.#indexOut.addValue(key, [value, -multiplicity])
-        } else {
-          commonKeys.add(valueKey)
         }
       }
 
       // Then, emit additions for new values that are not present in old
-      for (const [valueKey, { value, multiplicity }] of newOutputMap) {
-        const oldEntry = oldOutputMap.get(valueKey)
-        if (!oldEntry) {
+      for (const [value, multiplicity] of newOutputMap) {
+        if (!oldOutputMap.has(value)) {
           // Add the new value only if it has non-zero multiplicity
           if (multiplicity !== 0) {
             result.push([[key, value], multiplicity])
             this.#indexOut.addValue(key, [value, multiplicity])
           }
-        } else {
-          commonKeys.add(valueKey)
         }
       }
 
-      // Then, emit multiplicity changes for values that were present and are still present
-      for (const valueKey of commonKeys) {
-        const newEntry = newOutputMap.get(valueKey)
-        const oldEntry = oldOutputMap.get(valueKey)
-        const delta = newEntry!.multiplicity - oldEntry!.multiplicity
-        // Only emit actual changes, i.e. non-zero deltas
-        if (delta !== 0) {
-          result.push([[key, newEntry!.value], delta])
-          this.#indexOut.addValue(key, [newEntry!.value, delta])
+      // Finally, emit multiplicity changes for values that were present and are still present
+      for (const [value, newMultiplicity] of newOutputMap) {
+        const oldMultiplicity = oldOutputMap.get(value)
+        if (oldMultiplicity !== undefined) {
+          const delta = newMultiplicity - oldMultiplicity
+          // Only emit actual changes, i.e. non-zero deltas
+          if (delta !== 0) {
+            result.push([[key, value], delta])
+            this.#indexOut.addValue(key, [value, delta])
+          }
         }
       }
     }

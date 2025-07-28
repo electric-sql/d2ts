@@ -5,7 +5,7 @@ import { generateKeyBetween } from 'fractional-indexing'
 import {
   getIndex,
   getValue,
-  HashTaggedValue,
+  TaggedValue,
   indexedValue,
   IndexedValue,
   TopK,
@@ -240,8 +240,11 @@ export class TopKWithFractionalIndexBTreeOperator<
   protected override createTopK(
     offset: number,
     limit: number,
-    comparator: (a: HashTaggedValue<V1>, b: HashTaggedValue<V1>) => number,
-  ): TopK<HashTaggedValue<V1>> {
+    comparator: (
+      a: TaggedValue<V1>,
+      b: TaggedValue<V1>,
+    ) => number,
+  ): TopK<TaggedValue<V1>> {
     if (!BTree) {
       throw new Error(
         'B+ tree not loaded. You need to call loadBTree() before using TopKWithFractionalIndexBTreeOperator.',

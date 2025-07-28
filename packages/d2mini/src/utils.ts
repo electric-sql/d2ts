@@ -86,7 +86,7 @@ export function hash(data: any): string {
   }
 
   const serialized = JSON.stringify(data, hashReplacer)
-  const hashValue = murmurhash.murmur3(JSON.stringify(serialized)).toString(16)
+  const hashValue = murmurhash.murmur3(serialized).toString(16)
   hashCache.set(data, hashValue)
   return hashValue
 }
@@ -111,3 +111,53 @@ export function binarySearch<T>(
   }
   return low
 }
+
+/**
+ * Utility for generating unique IDs for objects and values.
+ * Uses WeakMap for object reference tracking and consistent hashing for primitives.
+ */
+export class ObjectIdGenerator {
+  private objectIds = new WeakMap<object, number>()
+  private nextId = 0
+
+  /**
+   * Get a unique identifier for any value.
+   * - Objects: Uses WeakMap for reference-based identity
+   * - Primitives: Uses consistent string-based hashing
+   */
+  getId(value: any): number {
+    // For primitives, use a simple hash of their string representation
+    if (typeof value !== 'object' || value === null) {
+      const str = String(value)
+      let hash = 0
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i)
+        hash = (hash << 5) - hash + char
+        hash = hash & hash // Convert to 32-bit integer
+      }
+      return hash
+    }
+
+    // For objects, use WeakMap to assign unique IDs
+    if (!this.objectIds.has(value)) {
+      this.objectIds.set(value, this.nextId++)
+    }
+    return this.objectIds.get(value)!
+  }
+
+  /**
+   * Get a string representation of the ID for use in composite keys.
+   */
+  getStringId(value: any): string {
+    if (value === null) return 'null'
+    if (value === undefined) return 'undefined'
+    if (typeof value !== 'object') return `str_${String(value)}`
+
+    return `obj_${this.getId(value)}`
+  }
+}
+
+/**
+ * Global instance for cases where a shared object ID space is needed.
+ */
+export const globalObjectIdGenerator = new ObjectIdGenerator()
