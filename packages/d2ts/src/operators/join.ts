@@ -116,8 +116,12 @@ export class JoinOperator<K, V1, V2> extends BinaryOperator<
     if (this.outputFrontier.lessThan(inputFrontier)) {
       this.outputFrontier = inputFrontier
       this.output.sendFrontier(this.outputFrontier)
-      this.#indexA.compact(this.outputFrontier)
-      this.#indexB.compact(this.outputFrontier)
+      // Compact in the background
+      // but do not await to avoid blocking the event loop
+      Promise.all([
+        this.#indexA.compactAsync(this.outputFrontier),
+        this.#indexB.compactAsync(this.outputFrontier)
+      ])
     }
   }
 }
