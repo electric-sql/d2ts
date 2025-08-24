@@ -148,11 +148,11 @@ export function electricStreamToD2Input<T extends Row<unknown> = Row>({
           if (changes.length > 0) {
             sendChanges(lastLsn)
           }
-          if (typeof message.headers.global_last_seen_lsn !== `number`) {
-            throw new Error(`global_last_seen_lsn is not a number`)
+          if (typeof message.headers.global_last_seen_lsn !== `string`) {
+            throw new Error(`global_last_seen_lsn not in message headers`)
           }
           const lsn = message.headers.global_last_seen_lsn
-          sendFrontier(lsn)
+          sendFrontier(parseInt(lsn))
           if (runOn === 'up-to-date' || runOn === 'lsn-advance') {
             log?.('running graph on up-to-date')
             graph.run()
