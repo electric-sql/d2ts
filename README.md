@@ -17,11 +17,15 @@
 <p align="center">
   <a href="https://github.com/electric-sql/d2ts/actions"><img src="https://github.com/electric-sql/d2ts/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/electric-sql/d2ts/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-green" alt="License - Apache 2.0"></a>
+<a href="https://app.fossa.com/projects/git%2Bgithub.com%2Felectric-sql%2Fd2ts?ref=badge_shield" alt="FOSSA Status"><img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2Felectric-sql%2Fd2ts.svg?type=shield"/></a>
   <a href="https://github.com/electric-sql/d2ts/
   ext/milestones"><img src="https://img.shields.io/badge/status-alpha-orange" alt="Status - Alpha"></a>
   <a href="https://discord.electric-sql.com"><img src="https://img.shields.io/discord/933657521581858818?color=5969EA&label=discord" alt="Chat - Discord"></a>
   <a href="https://x.com/ElectricSQL" target="_blank"><img src="https://img.shields.io/twitter/follow/ElectricSQL.svg?style=social&label=Follow @ElectricSQL"></a>
 </p>
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Felectric-sql%2Fd2ts.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Felectric-sql%2Fd2ts?ref=badge_large)
 
 # D2TS - Differential Dataflow in TypeScript <!-- omit in toc -->
 
