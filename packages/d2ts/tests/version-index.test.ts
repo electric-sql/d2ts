@@ -330,6 +330,28 @@ function createIndexTests<
         expect(result).toEqual([[10, 2]])
       })
 
+      test('should handle compaction with incomparable versions', () => {
+        const version1 = v([1, 0])
+        const version2 = v([1, 1])
+        const version3 = v([2, 0])
+
+        index.addValue('key1', version1, [10, 1])
+        index.addValue('key1', version2, [10, 2])
+        index.addValue('key1', version3, [10, -1])
+
+        const frontier = new Antichain([v([1, 2]), v([2, 1])])
+        index.compact(frontier) // [1, 1] -> [10, 3] and [2, 1] -> [10, -1]
+
+        const result1 = index.reconstructAt('key1', v([1, 2]))
+        expect(result1).toEqual([[10, 3]])
+
+        const result2 = index.reconstructAt('key1', v([2, 1]))
+        expect(result2).toEqual([
+          [10, 3],
+          [10, -1],
+        ])
+      })
+
       test('should throw error for invalid compaction frontier', () => {
         const version = v([1])
         const frontier1 = new Antichain([v([2])])
