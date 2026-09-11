@@ -542,6 +542,12 @@ export class SQLIndex<K, V> {
         const newVersion = oldVersion.advanceBy(compactionFrontier)
         const newVersionJson = newVersion.toJSON()
 
+        // Incomparable versions can advance to themselves; moving those rows
+        // would insert into the destination and then delete it.
+        if (oldVersion.equals(newVersion)) {
+          continue
+        }
+
         if (!versionGroups.has(newVersionJson)) {
           versionGroups.set(newVersionJson, [])
         }
