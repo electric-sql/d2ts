@@ -512,6 +512,93 @@ describe('SQLite Operators', () => {
       ]
 
       expect(latestMessage.collection.getInner()).toEqual(expectedResult)
+
+      // --- Add a new record ---
+      input.sendData(
+        v([3, 0]),
+        new MultiSet([
+          [{ category: 'A', amount: 25 }, 1],
+          [{ category: 'C', amount: 50 }, 1],
+        ]),
+      )
+      input.sendFrontier(new Antichain([v([4, 0])]))
+      graph.run()
+
+      const expectedAddResult = [
+        [
+          [
+            '{"category":"A"}',
+            {
+              category: 'A',
+              minimum: 5,
+              maximum: 25,
+            },
+          ],
+          1,
+        ],
+        [
+          [
+            '{"category":"A"}',
+            {
+              category: 'A',
+              minimum: 5,
+              maximum: 20,
+            },
+          ],
+          -1,
+        ],
+        [
+          [
+            '{"category":"C"}',
+            {
+              category: 'C',
+              minimum: 50,
+              maximum: 50,
+            },
+          ],
+          1,
+        ],
+      ]
+
+      expect(latestMessage.collection.getInner()).toEqual(expectedAddResult)
+
+      // --- Delete the current min and max ---
+      input.sendData(
+        v([5, 0]),
+        new MultiSet([
+          [{ category: 'A', amount: 5 }, -1],
+          [{ category: 'A', amount: 25 }, -1],
+        ]),
+      )
+      input.sendFrontier(new Antichain([v([6, 0])]))
+      graph.run()
+
+      const expectedDeleteResult = [
+        [
+          [
+            '{"category":"A"}',
+            {
+              category: 'A',
+              minimum: 10,
+              maximum: 20,
+            },
+          ],
+          1,
+        ],
+        [
+          [
+            '{"category":"A"}',
+            {
+              category: 'A',
+              minimum: 5,
+              maximum: 25,
+            },
+          ],
+          -1,
+        ],
+      ]
+
+      expect(latestMessage.collection.getInner()).toEqual(expectedDeleteResult)
     })
 
     test('with median and mode aggregates', () => {

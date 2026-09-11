@@ -206,9 +206,14 @@ export function min<T>(
   return {
     preMap: (data: T) => valueExtractor(data),
     reduce: (values: [number, number][]) => {
+      const net = new Map<number, number>()
+      for (const [value, multiplicity] of values) {
+        net.set(value, (net.get(value) || 0) + multiplicity)
+      }
+
       let minValue = Number.POSITIVE_INFINITY
-      for (const [value, _multiplicity] of values) {
-        if (value < minValue) {
+      for (const [value, multiplicity] of net) {
+        if (multiplicity > 0 && value < minValue) {
           minValue = value
         }
       }
@@ -227,9 +232,14 @@ export function max<T>(
   return {
     preMap: (data: T) => valueExtractor(data),
     reduce: (values: [number, number][]) => {
+      const net = new Map<number, number>()
+      for (const [value, multiplicity] of values) {
+        net.set(value, (net.get(value) || 0) + multiplicity)
+      }
+
       let maxValue = Number.NEGATIVE_INFINITY
-      for (const [value, _multiplicity] of values) {
-        if (value > maxValue) {
+      for (const [value, multiplicity] of net) {
+        if (multiplicity > 0 && value > maxValue) {
           maxValue = value
         }
       }
